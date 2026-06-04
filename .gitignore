@@ -1,0 +1,23 @@
+# macOS / editor cruft
+.DS_Store
+.vscode/
+.idea/
+
+# logs / deps
+*.log
+node_modules/
+
+# local tooling & private deployment — must never be published
+.claude/
+.superpowers/
+deploy.sh
+sync-public.sh
+*.local.json
+
+# internal dev docs (kept private)
+docs/
+
+# misc scratch
+temp_scan.js
+test-*
+*.ps1

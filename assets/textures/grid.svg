@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <g stroke="#9a9080" stroke-width="0.5" opacity="0.22" fill="none">
+    <line x1="0" y1="0" x2="64" y2="0"/>
+    <line x1="0" y1="64" x2="64" y2="64"/>
+    <line x1="0" y1="0" x2="0" y2="64"/>
+    <line x1="64" y1="0" x2="64" y2="64"/>
+  </g>
+  <g stroke="#9a9080" stroke-width="0.3" opacity="0.12" fill="none">
+    <line x1="32" y1="0" x2="32" y2="64"/>
+    <line x1="0" y1="32" x2="64" y2="32"/>
+  </g>
+</svg>

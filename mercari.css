@@ -1,0 +1,97 @@
+/* Mercari 二手市场 —— 主色 Mercari 红 #e4002b */
+#mercari { background: var(--bg-page, #f5f5f7); }
+.mc-top { background:#e4002b; color:#fff; padding:calc(12px + env(safe-area-inset-top, 0px)) 14px 12px; font-weight:700; font-size:16px;
+  display:flex; align-items:center; justify-content:space-between; }
+.mc-top-actions { display:flex; align-items:center; gap:8px; }
+.mc-top-left { display:flex; align-items:center; gap:4px; }
+.mc-top-back { background:none; border:0; color:#fff; padding:2px; margin-left:-4px;
+  display:flex; align-items:center; cursor:pointer; }
+.mc-top-back:active { opacity:0.6; }
+.mc-top-event { background:none; border:1px solid rgba(255,255,255,0.7); color:#fff;
+  padding:4px 10px; border-radius:14px; font-size:12px; font-weight:700; cursor:pointer;
+  white-space:nowrap; }
+.mc-top-event:active { background:rgba(255,255,255,0.18); }
+.mc-top-gear { background:none; border:0; color:#fff; padding:2px; cursor:pointer;
+  display:flex; align-items:center; }
+.mc-body { flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:0 0 calc(64px + env(safe-area-inset-bottom, 0px)); }
+.mc-placeholder { padding:40px 16px; text-align:center; color:var(--text-secondary); }
+.mc-tabbar { position:fixed; left:0; right:0; bottom:0; display:flex;
+  background:var(--bg-card,#fff); border-top:1px solid var(--border-light,#e6e6ea);
+  padding-bottom:env(safe-area-inset-bottom, 0px); }
+.mc-tabbar button { flex:1; border:0; background:none; padding:9px 0; font-size:11px;
+  color:var(--text-secondary,#b0b0b6); }
+.mc-tabbar button.on { color:#e4002b; font-weight:700; }
+
+/* 首页瀑布流 */
+.mc-search { margin:10px 14px; padding:8px 12px; background:var(--bg-card,#fff);
+  border:1px solid var(--border-light,#e6e6ea); border-radius:20px;
+  color:var(--text-secondary,#9a9aa0); font-size:13px; }
+.mc-banner { margin:0 14px 10px; padding:9px 12px; background:#fff4f5;
+  border:1px solid #f6d4d8; border-radius:8px; color:#e4002b; font-weight:600;
+  font-size:13px; display:flex; justify-content:space-between; }
+.mc-refresh { margin:0 14px 12px; padding:9px; display:flex; align-items:center;
+  justify-content:center; gap:5px; background:var(--bg-card,#fff);
+  border:1px solid #f6d4d8; border-radius:8px; color:#e4002b;
+  font-size:13px; font-weight:700; cursor:pointer; }
+.mc-refresh:active { background:#fff4f5; }
+.mc-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 14px; }
+.mc-card { background:var(--bg-card,#fff); border:1px solid var(--border-light,#e6e6ea);
+  border-radius:8px; overflow:hidden; }
+.mc-card-img { height:96px; background:#ececf0; position:relative; }
+.mc-sold { position:absolute; left:0; top:0; background:#e4002b; color:#fff;
+  font-size:10px; font-weight:700; padding:2px 7px; }
+.mc-card-ti { padding:5px 7px 0; font-size:12px; color:var(--text-primary,#222);
+  line-height:1.35; }
+.mc-card-pr { padding:1px 7px 7px; font-size:14px; font-weight:800;
+  color:var(--text-primary,#222); }
+
+/* 商品详情页 */
+.mc-d-bar { padding:10px 14px; color:var(--text-secondary,#888); font-size:13px; }
+.mc-d-img { height:200px; background:#ececf0; }
+.mc-d-pad { padding:12px 14px; }
+.mc-d-name { font-size:15px; font-weight:600; color:var(--text-primary,#222); }
+.mc-d-price { font-size:24px; font-weight:800; color:#e4002b; margin-top:4px; }
+.mc-d-soldtag { color:var(--text-secondary,#888); font-size:12px; margin-top:2px; }
+.mc-d-fake { background:#fff0e6; color:#d2691e; font-size:12px; font-weight:700;
+  padding:5px 8px; border-radius:6px; margin-top:6px; }
+.mc-d-meta { margin-top:8px; font-size:12px; color:var(--text-secondary,#888); }
+.mc-d-h { font-size:13px; font-weight:700; color:var(--text-primary,#444);
+  margin:16px 0 6px; padding-top:12px; border-top:1px solid var(--border-light,#eee);
+  display:flex; justify-content:space-between; align-items:center; }
+.mc-d-desc { font-size:13px; color:var(--text-primary,#333); line-height:1.6; }
+.mc-d-seller { display:flex; gap:9px; align-items:center; }
+.mc-d-ava { width:34px; height:34px; border-radius:50%; background:#dddde1; }
+.mc-d-sname { font-weight:600; color:var(--text-primary,#222); font-size:13px; }
+.mc-d-stars { font-size:11px; color:#f5a623; }
+.mc-d-relay { background:var(--bg-card,#fbfbfc); border:1px solid var(--border-light,#eee);
+  border-radius:8px; padding:9px 11px; }
+.mc-d-relay .row { display:flex; justify-content:space-between; font-size:12px; margin-top:4px; }
+.mc-d-relay .row:first-child { margin-top:0; }
+.mc-d-relay .row.hot { color:#e4002b; font-weight:700; }
+.mc-cmt { margin-top:9px; }
+.mc-cmt-n { font-size:11px; color:var(--text-secondary,#999); }
+.mc-cmt-t { font-size:13px; color:var(--text-primary,#333); margin-top:1px; }
+.mc-cmt.seller .mc-cmt-t { background:#fff4f5; border-radius:6px; padding:5px 8px; }
+.mc-dim, .mc-d-relay .mc-dim { color:var(--text-secondary,#aaa); font-size:12px; }
+.mc-regen { border:1px solid var(--border-light,#ddd); background:none;
+  color:var(--text-secondary,#888); font-size:11px; padding:2px 8px; border-radius:10px; }
+.mc-d-actions { display:flex; gap:8px; padding:12px 14px 20px; }
+.mc-fav { flex:1; padding:10px; border:1px solid #e4002b; background:none; color:#e4002b;
+  font-weight:700; border-radius:8px; font-size:13px; }
+.mc-fav.on { background:#fff4f5; }
+.mc-share { flex:1; padding:10px; border:0; background:#06c755; color:#fff;
+  font-weight:700; border-radius:8px; font-size:13px; }
+
+/* 行情榜 / さがす chip */
+.mc-rk-row { display:flex; align-items:center; gap:9px; padding:7px 0;
+  border-bottom:1px solid var(--border-light,#f2f2f4); }
+.mc-rk-no { width:18px; text-align:center; font-weight:800; color:#e4002b; }
+.mc-rk-dot { width:18px; text-align:center; color:#e4002b; }
+.mc-rk-nm { flex:1; font-size:13px; color:var(--text-primary,#222); }
+.mc-rk-s { font-size:11px; color:var(--text-secondary,#999); margin-top:1px; }
+.mc-rk-tr { font-size:12px; font-weight:700; }
+.mc-rk-tr .up { color:#e4002b; } .mc-rk-tr .dn { color:#5b8def; } .mc-rk-tr .fl { color:#aaa; }
+.mc-chips, .mc-chip { font-size:12px; }
+.mc-chips { display:flex; flex-wrap:wrap; gap:6px; }
+.mc-chip { border:1px solid var(--border-light,#ddd); background:var(--bg-card,#fff);
+  color:var(--text-primary,#333); border-radius:14px; padding:4px 11px; }

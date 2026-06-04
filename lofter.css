@@ -1,0 +1,2491 @@
+/* Lofter 模块样式（v2.73.0）
+ * 设计：白底 + tiffany 蓝绿 #1abc9c 点缀色 / 无渐变 / 圆角 chip / 留白多
+ * 同微博 / 论坛 / 推特一样、用 .screen flex column + body flex:1 + overflow-y:auto 滚动三件套（v2.72.5 mercari 修复同款）
+ */
+
+#lofter {
+    background: var(--bg-page, #f7f7fa);
+    color: var(--text-primary, #1a1a1a);
+}
+
+/* ========== 顶 bar ========== */
+.lof-top {
+    background: var(--bg-card, #fff);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+    min-height: 50px;
+}
+.lof-back-home {
+    background: none;
+    border: 0;
+    padding: 2px;
+    margin-left: -4px;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+.lof-back-home:active { opacity: 0.6; }
+.lof-top-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    font-weight: 600;
+}
+.lof-top-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* ========== body 滚动区 ========== */
+.lof-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 0 calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+/* ========== Phase 0b 占位 ========== */
+.lof-placeholder {
+    padding: 80px 24px;
+    text-align: center;
+    color: var(--text-secondary, #888);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+.lof-placeholder-icon { color: #1abc9c; }
+.lof-placeholder-text { font-size: 14px; }
+
+/* ========== 底 tab bar（5 项、中间 compose 凸起）========== */
+.lof-tabbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    background: var(--bg-card, #fff);
+    border-top: 1px solid var(--border-light, #ecedf0);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 30;
+}
+.lof-nav-btn {
+    flex: 1;
+    border: 0;
+    background: none;
+    padding: 8px 0 6px;
+    font-size: 11px;
+    color: var(--text-secondary, #a0a0a6);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+}
+.lof-nav-btn span {
+    line-height: 1.2;
+}
+.lof-nav-btn.active {
+    color: #1abc9c;
+    font-weight: 600;
+}
+.lof-nav-compose {
+    color: #1a1a1a;
+    padding-top: 4px;
+    padding-bottom: 4px;
+}
+.lof-nav-compose svg {
+    transition: transform 0.15s ease;
+}
+.lof-nav-compose:active svg {
+    transform: scale(0.92);
+}
+
+/* ========== sub-screen 容器（仿 Weibo wb-sub-screen 同款）========== */
+.lof-sub-screen {
+    position: absolute;
+    inset: 0;
+    z-index: 100;
+    background: var(--bg-page, #f7f7fa);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* ========== 深色模式 ========== */
+[data-theme="night-sky"] #lofter {
+    background: #0f0f12;
+    color: #e8e8ec;
+}
+[data-theme="night-sky"] .lof-top {
+    background: #1a1a1f;
+    border-bottom-color: #2a2a30;
+}
+[data-theme="night-sky"] .lof-back-home { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-tabbar {
+    background: #1a1a1f;
+    border-top-color: #2a2a30;
+}
+[data-theme="night-sky"] .lof-nav-btn { color: #6a6a72; }
+[data-theme="night-sky"] .lof-nav-btn.active { color: #36d8b8; }
+[data-theme="night-sky"] .lof-nav-compose { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-placeholder-icon { color: #36d8b8; }
+[data-theme="night-sky"] .lof-sub-screen { background: #0f0f12; }
+
+/* ========== 顶 tab + 顶 icon（Phase 1a）========== */
+.lof-top-tab {
+    background: none;
+    border: 0;
+    color: var(--text-secondary, #888);
+    font-size: 16px;
+    font-weight: 500;
+    padding: 4px 0;
+    cursor: pointer;
+    position: relative;
+}
+.lof-top-tab.active {
+    color: var(--text-primary, #1a1a1a);
+    font-weight: 700;
+}
+.lof-top-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 3px;
+    background: #1abc9c;
+    border-radius: 2px;
+}
+.lof-top-icon {
+    background: none;
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+.lof-top-icon:active { opacity: 0.6; }
+.lof-top-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+}
+
+/* ========== 子分类 chip 横滚（Phase 1a）========== */
+.lof-chips-row {
+    background: var(--bg-card, #fff);
+    padding: 12px 14px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+    scrollbar-width: none;
+}
+.lof-chips-row::-webkit-scrollbar { display: none; }
+.lof-cat-chip {
+    flex: 0 0 auto;
+    background: none;
+    border: 0;
+    color: var(--text-secondary, #888);
+    font-size: 15px;
+    font-weight: 500;
+    padding: 4px 4px;
+    cursor: pointer;
+    position: relative;
+    white-space: nowrap;
+}
+.lof-cat-chip.active {
+    color: var(--text-primary, #1a1a1a);
+    font-weight: 700;
+}
+.lof-cat-chip.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 18px;
+    height: 3px;
+    background: #1abc9c;
+    border-radius: 2px;
+}
+.lof-chip-beta {
+    background: #ff6b6b;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 4px;
+    border-radius: 6px;
+    margin-left: 2px;
+    position: absolute;
+    top: -2px;
+    right: -16px;
+}
+
+/* ========== 大 banner（Phase 1a 占位）========== */
+.lof-banner {
+    margin: 10px 14px 4px;
+    padding: 16px 18px;
+    background: linear-gradient(95deg, #ffd6e0, #fce4ec);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    color: #d63384;
+}
+.lof-banner:active { transform: scale(0.99); }
+.lof-banner-title { font-size: 17px; font-weight: 700; }
+.lof-banner-sub { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+.lof-banner-decor { color: #d63384; }
+
+/* ========== 双栏瀑布流（Phase 1a）========== */
+.lof-feed-wrap {
+    padding: 8px 7px 0;
+}
+.lof-feed {
+    display: flex;
+    gap: 6px;
+}
+.lof-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* ========== 文章卡（Phase 1a）========== */
+.lof-card {
+    background: var(--bg-card, #fff);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    border: 1px solid transparent;
+}
+.lof-card:active {
+    transform: scale(0.98);
+}
+.lof-card-top-badge {
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+}
+.lof-badge-followed { background: #1abc9c; }
+.lof-badge-subscribed { background: #ff8e7c; }
+
+.lof-card-img {
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: #f0f0f3;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #aaa;
+}
+.lof-card-img-multi-badge {
+    position: absolute;
+    right: 6px;
+    bottom: 6px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border-radius: 8px;
+    padding: 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.lof-card-body {
+    padding: 10px 10px 8px;
+}
+.lof-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.35;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.lof-card-summary {
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    line-height: 1.45;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.lof-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+.lof-card-tag-chip {
+    background: #f3f3f5;
+    color: #1abc9c;
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 6px;
+}
+
+.lof-card-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+}
+.lof-card-author {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+}
+.lof-card-avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-card-author-name {
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lof-card-stats {
+    display: flex;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+.lof-act-like {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--text-secondary, #999);
+}
+.lof-act-like.liked {
+    color: #ff6b9d;
+}
+
+/* ========== 空状态 + 刷新按钮 ========== */
+.lof-empty {
+    padding: 60px 24px;
+    text-align: center;
+    color: var(--text-secondary, #888);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+.lof-empty-text {
+    font-size: 14px;
+    line-height: 1.5;
+}
+.lof-refresh-btn {
+    background: #1abc9c;
+    color: #fff;
+    border: 0;
+    padding: 8px 20px;
+    border-radius: 18px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.lof-refresh-btn:active { opacity: 0.85; }
+
+/* ========== 深色模式（Phase 1a 增量）========== */
+[data-theme="night-sky"] .lof-top-tab { color: #6a6a72; }
+[data-theme="night-sky"] .lof-top-tab.active { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-top-icon { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-top-title { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-chips-row {
+    background: #1a1a1f;
+    border-bottom-color: #2a2a30;
+}
+[data-theme="night-sky"] .lof-cat-chip { color: #6a6a72; }
+[data-theme="night-sky"] .lof-cat-chip.active { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-banner {
+    background: linear-gradient(95deg, #3a1f28, #4a2a3a);
+    color: #ffd6e0;
+}
+[data-theme="night-sky"] .lof-banner-decor { color: #ffd6e0; }
+[data-theme="night-sky"] .lof-card { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-card-title { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-card-summary { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-card-author-name { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-card-tag-chip { background: #2a2a30; color: #36d8b8; }
+[data-theme="night-sky"] .lof-card-img { background: #2a2a30; }
+[data-theme="night-sky"] .lof-act-like { color: #6a6a72; }
+[data-theme="night-sky"] .lof-act-like.liked { color: #ff8eb0; }
+[data-theme="night-sky"] .lof-empty-text { color: #6a6a72; }
+[data-theme="night-sky"] .lof-refresh-btn { background: #36d8b8; color: #1a1a1f; }
+
+/* ========== Phase 1c: 文章详情页 ========== */
+
+/* 顶 bar */
+.lof-detail-bar {
+    background: var(--bg-card, #fff);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+    min-height: 50px;
+}
+.lof-detail-back {
+    background: none;
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+    margin-left: -4px;
+}
+.lof-detail-back:active { opacity: 0.6; }
+.lof-detail-author-head {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.lof-detail-author-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-detail-author-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lof-detail-follow-btn {
+    background: transparent;
+    border: 1px solid #1abc9c;
+    color: #1abc9c;
+    padding: 4px 14px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.lof-detail-follow-btn.followed {
+    background: #f3f3f5;
+    border-color: #ddd;
+    color: var(--text-secondary, #888);
+}
+.lof-detail-share-btn {
+    background: none;
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+
+/* body */
+.lof-detail-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 20px 18px 100px;
+    background: var(--bg-card, #fff);
+}
+.lof-detail-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.4;
+    margin-bottom: 12px;
+}
+.lof-detail-summary {
+    text-decoration: underline;
+    color: var(--text-primary, #1a1a1a);
+    font-size: 16px;
+    margin-bottom: 18px;
+    line-height: 1.6;
+}
+.lof-detail-content { font-size: 16px; line-height: 1.85; color: var(--text-primary, #1a1a1a); }
+.lof-detail-paragraph { margin: 0 0 18px; }
+.lof-detail-tags {
+    margin: 16px 0 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.lof-detail-tag-chip {
+    background: #f3f3f5;
+    color: var(--text-secondary, #666);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 14px;
+    cursor: pointer;
+}
+.lof-detail-tag-chip:active { opacity: 0.7; }
+
+.lof-detail-edit-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light, #f0f0f3);
+    font-size: 12px;
+    color: var(--text-secondary, #999);
+}
+.lof-detail-edit-spacer { flex: 1; }
+.lof-detail-heat { font-weight: 500; }
+.lof-detail-fav-btn {
+    background: none;
+    border: 0;
+    color: var(--text-secondary, #888);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 4px 0;
+}
+.lof-detail-fav-btn.favorited { color: #f5b800; }
+
+/* 合集悬浮卡 */
+.lof-detail-collection-card {
+    margin: 18px -4px 0;
+    background: #f8fafa;
+    border: 1px solid #e5f1ed;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.lof-collection-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    color: var(--text-primary, #1a1a1a);
+    font-size: 14px;
+    border-bottom: 1px solid #e5f1ed;
+}
+.lof-collection-name { font-weight: 600; flex: 1; }
+.lof-collection-emoji-tag {
+    background: #ffe0e8;
+    color: #ff6b9d;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+}
+.lof-collection-sub-btn {
+    background: none;
+    border: 0;
+    color: #1abc9c;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.lof-collection-sub-btn.subscribed { color: var(--text-secondary, #999); }
+.lof-collection-nav {
+    display: flex;
+    background: #fff;
+}
+.lof-collection-nav button {
+    flex: 1;
+    background: none;
+    border: 0;
+    padding: 12px 8px;
+    font-size: 13px;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    border-right: 1px solid #f0f0f3;
+}
+.lof-collection-nav button:last-child { border-right: 0; }
+.lof-collection-nav button:disabled { color: var(--text-tertiary, #ccc); cursor: not-allowed; }
+
+/* 评论区 */
+.lof-detail-comment-section { margin-top: 24px; }
+.lof-detail-section-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 12px;
+}
+.lof-detail-comment-count { color: var(--text-secondary, #888); font-weight: 400; font-size: 13px; }
+.lof-detail-comment-input-wrap { margin-bottom: 16px; }
+.lof-detail-comment-input-mock {
+    background: #f3f3f5;
+    color: var(--text-tertiary, #aaa);
+    font-size: 14px;
+    padding: 10px 14px;
+    border-radius: 18px;
+    cursor: pointer;
+}
+.lof-detail-empty {
+    padding: 30px 12px;
+    text-align: center;
+    color: var(--text-tertiary, #aaa);
+    font-size: 13px;
+}
+
+/* 评论 row */
+.lof-comment-row {
+    display: flex;
+    gap: 10px;
+    padding: 10px 0;
+}
+.lof-comment-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-comment-body { flex: 1; min-width: 0; }
+.lof-comment-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 2px;
+}
+.lof-comment-name {
+    font-size: 13px;
+    color: var(--text-secondary, #666);
+    font-weight: 500;
+}
+.lof-comment-op-badge {
+    background: #1abc9c;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+.lof-comment-text {
+    font-size: 14px;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.55;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+.lof-comment-foot {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 11px;
+    color: var(--text-tertiary, #aaa);
+}
+.lof-comment-like {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+.lof-comment-children {
+    margin-left: 42px;
+    padding-left: 10px;
+    border-left: 2px solid #f0eef0;
+    margin-top: 2px;
+}
+
+/* 浮动「稍后再看」按钮 */
+.lof-detail-readlater-fab {
+    position: fixed;
+    right: 14px;
+    bottom: 76px;
+    z-index: 110;
+    background: #fff;
+    border: 1px solid var(--border-light, #ecedf0);
+    color: var(--text-primary, #1a1a1a);
+    padding: 7px 13px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.lof-detail-readlater-fab.active { color: #1abc9c; border-color: #1abc9c; }
+
+/* 底部 sticky bar */
+.lof-detail-bottom-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 110;
+    background: var(--bg-card, #fff);
+    border-top: 1px solid var(--border-light, #ecedf0);
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.lof-detail-bottom-input {
+    flex: 1;
+    background: #f3f3f5;
+    border: 0;
+    border-radius: 18px;
+    padding: 10px 14px;
+    color: var(--text-tertiary, #aaa);
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+}
+.lof-detail-bottom-act {
+    background: none;
+    border: 0;
+    color: var(--text-secondary, #888);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px;
+}
+.lof-detail-bottom-act.liked { color: #ff6b9d; }
+
+/* 深色模式 */
+[data-theme="night-sky"] .lof-detail-bar {
+    background: #1a1a1f;
+    border-bottom-color: #2a2a30;
+}
+[data-theme="night-sky"] .lof-detail-back,
+[data-theme="night-sky"] .lof-detail-author-name,
+[data-theme="night-sky"] .lof-detail-share-btn,
+[data-theme="night-sky"] .lof-detail-title,
+[data-theme="night-sky"] .lof-detail-summary,
+[data-theme="night-sky"] .lof-detail-content,
+[data-theme="night-sky"] .lof-comment-text {
+    color: #e8e8ec;
+}
+[data-theme="night-sky"] .lof-detail-body { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-detail-tag-chip { background: #2a2a30; color: #b0b0b6; }
+[data-theme="night-sky"] .lof-detail-edit-meta {
+    color: #6a6a72;
+    border-top-color: #2a2a30;
+}
+[data-theme="night-sky"] .lof-detail-collection-card {
+    background: #1f262a;
+    border-color: #2a3035;
+}
+[data-theme="night-sky"] .lof-collection-head { border-bottom-color: #2a3035; }
+[data-theme="night-sky"] .lof-collection-nav { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-collection-nav button { color: #e8e8ec; border-right-color: #2a2a30; }
+[data-theme="night-sky"] .lof-collection-emoji-tag { background: #3a1f28; color: #ff8eb0; }
+[data-theme="night-sky"] .lof-detail-section-title { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-detail-comment-input-mock { background: #2a2a30; color: #6a6a72; }
+[data-theme="night-sky"] .lof-comment-name { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-comment-children { border-left-color: #2a2a30; }
+[data-theme="night-sky"] .lof-comment-foot { color: #6a6a72; }
+[data-theme="night-sky"] .lof-detail-readlater-fab {
+    background: #1a1a1f;
+    border-color: #2a2a30;
+    color: #e8e8ec;
+}
+[data-theme="night-sky"] .lof-detail-readlater-fab.active { color: #36d8b8; border-color: #36d8b8; }
+[data-theme="night-sky"] .lof-detail-bottom-bar {
+    background: #1a1a1f;
+    border-top-color: #2a2a30;
+}
+[data-theme="night-sky"] .lof-detail-bottom-input { background: #2a2a30; color: #6a6a72; }
+[data-theme="night-sky"] .lof-detail-bottom-act { color: #6a6a72; }
+[data-theme="night-sky"] .lof-detail-bottom-act.liked { color: #ff8eb0; }
+
+/* ========== Phase 2a: 我的 tab ========== */
+
+.lof-me {
+    padding: 18px 14px 30px;
+}
+.lof-me-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 4px 4px 18px;
+}
+.lof-me-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-me-meta { flex: 1; min-width: 0; }
+.lof-me-name {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-me-edit {
+    background: none;
+    border: 0;
+    color: var(--text-tertiary, #aaa);
+    cursor: pointer;
+    padding: 8px;
+}
+
+/* 4 数据 */
+.lof-me-stats {
+    display: flex;
+    background: var(--bg-card, #fff);
+    border-radius: 12px;
+    padding: 16px 0;
+    margin-bottom: 14px;
+}
+.lof-me-stat {
+    flex: 1;
+    text-align: center;
+}
+.lof-me-stat-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.2;
+}
+.lof-me-stat-label {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    margin-top: 2px;
+}
+
+/* 4 快捷入口 */
+.lof-me-entries {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    background: var(--bg-card, #fff);
+    border-radius: 12px;
+    padding: 18px 12px;
+    margin-bottom: 14px;
+}
+.lof-me-entry {
+    background: none;
+    border: 0;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    padding: 4px;
+}
+.lof-me-entry-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+}
+.lof-entry-heart { color: #ff6b9d; }
+.lof-entry-bookmark { color: #3b82f6; }
+.lof-entry-foot { color: #06b6d4; }
+.lof-entry-readlater { color: #f59e0b; }
+.lof-me-entry-label {
+    font-size: 12px;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-me-entry-badge {
+    position: absolute;
+    top: -2px;
+    right: 14%;
+    background: #ff6b6b;
+    color: #fff;
+    border-radius: 9px;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+/* 订阅更新横幅 */
+.lof-me-update-banner {
+    background: var(--bg-card, #fff);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    cursor: pointer;
+}
+.lof-me-update-banner:active { opacity: 0.85; }
+.lof-me-update-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-me-update-text {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-primary, #1a1a1a);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lof-me-update-arrow {
+    color: var(--text-tertiary, #ccc);
+    font-size: 20px;
+    line-height: 1;
+}
+
+/* 消息 / 创作者中心 */
+.lof-me-section {
+    background: var(--bg-card, #fff);
+    border-radius: 12px;
+    padding: 14px 14px 18px;
+    margin-bottom: 12px;
+}
+.lof-me-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 12px;
+}
+.lof-me-msg-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+.lof-me-msg-item {
+    background: none;
+    border: 0;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+}
+.lof-me-msg-icon { color: var(--text-secondary, #888); }
+.lof-me-msg-label {
+    font-size: 11px;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-me-creator-note {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    line-height: 1.6;
+    padding: 4px 0;
+}
+
+/* 深色模式 */
+[data-theme="night-sky"] .lof-me-stats,
+[data-theme="night-sky"] .lof-me-entries,
+[data-theme="night-sky"] .lof-me-update-banner,
+[data-theme="night-sky"] .lof-me-section { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-me-name,
+[data-theme="night-sky"] .lof-me-stat-num,
+[data-theme="night-sky"] .lof-me-entry-label,
+[data-theme="night-sky"] .lof-me-update-text,
+[data-theme="night-sky"] .lof-me-section-title,
+[data-theme="night-sky"] .lof-me-msg-label { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-me-stat-label,
+[data-theme="night-sky"] .lof-me-creator-note { color: #6a6a72; }
+[data-theme="night-sky"] .lof-me-msg-icon { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-me-update-arrow { color: #4a4a52; }
+
+/* ========== Phase 2b: 喜欢/收藏 / 足迹 / 稍后再看 sub-screens ========== */
+
+.lof-sub-bar {
+    background: var(--bg-card, #fff);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+    min-height: 50px;
+}
+.lof-sub-back {
+    background: none;
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    font-size: 28px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+    margin-left: -4px;
+}
+.lof-sub-tabs {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+}
+.lof-sub-tab {
+    background: none;
+    border: 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-secondary, #888);
+    cursor: pointer;
+    padding: 4px 0;
+    position: relative;
+}
+.lof-sub-tab.active {
+    color: var(--text-primary, #1a1a1a);
+    font-weight: 700;
+}
+.lof-sub-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 3px;
+    background: #1abc9c;
+    border-radius: 2px;
+}
+.lof-sub-title {
+    flex: 1;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-sub-search,
+.lof-sub-clear {
+    background: none;
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+}
+.lof-sub-clear { color: var(--text-secondary, #888); font-size: 13px; }
+
+.lof-sub-meta {
+    background: var(--bg-card, #fff);
+    padding: 14px 14px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+}
+.lof-sub-count {
+    font-size: 13px;
+    color: var(--text-secondary, #888);
+}
+.lof-view-toggle {
+    background: none;
+    border: 0;
+    color: var(--text-secondary, #888);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.lof-sub-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg-card, #fff);
+    padding: 8px 14px 30px;
+}
+
+.lof-sub-empty {
+    padding: 80px 24px;
+    text-align: center;
+    color: var(--text-tertiary, #aaa);
+    font-size: 14px;
+}
+
+/* 按月分组 */
+.lof-month-group { margin-bottom: 18px; }
+.lof-month-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 14px 0 10px;
+}
+.lof-month-label {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-month-count {
+    font-size: 13px;
+    color: var(--text-secondary, #999);
+}
+
+/* 网格视图 */
+.lof-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+.lof-article-thumb {
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.lof-article-thumb-img { background: #f0f0f3; }
+.lof-thumb-multi-badge {
+    position: absolute;
+    right: 5px;
+    bottom: 5px;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    border-radius: 8px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 600;
+}
+.lof-article-thumb-text {
+    background: #fafafa;
+    padding: 8px;
+}
+.lof-thumb-text-title {
+    font-size: 12px;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 列表视图 */
+.lof-list { display: flex; flex-direction: column; gap: 8px; }
+.lof-article-list-row {
+    background: #fafafa;
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+}
+.lof-list-row-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.4;
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.lof-list-row-summary {
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* 已失效占位 */
+.lof-article-invalid {
+    background: #f3f3f5;
+    color: var(--text-tertiary, #aaa);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: default;
+}
+.lof-article-thumb.lof-article-invalid { aspect-ratio: 1 / 1; }
+.lof-article-list-row.lof-article-invalid { padding: 16px 12px; text-align: center; }
+.lof-article-invalid-text { font-size: 12px; }
+
+/* 深色模式 */
+[data-theme="night-sky"] .lof-sub-bar,
+[data-theme="night-sky"] .lof-sub-meta,
+[data-theme="night-sky"] .lof-sub-body { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-sub-bar { border-bottom-color: #2a2a30; }
+[data-theme="night-sky"] .lof-sub-meta { border-bottom-color: #2a2a30; }
+[data-theme="night-sky"] .lof-sub-back,
+[data-theme="night-sky"] .lof-sub-title,
+[data-theme="night-sky"] .lof-sub-search,
+[data-theme="night-sky"] .lof-month-label,
+[data-theme="night-sky"] .lof-thumb-text-title,
+[data-theme="night-sky"] .lof-list-row-title { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-sub-tab { color: #6a6a72; }
+[data-theme="night-sky"] .lof-sub-tab.active { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-article-thumb-img { background: #2a2a30; }
+[data-theme="night-sky"] .lof-article-thumb-text { background: #2a2a30; }
+[data-theme="night-sky"] .lof-article-list-row { background: #2a2a30; }
+[data-theme="night-sky"] .lof-list-row-summary { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-article-invalid { background: #2a2a30; color: #6a6a72; }
+
+/* ========== Phase 3a: 关注 tab ========== */
+
+/* 关注子 tab: 横滚头像 */
+.lof-update-row {
+    display: flex;
+    gap: 14px;
+    padding: 14px;
+    background: var(--bg-card, #fff);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+    scrollbar-width: none;
+}
+.lof-update-row::-webkit-scrollbar { display: none; }
+.lof-update-avatar-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    width: 56px;
+}
+.lof-update-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    color: #fff;
+    font-weight: 600;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    box-shadow: 0 0 0 2px var(--bg-card, #fff);
+}
+.lof-update-dot {
+    position: absolute;
+    right: -1px;
+    top: -1px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: #ff6b9d;
+    border: 2px solid var(--bg-card, #fff);
+}
+.lof-update-name {
+    font-size: 11px;
+    color: var(--text-primary, #1a1a1a);
+    text-align: center;
+    line-height: 1.2;
+}
+
+/* 关注子 tab: 信息流 */
+.lof-follow-feed {
+    padding: 10px 14px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.lof-follow-feed .lof-card {
+    border: 1px solid var(--border-light, #ecedf0);
+}
+
+/* 订阅子 tab: 筛选 chip */
+.lof-sub-filters {
+    display: flex;
+    gap: 8px;
+    padding: 14px 14px 12px;
+    background: var(--bg-card, #fff);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+}
+.lof-sub-filters::-webkit-scrollbar { display: none; }
+.lof-sub-filter-chip {
+    background: #f3f3f5;
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    padding: 6px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    cursor: pointer;
+    flex: 0 0 auto;
+    position: relative;
+}
+.lof-sub-filter-chip.active {
+    background: #1a1a1a;
+    color: #fff;
+    font-weight: 600;
+}
+.lof-chip-num-badge {
+    background: #ff6b6b;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0 5px;
+    border-radius: 9px;
+    margin-left: 4px;
+    position: absolute;
+    top: -4px;
+    right: -8px;
+}
+
+/* 订阅列表通用 */
+.lof-sub-list {
+    background: var(--bg-card, #fff);
+    padding: 14px 14px 30px;
+}
+
+/* 订阅 tag row */
+.lof-sub-tag-row {
+    background: #f8fafa;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+}
+.lof-sub-tag-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+.lof-sub-tag-name {
+    flex: 1;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-sub-tag-count {
+    background: #f3f3f5;
+    color: var(--text-secondary, #888);
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 8px;
+}
+.lof-sub-tag-arrow {
+    color: var(--text-tertiary, #ccc);
+    font-size: 20px;
+    line-height: 1;
+}
+.lof-sub-tag-preview {
+    background: #fff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid #ecedf0;
+}
+.lof-sub-tag-preview-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.4;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.lof-sub-tag-preview-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+}
+.lof-sub-tag-trend {
+    background: #e0f7f0;
+    color: #1abc9c;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* 订阅合集 row */
+.lof-sub-col-row {
+    background: #f8fafa;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+}
+.lof-sub-col-cover {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-sub-col-meta { flex: 1; min-width: 0; }
+.lof-sub-col-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lof-sub-col-stats {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+}
+
+/* 深色模式 */
+[data-theme="night-sky"] .lof-update-row,
+[data-theme="night-sky"] .lof-sub-filters,
+[data-theme="night-sky"] .lof-sub-list { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-update-row,
+[data-theme="night-sky"] .lof-sub-filters { border-bottom-color: #2a2a30; }
+[data-theme="night-sky"] .lof-update-avatar { box-shadow: 0 0 0 2px #1a1a1f; }
+[data-theme="night-sky"] .lof-update-dot { border-color: #1a1a1f; }
+[data-theme="night-sky"] .lof-update-name { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-sub-filter-chip { background: #2a2a30; color: #e8e8ec; }
+[data-theme="night-sky"] .lof-sub-filter-chip.active { background: #e8e8ec; color: #1a1a1f; }
+[data-theme="night-sky"] .lof-sub-tag-row,
+[data-theme="night-sky"] .lof-sub-col-row { background: #22272a; }
+[data-theme="night-sky"] .lof-sub-tag-name,
+[data-theme="night-sky"] .lof-sub-col-name,
+[data-theme="night-sky"] .lof-sub-tag-preview-title { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-sub-tag-count {
+    background: #2a2a30;
+    color: #9a9a9f;
+}
+[data-theme="night-sky"] .lof-sub-tag-preview {
+    background: #1a1a1f;
+    border-color: #2a2a30;
+}
+[data-theme="night-sky"] .lof-sub-tag-preview-meta,
+[data-theme="night-sky"] .lof-sub-col-stats { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-sub-tag-trend {
+    background: #1f4035;
+    color: #36d8b8;
+}
+[data-theme="night-sky"] .lof-follow-feed .lof-card { border-color: #2a2a30; }
+
+/* ========== Phase 3b: Tag 详情页 ========== */
+
+#lofTagDetailSubScreen {
+    background: linear-gradient(170deg, #c8e6cf 0%, #e8f4ec 30%, #fff 60%);
+}
+
+.lof-tag-bar {
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 14px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: transparent;
+    min-height: 50px;
+}
+.lof-tag-search-mock {
+    flex: 1;
+    background: rgba(255,255,255,0.5);
+    color: var(--text-secondary, #888);
+    padding: 7px 12px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.lof-tag-sub-btn {
+    background: rgba(255,255,255,0.65);
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    padding: 6px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.lof-tag-sub-btn.subscribed { background: rgba(255,255,255,0.4); color: var(--text-secondary, #888); }
+.lof-tag-share {
+    background: none;
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    padding: 4px;
+}
+
+.lof-tag-head {
+    padding: 0 18px 18px;
+    background: transparent;
+}
+.lof-tag-head-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+.lof-tag-title-wrap { flex: 1; min-width: 0; }
+.lof-tag-title {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.2;
+    margin-bottom: 6px;
+}
+.lof-tag-stats {
+    font-size: 13px;
+    color: var(--text-primary, #1a1a1a);
+    opacity: 0.7;
+    margin-bottom: 8px;
+}
+.lof-tag-atmosphere {
+    display: flex;
+    gap: 6px;
+}
+.lof-tag-atmos-chip {
+    background: rgba(255,255,255,0.6);
+    color: var(--text-primary, #1a1a1a);
+    font-size: 12px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+}
+.lof-tag-companion {
+    background: rgba(255,255,255,0.6);
+    border-radius: 14px;
+    padding: 8px 16px;
+    text-align: center;
+    flex: 0 0 auto;
+}
+.lof-tag-companion-num {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.1;
+}
+.lof-tag-companion-label {
+    font-size: 11px;
+    color: var(--text-secondary, #666);
+}
+
+.lof-tag-entries {
+    display: flex;
+    gap: 30px;
+}
+.lof-tag-my-authors {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+.lof-tag-my-authors-avatars {
+    display: flex;
+    margin-left: 8px;
+}
+.lof-tag-author-mini {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 1.5px #fff;
+    margin-left: -8px;
+}
+.lof-tag-my-authors-label {
+    font-size: 12px;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-tag-no-authors svg { color: var(--text-secondary, #888); }
+.lof-tag-col-entry {
+    background: none;
+    border: 0;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.lof-tag-col-entry-label {
+    font-size: 12px;
+    color: var(--text-primary, #1a1a1a);
+}
+
+/* 顶 tab + 筛选 chip */
+.lof-tag-subtabs {
+    display: flex;
+    justify-content: space-around;
+    background: var(--bg-card, #fff);
+    padding: 12px 0;
+    border-top-left-radius: 18px;
+    border-top-right-radius: 18px;
+}
+.lof-tag-subtab {
+    background: none;
+    border: 0;
+    color: var(--text-secondary, #888);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 2px 4px;
+    position: relative;
+}
+.lof-tag-subtab.active {
+    color: var(--text-primary, #1a1a1a);
+    font-weight: 700;
+}
+.lof-tag-subtab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 3px;
+    background: #1abc9c;
+    border-radius: 2px;
+}
+.lof-tag-filters {
+    display: flex;
+    gap: 8px;
+    padding: 14px 14px 12px;
+    background: var(--bg-card, #fff);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+}
+.lof-tag-filters::-webkit-scrollbar { display: none; }
+.lof-tag-filter-chip {
+    background: #f3f3f5;
+    border: 0;
+    color: var(--text-secondary, #666);
+    padding: 5px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    cursor: pointer;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.lof-tag-filter-chip.active {
+    background: #fff;
+    color: var(--text-primary, #1a1a1a);
+    font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+.lof-tag-filter-icon {
+    padding: 5px 8px;
+}
+
+.lof-tag-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg-card, #fff);
+    padding: 8px 7px 20px;
+}
+.lof-tag-feed {
+    padding: 0;
+}
+
+/* 深色模式 */
+[data-theme="night-sky"] #lofTagDetailSubScreen {
+    background: linear-gradient(170deg, #1f3026 0%, #1f2825 30%, #1a1a1f 60%);
+}
+[data-theme="night-sky"] .lof-tag-search-mock {
+    background: rgba(255,255,255,0.08);
+    color: #9a9a9f;
+}
+[data-theme="night-sky"] .lof-tag-sub-btn {
+    background: rgba(255,255,255,0.08);
+    color: #e8e8ec;
+}
+[data-theme="night-sky"] .lof-tag-share { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-tag-title,
+[data-theme="night-sky"] .lof-tag-stats,
+[data-theme="night-sky"] .lof-tag-atmos-chip,
+[data-theme="night-sky"] .lof-tag-companion-num,
+[data-theme="night-sky"] .lof-tag-my-authors-label,
+[data-theme="night-sky"] .lof-tag-col-entry-label { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-tag-atmos-chip,
+[data-theme="night-sky"] .lof-tag-companion { background: rgba(255,255,255,0.08); }
+[data-theme="night-sky"] .lof-tag-companion-label { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-tag-author-mini { box-shadow: 0 0 0 1.5px #1a1a1f; }
+[data-theme="night-sky"] .lof-tag-subtabs { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-tag-subtab { color: #6a6a72; }
+[data-theme="night-sky"] .lof-tag-subtab.active { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-tag-filters { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-tag-filter-chip { background: #2a2a30; color: #9a9a9f; }
+[data-theme="night-sky"] .lof-tag-filter-chip.active { background: #36d8b8; color: #1a1a1f; }
+[data-theme="night-sky"] .lof-tag-body { background: #1a1a1f; }
+
+/* ========== Phase 3c: 合集页 ========== */
+
+.lof-sub-author-head {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+.lof-sub-author-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-sub-author-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+}
+
+.lof-col-head {
+    padding: 18px 16px 18px;
+    background: var(--bg-card, #fff);
+    display: flex;
+    gap: 16px;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+}
+.lof-col-cover-big {
+    width: 72px;
+    height: 72px;
+    border-radius: 10px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-col-cover-text {
+    font-size: 36px;
+    font-weight: 800;
+}
+.lof-col-info { flex: 1; min-width: 0; }
+.lof-col-name-big {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 6px;
+    line-height: 1.3;
+}
+.lof-col-total {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary, #888);
+}
+.lof-col-desc {
+    font-size: 13px;
+    color: var(--text-secondary, #666);
+    line-height: 1.5;
+    margin-bottom: 10px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.lof-col-sub-btn-big {
+    background: #1abc9c;
+    border: 0;
+    color: #fff;
+    padding: 7px 18px;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.lof-col-sub-btn-big.subscribed {
+    background: #f3f3f5;
+    color: var(--text-secondary, #888);
+}
+
+.lof-col-toolbar {
+    background: var(--bg-card, #fff);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+}
+.lof-col-sort-btn {
+    background: none;
+    border: 0;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+}
+
+.lof-col-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg-card, #fff);
+    padding: 0 0 30px;
+}
+
+.lof-col-chapter-row {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-light, #f0f0f3);
+    cursor: pointer;
+    position: relative;
+}
+.lof-col-chapter-row:active { background: #fafafa; }
+.lof-col-chapter-row.current {
+    background: #e8f7f3;
+}
+.lof-col-chapter-row.current:active { background: #ddf0ea; }
+.lof-col-current-badge {
+    display: inline-block;
+    background: #1abc9c;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+}
+.lof-col-chapter-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.4;
+    margin-bottom: 6px;
+}
+.lof-col-chapter-summary {
+    font-size: 13px;
+    color: var(--text-secondary, #888);
+    line-height: 1.45;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.lof-col-chapter-meta {
+    font-size: 11px;
+    color: var(--text-tertiary, #aaa);
+}
+
+/* 网格视图 */
+.lof-col-grid-card {
+    display: inline-block;
+    width: calc(33.33% - 8px);
+    margin: 4px;
+    aspect-ratio: 1 / 1.4;
+    border: 1px solid var(--border-light, #ecedf0);
+    border-radius: 8px;
+    padding: 10px;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+    vertical-align: top;
+}
+.lof-col-grid-num {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-tertiary, #aaa);
+    line-height: 1;
+    margin-bottom: 8px;
+}
+.lof-col-grid-title {
+    font-size: 12px;
+    color: var(--text-primary, #1a1a1a);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.lof-col-end {
+    text-align: center;
+    color: var(--text-tertiary, #aaa);
+    font-size: 12px;
+    padding: 24px 16px 10px;
+}
+
+/* 深色模式 */
+[data-theme="night-sky"] .lof-col-head,
+[data-theme="night-sky"] .lof-col-toolbar,
+[data-theme="night-sky"] .lof-col-body { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-col-head,
+[data-theme="night-sky"] .lof-col-toolbar { border-bottom-color: #2a2a30; }
+[data-theme="night-sky"] .lof-col-name-big,
+[data-theme="night-sky"] .lof-col-chapter-title,
+[data-theme="night-sky"] .lof-col-sort-btn,
+[data-theme="night-sky"] .lof-sub-author-name { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-col-desc,
+[data-theme="night-sky"] .lof-col-chapter-summary { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-col-total { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-col-chapter-row { border-bottom-color: #2a2a30; }
+[data-theme="night-sky"] .lof-col-chapter-row:active { background: #22272a; }
+[data-theme="night-sky"] .lof-col-chapter-row.current { background: #1f3530; }
+[data-theme="night-sky"] .lof-col-chapter-meta,
+[data-theme="night-sky"] .lof-col-end { color: #6a6a72; }
+[data-theme="night-sky"] .lof-col-grid-card { border-color: #2a2a30; }
+[data-theme="night-sky"] .lof-col-grid-num { color: #4a4a52; }
+[data-theme="night-sky"] .lof-col-grid-title { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-col-sub-btn-big.subscribed {
+    background: #2a2a30;
+    color: #9a9a9f;
+}
+
+/* ========== Phase 4b: 设置 sub-screen ========== */
+
+.lof-settings-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg-page, #f7f7fa);
+    padding: 14px;
+}
+.lof-settings-section {
+    background: var(--bg-card, #fff);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+}
+.lof-settings-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 12px;
+}
+.lof-settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    cursor: pointer;
+}
+.lof-settings-row-label {
+    font-size: 14px;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-settings-number {
+    width: 60px;
+    border: 1px solid var(--border-medium, #ddd);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 14px;
+    text-align: center;
+}
+.lof-settings-select {
+    border: 1px solid var(--border-medium, #ddd);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 14px;
+    background: #fff;
+}
+.lof-settings-hint {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    line-height: 1.55;
+    margin: -4px 0 8px;
+}
+.lof-settings-save-btn {
+    width: 100%;
+    background: #1abc9c;
+    color: #fff;
+    border: 0;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.lof-settings-save-btn:active { opacity: 0.85; }
+
+[data-theme="night-sky"] .lof-settings-body { background: #0f0f12; }
+[data-theme="night-sky"] .lof-settings-section { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-settings-section-title,
+[data-theme="night-sky"] .lof-settings-row-label { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-settings-hint { color: #6a6a72; }
+[data-theme="night-sky"] .lof-settings-number,
+[data-theme="night-sky"] .lof-settings-select {
+    background: #2a2a30;
+    border-color: #3a3a40;
+    color: #e8e8ec;
+}
+
+/* ========== Phase 1d / v2.73.2: 创作 modal（让 NPC 生成）========== */
+.lof-compose-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 200;
+}
+.lof-compose-modal {
+    background: var(--bg-card, #fff);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 360px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: popIn 0.25s ease;
+}
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to { opacity: 1; transform: scale(1); }
+}
+.lof-compose-bar {
+    padding: 16px 16px 8px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.lof-compose-close {
+    background: none;
+    border: 0;
+    color: var(--text-secondary, #888);
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+}
+.lof-compose-title {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    text-align: center;
+    padding-right: 28px;
+}
+.lof-compose-note {
+    padding: 0 20px 12px;
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    line-height: 1.6;
+    text-align: center;
+}
+.lof-compose-empty-warn {
+    margin: 0 16px 12px;
+    padding: 10px 12px;
+    background: #fff3cd;
+    color: #856404;
+    font-size: 12px;
+    border-radius: 8px;
+    line-height: 1.5;
+}
+/* v2.81.0 合集文风下拉（仅长篇连载用） */
+.lof-compose-style-select {
+    width: 100%;
+    margin-top: 4px;
+    padding: 9px 12px;
+    font-size: 13px;
+    color: var(--text-primary, #333);
+    background: #f8fafa;
+    border: 1px solid #e5f1ed;
+    border-radius: 10px;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+}
+.lof-compose-style-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.lof-compose-options {
+    padding: 4px 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.lof-compose-option {
+    background: #f8fafa;
+    border: 1px solid #e5f1ed;
+    border-radius: 10px;
+    padding: 14px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    text-align: left;
+    transition: transform 0.12s ease;
+}
+.lof-compose-option:active { transform: scale(0.985); }
+.lof-compose-option:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.lof-compose-opt-icon {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.lof-compose-opt-body { flex: 1; min-width: 0; }
+.lof-compose-opt-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 4px;
+    line-height: 1.35;
+}
+.lof-compose-opt-desc {
+    font-size: 12px;
+    color: var(--text-secondary, #666);
+    line-height: 1.55;
+}
+.lof-compose-picker .lof-compose-picker-list {
+    padding: 4px 16px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.lof-compose-picker-row {
+    background: #f8fafa;
+    border: 1px solid #e5f1ed;
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    text-align: left;
+}
+.lof-compose-picker-row:active { opacity: 0.85; }
+.lof-compose-picker-cover {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-compose-picker-meta { flex: 1; min-width: 0; }
+.lof-compose-picker-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 2px;
+}
+.lof-compose-picker-sub {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+}
+
+/* ========== v2.82.0 compose 两步式：返回箭头 + 文章类型单选 + 提交按钮 ========== */
+.lof-compose-back {
+    background: none;
+    border: 0;
+    color: var(--text-secondary, #888);
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 28px;
+    height: 28px;
+}
+.lof-compose-opt-arrow {
+    flex: 0 0 auto;
+    color: #ccc;
+    align-self: center;
+}
+/* v2.82.x 修复：两步式「主题方向」输入框三件套此前漏写 CSS、textarea 退回浏览器默认样式
+   （窄、靠左、细边框无圆角），与下方撑满的文风下拉/提交按钮明显不齐。补齐为 width:100% 撑满
+   + 圆角 + lofter compose 标准配色（#f8fafa 底 / #e5f1ed 边 / focus 粉 #ff6b9d）。 */
+.lof-compose-hint-wrap {
+    padding: 4px 16px 12px;
+}
+.lof-compose-hint-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+.lof-compose-hint-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border: 1px solid #e5f1ed;
+    border-radius: 10px;
+    background: #f8fafa;
+    color: var(--text-primary, #333);
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1.6;
+    resize: vertical;
+    min-height: 76px;
+}
+.lof-compose-hint-textarea::placeholder {
+    color: var(--text-tertiary, #aaa);
+}
+.lof-compose-hint-textarea:focus {
+    outline: none;
+    border-color: #ff6b9d;
+    background: #fff;
+}
+.lof-atype-list {
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.lof-atype-opt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+.lof-atype-opt:active { background: #f0f7f5; }
+.lof-atype-opt input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.lof-atype-dot {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #d4e4df;
+    box-sizing: border-box;
+    position: relative;
+    transition: border-color 0.12s ease;
+}
+.lof-atype-opt input:checked + .lof-atype-dot { border-color: #ff6b9d; }
+.lof-atype-opt input:checked + .lof-atype-dot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ff6b9d;
+    transform: translate(-50%, -50%);
+}
+.lof-atype-name {
+    font-size: 14px;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-atype-opt input:checked ~ .lof-atype-name {
+    font-weight: 600;
+    color: #ff6b9d;
+}
+.lof-compose-submit-wrap { padding: 6px 16px 20px; }
+.lof-compose-submit {
+    width: 100%;
+    padding: 13px;
+    background: #ff6b9d;
+    color: #fff;
+    border: 0;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.lof-compose-submit:active { transform: scale(0.98); opacity: 0.9; }
+
+/* 深色模式 */
+[data-theme="night-sky"] .lof-compose-overlay { background: rgba(0,0,0,0.6); }
+[data-theme="night-sky"] .lof-compose-modal { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-compose-title,
+[data-theme="night-sky"] .lof-compose-opt-title,
+[data-theme="night-sky"] .lof-compose-picker-name { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-compose-note,
+[data-theme="night-sky"] .lof-compose-opt-desc,
+[data-theme="night-sky"] .lof-compose-picker-sub { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-compose-option,
+[data-theme="night-sky"] .lof-compose-picker-row {
+    background: #22272a;
+    border-color: #2a3035;
+}
+[data-theme="night-sky"] .lof-compose-empty-warn {
+    background: #3a2f1f;
+    color: #ffd07f;
+}
+[data-theme="night-sky"] .lof-atype-name { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-atype-dot { border-color: #3a4045; }
+[data-theme="night-sky"] .lof-atype-opt:active { background: #22272a; }
+[data-theme="night-sky"] .lof-compose-opt-arrow { color: #555; }
+[data-theme="night-sky"] .lof-compose-hint-label { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-compose-hint-textarea {
+    background: #22272a;
+    border-color: #2a3035;
+    color: #e8e8ec;
+}
+
+/* ========== v2.73.3: 合集页续写按钮 + 续章 modal ========== */
+
+.lof-col-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.lof-col-write-btn {
+    background: #1abc9c;
+    color: #fff;
+    border: 0;
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+.lof-col-write-btn:active { opacity: 0.85; }
+
+/* 续章 modal 表单 */
+.lof-next-ch-form {
+    padding: 4px 16px 12px;
+}
+.lof-next-ch-label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-secondary, #666);
+    margin-bottom: 8px;
+    line-height: 1.5;
+}
+.lof-next-ch-textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-medium, #ddd);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1.5;
+    resize: vertical;
+    min-height: 90px;
+    box-sizing: border-box;
+}
+.lof-next-ch-textarea:focus {
+    outline: none;
+    border-color: #1abc9c;
+}
+.lof-next-ch-actions {
+    display: flex;
+    gap: 10px;
+    padding: 0 16px 18px;
+}
+.lof-next-ch-btn {
+    flex: 1;
+    border: 0;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.lof-next-ch-btn.cancel {
+    background: #f3f3f5;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-next-ch-btn.primary {
+    background: #1abc9c;
+    color: #fff;
+}
+.lof-next-ch-btn:active { opacity: 0.85; }
+
+[data-theme="night-sky"] .lof-next-ch-label { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-next-ch-textarea {
+    background: #2a2a30;
+    border-color: #3a3a40;
+    color: #e8e8ec;
+}
+[data-theme="night-sky"] .lof-next-ch-btn.cancel { background: #2a2a30; color: #e8e8ec; }
+
+/* ========== 响应式（小屏适配）========== */
+@media (max-width: 380px) {
+    .lof-nav-btn {
+        font-size: 10px;
+    }
+    .lof-top {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    .lof-card-title { font-size: 13px; }
+    .lof-card-summary { font-size: 11px; }
+    .lof-detail-title { font-size: 20px; }
+    .lof-detail-content { font-size: 15px; }
+}

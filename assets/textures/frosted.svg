@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180" viewBox="0 0 180 180">
+  <defs>
+    <filter id="grain">
+      <feTurbulence type="fractalNoise" baseFrequency="2.2" numOctaves="1" seed="7"/>
+      <feColorMatrix values="0 0 0 0 0.55  0 0 0 0 0.55  0 0 0 0 0.55  0 0 0 0.32 0"/>
+    </filter>
+  </defs>
+  <rect width="180" height="180" filter="url(#grain)" opacity="0.6"/>
+</svg>

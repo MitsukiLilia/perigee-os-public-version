@@ -1,0 +1,1437 @@
+// Perigee OS 更新日志
+// 每次发新版本：在数组开头插入新条目，bump CURRENT 到该版本号
+// voiceFromKlaude 写自然一点，像我们平时聊天那样 — 让用户看到我们一起做这件事的痕迹
+
+const Changelog = {
+    CURRENT: '2.94.0',
+
+    versions: [
+        {
+            version: '2.94.0',
+            date: '2026-06-04',
+            highlights: [
+                '【深色主题终于看清字了】夜空和希卡主题下，论坛帖子和 X（推特）之前「浅底浅字」糊成一团——文字跟着主题变浅了、但底色没跟着变深。现在帖子和推文都补上深色底，文字清清楚楚',
+                '【X 深色模式】夜空/希卡下整个 X 内容区跟着变深，和深色顶栏、底栏、论坛统一，像真·推特的深色模式，沉浸又协调',
+                '【Line 不再冒出英文总结】聊久了会自动生成一段「对话总结」喂给 AI 当长期记忆——它之前被错当成聊天气泡显示出来了，很出戏。现在回到幕后默默工作，不再打扰对话',
+                '【揭示板剧透贴修好了】内部人士爆料贴之前混进了「舅舅党」这种中文黑话、剧透内容含糊到楼下全在偏题、还没中文翻译。现在改用地道日语リーク用语、强制写清到底剧透了什么、也补上了「查看翻译」',
+            ],
+            voiceFromKlaude: '',
+        },
+        {
+            version: '2.93.0',
+            date: '2026-06-04',
+            highlights: [
+                '【手帐主题彻底重做】ジャーナル不再只是换色——桌面背景变成了一张拼贴手帐壁纸：边缘散着 washi 胶带、干燥的小花、黄铜回形针，中间大片留白让图标清晰呼吸。整体色调是米白牛皮纸 + 莫兰迪绿 + 暖棕',
+                '【20 个 app 图标全换成手绘贴纸】每个 app 都有了自己的手绘拼贴贴纸图标：メッセージ是蜡封信封、ワールド是螺旋本、Pixiv 是翻开的自然系绘本、X 是交叉钢笔、Writer 是绿色邮筒、音楽是黑胶唱片、タロット是月亮魔法卡……米白底 + 棕色描线 + 莫兰迪绿点缀，每个都是独立的贴纸感小插画',
+                '【图标容器统一贴纸质感】图标背景是温暖米白圆角卡片，配细棕边和柔和投影；标签写在半透明胶带纸条上，整个桌面像一本翻开的手帐',
+                '【切主题自动换图标，切走自动恢复】进手帐主题就换上贴纸、切到别的主题恢复原来的 lucide 图标；你自己上传的自定义图标优先级最高不受影响',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.92.0',
+            date: '2026-06-04',
+            highlights: [
+                '【夜空升级成星空银河】夜空主题不再只是深蓝换色——桌面换上一张银河斜贯、远山倒映在湖面的真实星空照片当背景，图标和时钟 / 音乐小组件都变成通透的磨砂玻璃质感。像真的在仰望星空',
+                '【20 个 app 图标全变星座连线】每个 app 都重绘成了星座：消息是对话框、Pixiv / 雑誌是翻开的书、X 是交叉星、メロン是猫脸、学習是经纬地球、Tarot 是五角星、设置是齿轮放射……白色细线连起大小不一的节点亮星、周围还点缀零星散星。切走夜空会自动变回原来的图标，你自己上传过的图标优先级最高、不会被盖',
+                '【会动的星空】满天星星呼吸般闪烁（亮星还带十字光芒）、偶尔有流星拖着光尾从上方斜划过、整片星点极缓慢地漂移，有「活着的星空」的流动感',
+                '【每个主题各自的动态开关】顺手修了个不合理的地方：以前「下雨动效」开关不管切到哪个主题都显示。现在它跟着主题走——夏雨显示「雨滴」、夜空显示「流星与星光」、其他没有动态的主题这一行直接藏起来。关掉动态只去动画，背景图、玻璃质感、星座图标都留着',
+                '【一样省电】星空和夏雨的雨同款管控：进任何 app、切走主题、关掉开关、系统开「减弱动态」、页面切到后台——任一情况都立刻停、不在后台空跑耗电，回桌面自动恢复',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.91.0',
+            date: '2026-06-04',
+            highlights: [
+                '【夏雨升级成 Canvas 真雨】雨不再是规整的斜横线了——现在是一条条独立的雨丝真的往下落，有快有慢、头实尾淡像真雨。整块桌面当成一扇雨天玻璃窗，雨丝盖在图标和小组件上面，像隔着窗看外面下雨',
+                '【玻璃水珠大小不一、会滑落拖水痕】玻璃上随机挂着大小不一的水珠（有折射高光、底部暗弧、像真的鼓起来挂在玻璃上），偶尔有大水珠顺着玻璃滑下来、拖出一道渐渐淡去的水痕，还会"吃掉"路上的小水珠。图标上自然沾着水珠、不再是每个钉一颗死板的',
+                '【状态栏时间不挡】顶部状态栏那条不挂水珠（雨丝稀疏穿过），时间始终看得清',
+                '【更省电的生命周期管控】雨是 canvas 画的、但管得很严：进任何 app、切走主题、关掉开关、系统开「减弱动态」、页面切到后台——任一情况雨都立刻停（不在后台空跑耗电），回桌面自动恢复。仿真 app 内部一点没碰',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.90.0',
+            date: '2026-06-03',
+            highlights: [
+                '【夏雨主题升级成「雨天玻璃」】夏雨主题不再只是淡蓝换色了——桌面换上了一张隔着雨天玻璃看出去的照片背景，图标和时钟 / 音乐小组件都变成通透的磨砂玻璃质感（能隐约透出后面的背景），图标上还沾了几颗水珠。整个桌面像真的隔着一扇下着雨的窗',
+                '【全屏雨幕】桌面上有斜向飘落的雨丝、分远近两层做出景深、像隔着玻璃看外面下雨。纯 CSS 动画、不费电；进任何 app（pixiv / 论坛等）后桌面看不见时雨自动停，系统开了「减弱动态」也会自动停',
+                '【新增「下雨动效」开关】设置 → 外观 → 背景里多了一个开关（仅夏雨主题用得上）。关掉只去掉雨、玻璃背景和图标质感都保留；中日英三语都有',
+                '【只动桌面、app 内部一点没变】这次升级严格只改桌面那一层（壁纸 / 图标 / 小组件 / 状态栏 / 页码）。进 pixiv、论坛、推特等仿真 app 内部、颜色和排版跟以前完全一样，浅色界面没被雨天的深蓝染到',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.89.0',
+            date: '2026-06-03',
+            highlights: [
+                '【LINE 连发更细了】昨天上线的双语合并折叠本身没问题，但「单次回复消息数上限」默认才 4 条——AI 发 6 句短消息时会被两两合并成 3 个气泡（每个挤 2 句），不够像真人那样一句一条地连发。现在默认上限提到 8 条、合并策略也改了：只有真超过上限时才把多出来的并到最后一条，其余短消息一律逐条发；并在提示词里叮嘱 AI「一句一个气泡、别把多句塞进一条」',
+                '【双语模式语音保险】开「日语 + 折叠中文」时，万一 AI 给语音消息也塞了中文翻译标记，现在会在朗读和显示前把整段翻译剥掉、语音只读日语。之前的清洗规则只删标记符号、会把中文译文留下来被读出来；现在连内容一起剥干净。提示词里也写明了「语音消息只用日语」做双保险',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.88.0',
+            date: '2026-06-03',
+            highlights: [
+                '【修复：LINE 中日双语「分开发送」+ 折叠失效】开了中日双语回复后，本该是「一条消息日语展开、中文折叠在下方（点开才显示）」，实际却把日语和中文拆成两条单独消息发出来、折叠也没生效。根因是 AI 回复被按句号 / 感叹号机械切分时、把中文翻译的折叠标记从中间劈断了。现在改成按 AI 的换行分条、每条消息的日语和它的折叠中文稳稳待在同一个气泡里',
+                '【LINE 回复改成像真人那样连发短消息】之前 AI 一条回复经常一大段、不太像真实聊天。现在引导它像发 LINE 一样拆成多条短消息、一句一条、有来有回的节奏（偶尔想多说也能发长的）',
+                '【语言设置升级成三档】原本只有「双语开 / 关」一个开关、现在改成三选一：纯日语 / 日语 + 折叠中文 / 纯中文。老角色里原来开着双语的会自动归到「日语 + 折叠中文」、没开的归到「纯日语」',
+                '【语音消息改成手动开关、默认关闭】之前只要全局 TTS 填了音色、所有 AI 角色都会自动发语音。现在每个角色多了「启用语音消息」勾选框、默认关——勾了才会发语音；勾了不填 Voice ID 就用全局默认音色、填了用角色专属音色',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.87.0',
+            date: '2026-06-03',
+            highlights: [
+                '【LINE 控件图标改用 SVG】LINE 里当按钮 / 图标用的彩色 emoji（主页 Pay / melon / 贴图 / 设置入口、钱包充值 / 送金 / 履历、聊天置顶 / 静音 / 群组角标、消息删除 / 重新生成、分享卡来源标签与封面、对话菜单项）统一换成线性 SVG、跟随主题配色、更贴近真实 LINE 的界面。聊天 / 总结 / 钱包 / 贴图 / 分享所有功能照常',
+                '【分享卡封面占位重做】聊天里分享 melon 商品 / niconico 视频的卡片、封面不再用 emoji、改成中性线性图标（书本 / 视频）、跟 niconico 那站的缩略图风格统一',
+                '【emoji 大扫除第二站】继 niconico 之后第二个模块。单色符号、对话总结的内部标记、表情选择器 / 贴图包图标、用户聊天内容里的 emoji 都不在范围内、保持不变',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.86.0',
+            date: '2026-06-03',
+            highlights: [
+                '【niconico 控件图标改用 SVG】把 niconico 里当按钮 / 图标用的彩色 emoji（视频缩略图占位、播放 / 评论 / 收藏计数、排名奖牌、频道 / 动画 / 排行菜单、音频封面、空状态图标）统一换成线性 SVG、跟随主题配色、更贴近真实 niconico 的干净界面。所有视频 / 生成 / 评论 / 音频功能照常',
+                '【视频缩略图占位重做】缩略图不再用 emoji、改成「按视频标题生成的稳定纯色背景 + 中性视频图标」、每个视频颜色不同、有辨识度又无 emoji（守住无渐变）',
+                '【emoji 大扫除第一站】这是「把控件位彩色 emoji 跨模块统一换 SVG」的第一个模块、之后会一个模块一个小版本逐个来、每个都能单独回滚。单色符号（✓ ★ ♥ 这类）、用户自己发的内容、喂给 AI 的提示词里的 emoji 都不在范围内、保持不变',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.85.0',
+            date: '2026-06-01',
+            highlights: [
+                '【修复：论坛朗读语音的内存泄漏】给楼层点朗读（TTS）时，如果在播完前切到别的楼层、点停止、或加载失败，之前那段语音占用的内存没被释放、积少成多。现在切换 / 停止 / 出错 / 快速连点四种情况都会及时释放，正常朗读体验不变',
+                '【修复：推特 Space 语音的内存泄漏】Space 语音消息播放时，切换到别条、播放出错、或被打断的情况下音频内存没释放。已补齐所有路径的释放，并加了防并发误清的保护',
+                '【修复：论坛串标题 + 杂志阅读器在深色主题下看不清】夜空 / 希卡两个深色主题下，论坛串标题的链接蓝太暗、杂志阅读器还是浅奶油纸底跟深色页面冲突。现在深色主题下串标题换成可读亮蓝、杂志阅读器用协调的深色纸底；浅色主题完全不变（仍是经典链接蓝 + 奶油纸感）',
+                '【修复：melon 日文界面混进简体中文】日文界面有 7 处文案残留了简体中文（剧情 / 档期 / 手动 / 展会 / 闸门 等），现已全部改成地道日文（ストーリー / 開催期 / 即売会 / 掲示板・X 等）。中文 / 英文界面不受影响',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.84.0',
+            date: '2026-06-01',
+            highlights: [
+                '【修复：论坛常驻串置顶失效】被设为常驻（置顶）的串、之前其实没真排到列表最前——置顶重排的代码被放在了分页切片之后执行、等于白排。现在置顶串会稳稳待在第一页顶部、普通串原有的排序和分页都不变',
+                '【修复：论坛部分串型加载后骨架屏不消失】安価串 / 黑（対立）串 / 实况续集这三类走专用生成路径、加载占位的骨架屏读完后没被清掉、会一直残留在页面上。现在这三类和「已达上限」的情况都会在结束时清干净',
+                '【修复：推特时间线转推按钮点了没反应】主时间线上每条推的转推（リポスト）按钮之前是个没接事件的空壳、只有进了串详情页才能转推。现在时间线上直接能转推、和详情页同一套菜单（转推 / 引用 / 查看互动）、已转推的显示绿色',
+                '【修复：推特引用推文不显示被引用的原推】NPC 发的引用推、之前只存了被引推文的 ID、渲染时却去读另一个字段、结果被引用的那条原推完全不显示。现在能正确显示被引原推；万一原推已删或被时间线裁掉、会显示「此推文已不可用」而不是留白',
+                '【修复：从「回答并发推」/ Poipiku 共享发的推不进个人主页】这两个入口发推时漏写了归属账号字段、导致发出去的推不出现在对应账号的主页里。现在补上、和正常发推一致地归到当前账号名下',
+                '【修复：杂志「月间合集」封面白字看不清】合集（roundup）类型的封面少配了背景色、白色标题直接浮在浅色页面上几乎看不见。补了深色纯底、深浅主题下都清晰',
+                '【修复：pixiv 插画「分享到论坛」误关其它弹窗 + 关闭漏释放内存】插画大图查看器分享到论坛时、用的选择器会误删页面上别的静态弹窗（导致那些弹窗之后打不开）；另外点 ✕ 关闭大图时漏释放了一次图片内存。两处都已精确修正',
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.83.0',
+            date: '2026-05-30',
+            highlights: [
+                '【Music Lab 全面接入三语】Music Lab（作曲）模块内部此前一直是日文、没接多语言系统——切到中文 / 英文界面、进去还是一片日文。现在歌曲类型、生成状态、详情页、创建窗口全部跟随系统语言、补齐中 / 日 / 英三套。日语界面保持原样一字不变（原文就是日语版）、新增的是中文和英文',
+                '【写歌 AI 完全不受影响】守住一条：歌曲类型名「给界面看的」和「喂给 AI 写歌的」拆成两份——界面那份跟随语言、进 AI prompt 的那份永远是固定日文、生成的歌词不会因为切语言而漂移。歌词内容、曲风参数这些 AI 产物 / 功能参数也都保持原文',
+                '【顺手修：Lofter「主题方向」输入框靠左】lofter 两步式 compose（写短文 / 开合集）里填「主题方向」的输入框、之前漏写了样式、退回成浏览器默认的窄框、缩在左边跟下面的「文风 / 文章类型」「开始」按钮不齐。补上撑满宽度 + 圆角 + lofter 粉色调、对齐了'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.82.1',
+            date: '2026-05-30',
+            highlights: [
+                '【修复：Pixiv 阅读器「更多」菜单关掉后底部残留一条】小说阅读器点右下「···更多」弹出菜单、再点空白处关掉后、屏幕最底部会留一条淡淡的横影——在 iPhone SE3 这种没有灵动岛 / Home 条的机型上特别明显。已修复、关掉后底部干净',
+                '【根因 + 双保险】菜单往下滑出屏幕的距离只比它自身高一点点、把顶部那道投影留在了屏幕边缘（SE3 上菜单更矮、所以更明显）。改成「移出整个高度后再多滑 28px」让投影一起出屏、并在滑出动画结束后彻底隐藏菜单做双保险。只动一处 CSS、逻辑和数据都没碰'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.82.0',
+            date: '2026-05-30',
+            highlights: [
+                '【让太太写东西的窗口改两步式】点「让太太们写点什么」后、先选「写短文」还是「开合集」、再进各自的二级菜单填细节——之前所有选项堆在一页、写短文时还看得到一个对短文没用的「文风」框、有点乱。现在每个入口只显示对它有意义的选项',
+                '【短文新增「文章类型」选择】让 NPC 写短文时多了 6 个类型可选：随机（作者自由发挥）/ 同人短打 / 角色分析·解读 / 创作 note·碎碎念 / 抠糖·安利 / 设定考据·情报。想看哪种形态自己点、不想管就留「随机」跟以前一样',
+                '【类型联动挑作者】选了文章类型会优先挑对得上的太太来写——「角色分析」找文手、「抠糖·安利」找 CP 粉、「设定考据」找情报站。类型和作者画像匹配、不会出现画手硬写长篇角色分析那种违和（对应 NPC 池里没人时自动放宽）',
+                '【文风挪进合集二级菜单】「合集文风」下拉之前堆在外面、还得标注「短文不受影响」怕人误解、现在只在「开合集」那一步出现、干净了',
+                '【主题方向 ✕ 文章类型/文风】「写什么」和「怎么写」彻底分成两个清爽的步骤、自由组合（比如「久别重逢」主题 + 「角色分析」类型）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.81.0',
+            date: '2026-05-30',
+            highlights: [
+                '【Lofter 长篇合集加文风选择】开新合集时多了个「合集文风」下拉——细腻情感流 / 刀子暴击 / 嘴炮欢脱 / 沉浸正剧 / 文艺意识流 5 款内置可选、也可以「随机让作者自由发挥」。参考了 pixiv 的文风系统、但 lofter 独立一套、调子按同人圈重写',
+                '【整本统一 + 续章自动继承】合集文风开篇时定下、之后每一章自动沿用同一文风、不用每次重选——保证一整本合集的「声音」不漂（pixiv 同款哲学）',
+                '【只作用长篇、短文不受影响】文风选择只管长篇连载。首页的短文 / 杂谈 / 抠糖仍是多位 NPC 各写各的、保持同人圈本来的百花齐放、不强行统一',
+                '【主题 ✕ 文风两个维度】compose modal 里「主题方向」（写什么）和「合集文风」（怎么写）现在是两个独立选项、可以自由组合（比如「久别重逢」主题 + 「刀子暴击」文风）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.80.0',
+            date: '2026-05-30',
+            highlights: [
+                '【Lofter 文章不再 OOC（根因修复）】Lofter 里 NPC 写的同人文之前经常跑偏、人设崩——根子不在 DeepSeek、是喂给模型的上下文严重缺料。修好后 Lofter 跟论坛拿到的世界观信息完全一致',
+                '【补回：放送局绑定世界书】Lofter 生成短文 / tag 流 / 长篇章节 / 合集时，之前完全没读放送局绑定的世界书，现在把世界书的全部条目（启用的）都喂进去了',
+                '【补回：放送局官方情报全文】之前只数了「官方情报有几条」、内容一个字没进 prompt → NPC 只能瞎编官方消息。现在情报全文按时间线交织进去（带「第 N 话播出后」标注、模型能分清哪些是后来才公开的、不会当伏笔）',
+                '【补全：完整剧情时间线】之前只给最近 3 条剧情、更早的剧情和压缩总结全丢。现在给完整时间线（含早期总结）、NPC 抠糖 / 考据有据可依',
+                '【顺手去重 + 防剧透铁律保留】剧情现已并入全量世界观、删掉重复的「最近剧情节点」块省 token；Lofter 自己那套「禁止预告 / 编造未发生剧情」的防剧透铁律原样保留'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.79.0',
+            date: '2026-05-29',
+            highlights: [
+                '【新主题：动物森友会 / Cozy Island】主页主题新增第 7 款「动森」—— 暖羊皮纸底 + 薄荷青（#19c8b9）+ 深棕文字 + 草绿主页（#7DC395）+ 黄色强调。跟上一款希卡之石的冷暗调正好冷暖+明暗双重对照。设置 → 外观·美化 → 主题里选',
+                '【叶子壁纸】桌面铺草绿纯底 + 散落的圆润叶子 / 三瓣草点 motif（白色半透 SVG、若隐若现像阳光下的草地）、守无渐变铁律不用渐变',
+                '【动森沉浸细节】app 图标圆润暖白底 + 动森招牌「3D 按压」阴影（底部一道实色块、像能按下去的浮起感）/ 标签深棕字 + 白光晕描边（草绿底上清楚又可爱）/ 页码点圆润、激活点黄色带白圈',
+                '【仿真 app 内部不变】动森主题只作用于桌面 chrome / 设置 / 卡片。Pixiv 等固定色系 app 进去仍是原样、不被暖调污染。亮色暖底深字本就可读、不需要希卡那套暗色可读性修正',
+                '【设计来源】参考开源仓库 guokaigdg/animal-island-ui 的设计 token（薄荷青配色 / 有机圆角 / 暖木 3D 阴影 / 草绿主页）、忠于动森那种圆润治愈的味道'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.78.0',
+            date: '2026-05-29',
+            highlights: [
+                '【新主题：希卡之石 Sheikah】主页主题新增第 6 款「希卡」—— BOTW 希卡之石风：深黑蓝底 + 青蓝荧光（#3CD3FC）+ 金橙强调（#FCC413）+ 暖米白文字。设置 → 外观·美化 → 主题里选',
+                '【Sheikah 眼符号壁纸】桌面铺淡青色希卡之眼符号纹理（眼+睫毛+泪滴的 SVG、大间距平铺、若隐若现不抢图标）、深色纯底（守无渐变铁律、不用渐变）',
+                '【沉浸细节】app 图标青蓝荧光描边 + 标签淡青光 / 底部页码点改希卡菱形（激活点金橙发光）/ 状态栏文字淡青光',
+                '【仿真 app 内部不变】希卡主题只作用于桌面 chrome / 设置 / 论坛可读性。Pixiv 等固定色系 app 进去仍是原样（白底黑字 pixiv 蓝）、不被青荧光污染。论坛跟随变深蓝但文字全可读（沿用夜空那套暗色可读性修正、独立复制不动夜空）',
+                '【顺手修了个潜伏 bug】Sheikah 符号一开始不显示 —— 查出 .wallpaper 被 #desktop>* 这条 ID 规则压成 position:relative + 0 高（inset 失效）。提高 selector 特异性恢复 absolute 撑满、无需 !important。这条 ID 规则也是上次编辑工具栏乱序的元凶、同一个坑'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.77.1',
+            date: '2026-05-29',
+            highlights: [
+                '【编辑模式布局修复】自由排列模式下长按进编辑模式、图标和组件会整体偏移半个身位、宽组件溢出屏幕错乱。根因：抖动动画的 rotate 覆盖掉了自由模式居中用的 translate(-50%,-50%)。修：加带 translate 的专用抖动 keyframe、居中不再被吃掉',
+                '【贴纸可删除】编辑模式下每张贴纸左上角加「×」删除徽标、点一下即删（仿 iOS 抖动删除）。之前只能靠长按 600ms 弹菜单、手指稍动就取消、桌面端鼠标更是没法删',
+                '【编辑工具栏重做】底部「贴纸 / 自由网格 / 一键整理 / 完成」原本是几条全宽 bar 堆叠错位（被 #desktop>* 的定位规则拽回文档流）。重做成一排居中胶囊工具栏、完成填充强调色、窄屏自动换行',
+                '【自由模式行距贴合网格】自由模式纵坐标原本写死「行号/5 摊满整屏」、行少时空隙过大、行多时末行被压到一起重叠。改为贴合网格的固定行距（实测 ≈100px）、锚定顶部、行数再多也不重叠（已有手动摆放的图标不动、点「一键整理」可一键重排）',
+                '【推荐字体换成清爽黑体】原推荐「中日明朝」靠思源宋体、iPhone 上没装会退到ヒラギノ明朝渲染中文 → 笔画粗细不一。改推荐 PingFang SC 打头的清爽黑体（iOS 中文原生、自带假名管日文）、中日双语笔画都均匀清晰；仍停在旧明朝默认的存档一次性迁到黑体（之后手动选回明朝不会被再迁）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.77.0',
+            date: '2026-05-29',
+            highlights: [
+                '【Pixiv UI Phase 5：底栏重做】阅读器底部操作栏从 7 按钮平铺（字体/收藏/分享/TXT/长图/删除/关闭、375px 屏挤）重做成真 pixiv 极简 4 图标底栏：Aa 字体 / 🔖 收藏 / ☰ 目录 / ··· 更多',
+                '【浮动点赞】右下角加固定 ♥ 点赞悬浮按钮（对照真 pixiv「喜欢」按钮）—— 灰空心 ↔ 红实心、不显示数字、随沉浸滚动一起隐藏/出现、接 Phase 3 每章 isLiked 数据',
+                '【更多 sheet】分享 / 导出 TXT / 生成长图 / 删除 收进底部 ··· sheet（点 backdrop 关闭）—— 7 个功能一个不少、只是按真 pixiv 收纳',
+                '【收藏=书签】底栏收藏图标从心形 ♥ 改为书签 🔖、跟点赞 ♥ 区分（对齐真 pixiv：收藏=书签、点赞=爱心是两件事）',
+                '【关闭并入返回】底栏关闭按钮去掉、由顶部 ‹ 返回覆盖；返回按钮接 closeReader 顺手修掉沉浸滚动监听器的 teardown 隐患',
+                '【铁律守住】prompt 字面量 0 改动 / 数据结构仅复用 Phase 3 isLiked 不新增 / i18n 三语跟上（日语版显示日语）/ 色系固定不跟主题'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.76.4',
+            date: '2026-05-29',
+            highlights: [
+                '【灵动岛/刘海安全区适配】pixiv 全屏覆盖层（收藏/追更/浏览记录/作品管理/设置子页 + 系列章节列表）的顶栏原本 sticky top:0 贴屏幕物理顶部、在带灵动岛的新款 iPhone 上会被灵动岛压住。修：sub-header / toc 顶栏 padding-top 加 env(safe-area-inset-top)、列表底部 padding-bottom 加 env(safe-area-inset-bottom) 避开 home indicator。老款 iPhone（SE3 等无刘海）env 值为 0、不受影响',
+                '【孤儿 CSS 清理】删除 Phase 3 章节列表重写后遗留的死规则：.pixiv-toc-header / .pixiv-toc-close / .pixiv-toc-latest-btn / .pixiv-toc-item-left / .pixiv-toc-item-info（全部 0 引用、被新结构取代）',
+                '【死代码清理】创作模式菜单（.creation-menu）整块移除 —— v2.76.2 ➕ 按钮改为直接弹 AI 生成后、该菜单及其 HTML / JS 绑定 / CSS 已永不触发。手动创作入口走个人首页「投稿作品」',
+                '【铁律守住】prompt 字面量 0 改动 / 功能逻辑不变 / 纯清理 + 安全区适配'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.76.3',
+            date: '2026-05-29',
+            highlights: [
+                '【Code review 修复·P1】子页残留遮挡修复 —— 在收藏/追更/浏览记录/作品管理子页里点开一本小说进入阅读器、返回后旧子页（z-index 100）会残留盖在个人首页上。修：pixiv 模块 init 时清理所有残留 subScreen（先把设置内容节点搬回原位再清、避免误删）',
+                '【Code review 修复·P1】设置子页 DOM 丢失防护 —— 重复打开设置子页时、_openSubScreen 的 remove 会把搬进去的设置内容节点连带删除导致设置永久空白。修：openSettingsPage 开头先确保设置节点在原位、抽 _restoreSettingsContent / _cleanupSubScreens 两个 helper 统一处理',
+                '【Code review 修复·P2】子页打开性能优化 —— 原本每次打开子页调 applyTranslations(node)、参数被忽略导致全文档扫描 + 重渲所有社交模块。改为子页文案全部内联 I18n.t() 渲染、去掉 applyTranslations 调用、零副作用',
+                '【铁律守住】prompt 字面量 0 改动 / 数据结构不变 / 仅修复 review 发现的 subScreen 生命周期问题'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.76.2',
+            date: '2026-05-29',
+            highlights: [
+                '【系列章节列表全屏化】长篇「查看系列」章节列表原本是 bottom-sheet 弹窗（从底部往上弹、max-height 82vh）、内容不满时顶部留一大片空白、跟真 pixiv 不一致。改为全屏页面（absolute inset:0、从顶部铺满）、对齐真 pixiv 章节列表页',
+                '【投稿入口逻辑梳理】两个新建入口职责拆分更符合直觉：① 个人首页「投稿作品」按钮 → 手动创作（用户自己写的作品）；② 顶部 ➕ → 直接 AI 生成（不再弹「AI 生成 / 手动创作」二选一菜单）',
+                '【作品管理对齐】个人首页「作品管理」row 改为只显示用户手动投稿的作品（isUserCreated）、独立子页列表展示 —— 跟「投稿作品 = 手动创作」形成闭环：投稿的作品在作品管理里能找到。AI 生成的同人作品仍在小说主页「全部」列表',
+                '【铁律守住】prompt 字面量 0 改动 / showCreateNovelModal + showGenerateModal 既有逻辑不变 / 仅调整入口绑定与作品管理筛选条件'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.76.1',
+            date: '2026-05-29',
+            highlights: [
+                '【Pixiv 色系固定】真 pixiv app 一直是 light theme 配色（白底 + 深黑字 + 亮蓝 #0096fa + 红心）、独立于系统暗色模式。原本 pixiv 模块 CSS 全用 `var(--bg-card)` / `var(--text-primary)` 等主题变量、深色模式下整体跟着变深、跟真 pixiv 仿真感不一致。本次在 #pixiv-novel / #pixiv-reader / 10 个 pixiv modal 容器上 override CSS 变量，强制固定 pixiv 模块色系不跟系统主题',
+                '【固定色板】背景 #fff / 次背景 #f5f7f9 / 主文字 #1a1a1a / 次文字 #888 / 边框 #f0f0f0 / 强调蓝 #0096fa / 链接蓝 #1d9bf0 / 收藏红心 #e74c3c — 跟真 pixiv 5 张参考图（主页/发现/新作/通知/收藏/设置/个人首页）逐一对照',
+                '【范围】pixiv-novel 主屏 + pixiv-reader 阅读器 + 10 个 modal（生成/创建/编辑/系列目录/详情/续章/文风/插画生成 etc）+ 子页（动态创建在 #pixiv-novel 内自动继承变量）+ 顶栏 app-header + 主 tab + 子 tab + 搜索栏 + 设置输入框 + 阅读器章节正文',
+                '【仿真模块固定色系是 Perigee 设计 pattern】推特/微博/lofter/mercari 等有原型平台的仿真模块本来就是故意不跟系统主题的、各自有对应原型 app 的固定色板。Pixiv 这次是补上之前漏掉的实现、对齐其他仿真模块的设计 pattern。非仿真模块（论坛 / 放送局 / 系统层 UI）继续跟系统主题',
+                '【changelog 文案修订】v2.76.0 voiceFromKlaude + highlights 中性化重写、移除引用用户私人措辞、保留纯技术性描述（遵守 voice no negative takes 风格规范）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.76.0',
+            date: '2026-05-28',
+            highlights: [
+                '【Pixiv UI 优化 Phase 4】个人首页主框架上线 —— pixivPageUser 原本直接是设置页（CP 迁移提示 + 联动 + 文风 + 字体 + API 等卡片）、现在改造成参考真 pixiv app 的「个人首页」：黑色 hero（圆头像 + 用户名「Perigee 用户」+ 副标题「查看自己的个人页面」）+ 蓝色「投稿作品」按钮（接现 showGenerateModal 入口）+ 三段 menu list（① 作品管理/收藏/浏览记录/书签/追更中 ② 关注/粉丝/好P友 ③ 设置/屏蔽/帮助/关于本 APP）',
+                '【Pixiv UI 优化 Phase 4】收藏独立子页 —— 原 pixivPageNovel 顶部「全部/收藏/连载」三 sub-tab 中的「收藏」移除、改为个人首页 menu「收藏」row 进入。子页含「插画·漫画/小说」二 sub-tab（小说 active 占位）+ 列表（封面色块 + 标题 + by 作者 + 字数/tags + ♥点赞数 + 右侧 ♡ favicon 状态）',
+                '【Pixiv UI 优化 Phase 4】追更中独立子页 —— Phase 3 留的尾巴接通：个人首页「追更中」row 进入、列所有 novel.isFollowing=true 的系列、复用同款 novel row 卡片样式',
+                '【Pixiv UI 优化 Phase 4】浏览记录独立子页 —— 新 novel.lastReadAt 字段（openNovel 时记录）、子页按 lastReadAt 倒序排所有读过的 novels',
+                '【Pixiv UI 优化 Phase 4】设置二级子页 wrap —— 现有 6 个设置卡（联动 / 自定义世界设定 / 写作风格 / 字体 / 独立 API / 保存按钮）一字不动 wrap 进 #pixivSettingsContent、点设置 row 时整块 DOM 移到子页 body、关闭时移回（binding 不失效）',
+                '【过期 UI 清理】v2.69.0 留下的 pixiv 设置页 CP 迁移提示 card「CP 设置已迁移至放送局」删除 —— 跨多版本无人反馈、视为过期 notice，放在 pixiv 设置里跟周围功能性 card 风格不一致',
+                '【作品管理 row 接通】点「作品管理」自动切到 pixivPageNovel「全部」tab（自然回到自己生成过的所有小说列表）',
+                '【占位 row】书签/关注/粉丝/好P友/屏蔽/帮助/关于 → 各自 toast（三语本地化、贴 weibo / lofter 同款措辞「即将上线」）',
+                '【铁律守住】prompt 字面量 0 行改动 / pixiv-novel-chapter-pixivData.settings 数据结构仅追加（novel.lastReadAt）/ 收藏 sub-tab 移除但 renderNovelList 内 favorites 分支保留作 safety net / 设置内容 DOM 节点全保留、所有 getElementById binding 不受影响'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.75.0',
+            date: '2026-05-28',
+            highlights: [
+                '【Pixiv UI 优化 Phase 3】长篇章节列表（系列 TOC）重做 —— 原本是「极简列表 modal」（只有系列名 + 统计 + 章节名 + 字数）、现在升级到「完整系列首页」：作者头部（头像 + 名字 + 加关注 + ⋯）/ 系列大标题居中 + 三段统计（N 作品 · 总字数 · 看完需要 X时 Y分）/ 简介居中 / 两 CTA（蓝色「加入追更列表」+ 黑色「阅读最新一话 #N」）/ 章节卡（#N + 系列名 N ーtitleー / 完整时间 + 字数 + ♥ 点赞数 / tag chips / 右侧 ♡ 每章独立收藏切换）',
+                '【Pixiv UI 优化 Phase 3】章节末「下一话」卡上线 —— 阅读到章末时显示真 pixiv 风格的浅灰圆角卡：「系列」小字 + 系列名 + 椭圆「下一话 #N+1 系列名 N+1 ーtitleー」按钮 + 蓝色「加入追更列表」按钮。末章未完结时按钮变为「✦ 続きを生成」（旧 chapterControls 中重复的続きを生成已移除避免重复）',
+                '【Pixiv UI 优化 Phase 3】章节末作者卡 + 同系列缩略图 —— 「下一话」卡下方追加作者卡（头像 + 名字 + 加关注）+ 3 张同系列其他章节缩略图横排（点击切到该章）+「查看个人资料」链接，参考真 pixiv 阅读结束页',
+                '【Phase 3 删除】原章节末横向 prev/next 双按钮整段移除（chapterNav 变量）—— 作者拍板「完全替换为下一话卡」、跟真 pixiv 阅读体验一致',
+                '【每章独立点赞】chapter.isLiked + chapter.likeBoost 字段新加，点击 ♡ 切换填充态 + 数字 +1。每章 ♥ 数动态计算 = `novel.hearts × 0.65^N + likeBoost`（首章最高、后续递减、跟真 pixiv 视觉一致 215 → 140 → 91 → 59 → 38...）',
+                '【追更状态】novel.isFollowing 字段新加，点击「加入追更列表」/「已追更」切换 + toast 提示。「我的追更」独立入口留到 Phase 4 个人首页一起做',
+                '【阅读时长估算精度】系列 TOC 看完时长从 400 字/分钟 → 500 字/分钟（中文阅读速度更准、跟真 pixiv 显示对齐）',
+                '【铁律守住】prompt 字面量一字不动 / novel-chapter-pixivData.settings 数据结构 chapter.isLiked 和 likeBoost 仅追加、原有字段未改 / actionBar 7 按钮原样保留 / 系列 chip 跳 TOC 行为不变 / 短篇不显示「下一话」card 沉浸感保持'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.74.4',
+            date: '2026-05-28',
+            highlights: [
+                '【Phase 2 hotfix】作品详情 modal 内容超长时无法滚动 bug 修复 —— iOS Safari 上 flex/grid 容器中 `flex:1 1 auto` + `min-height:0` 没正确收缩 modal-body、内容超出 viewport 但 body 不能滚（作者真机 iPhone 17 + SE3 都重现）。改 modal-window 用 absolute inset:0 + header / body 都用 absolute 定位（top:0 vs top:52）+ body 自身 overflow-y:auto，彻底脱离 flex/grid 高度计算的坑',
+                '【iOS 兼容】100dvh fallback + -webkit-overflow-scrolling:touch + overscroll-behavior:contain 三件套加齐'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.74.3',
+            date: '2026-05-28',
+            highlights: [
+                '【Phase 2 hotfix】作品详情 modal 改为「当前章节详情」—— 之前做错了方向、显示「整本作品简介」+「各章摘要折叠列表」，作者真机测对比真 pixiv 截图发现：真 pixiv 是「每章一个简介」，在第 N 章阅读时点 📄 → 显示「第 N 章的简介」、不是整本汇总',
+                '【UI 对齐真 pixiv】modal 内容重做：① 日期改为「当前章节」的 createdAt；② 大标题改为「系列名 ー章节标题ー」格式；③ 简介改为当前章节的 chapter.synopsis（短篇 fallback novel.synopsis）；④ 删掉「各章摘要」折叠列表（跟「系列章节列表」showSeriesToc 概念冲突）；⑤ 加「同系列其他章节」缩略图网格（3×N、显示其他章节封面色块 + 编号 + 标题、点击切到该章 + 关 modal）',
+                '【系列列表 chip 接通】modal 内「系列列表 ›」chip 改为按钮，点击关 modal + 弹 showSeriesToc 章节目录'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.74.2',
+            date: '2026-05-28',
+            highlights: [
+                '【Pixiv UI 优化 Phase 2】作品详情 modal 上线 —— 阅读器顶部 📄 文档 icon 不再是占位 toast，点击弹出全屏「作品详情」modal，含日期 / 阅读数 / ♡ / 系列归属 / 大标题 / tag chips / 整本简介 / 作者卡 + 加关注（占位）/ 各章 AI 摘要折叠（仅长篇）/ 评论入口（占位）',
+                '【Pixiv UI 优化 Phase 2】阅读器 hero 区加封面色块 —— 80×116 圆角色块（基于作品名 hash 生成稳定 HSL 色、无渐变、纯色铁律）+ 整本简介摘录（前 140 字 + 「显示更多」跳详情 modal）',
+                '【Pixiv UI 优化 Phase 2】短篇也显示「系列 ›」入口 —— 跟长篇一致 UI 视觉、点击 toast「这是单篇作品」（仿真度对齐真 pixiv app）',
+                '【沉浸感强化】AI 章节摘要从阅读器正文区移除 —— 作者明确反馈「阅读时不要看到摘要」、原来正文下方的 `<details>` AI 内部记忆折叠块整体挪到「作品详情」modal 里、阅读时纯净不打扰；chapter.synopsis 数据字段保留，AI 续章 / 重写仍正常读（数据层独立于 UI）',
+                '【铁律守住】prompt 字面量一字不动 / novel-chapter-pixivData.settings 数据结构不变 / FULL_TEXT_WINDOW=5 不动 / actionBar 7 按钮原样保留 / showSeriesToc 章节目录 modal 仍正常弹（系列 chip 长篇行为不变）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.74.1',
+            date: '2026-05-28',
+            highlights: [
+                '【沉浸式滚动 hotfix】hero 区（作品名 / 作者 / ♡阅读数 / tag chips）原本独立于正文滚动容器外、滚动时不消失 —— 真 pixiv 是 hero 跟正文同一个滚动容器、向下滚 hero 自然滚出视野。修：把 pixivNovelInfo 移进 pixivReaderContent 内部 + 新增 pixivChapterBody wrapper、让 renderChapterContent 只覆盖 chapterBody 不覆盖 infoDiv',
+                '【效果】现在向下滚 → hero 跟正文一起滑出 + 顶部 mini header 隐藏 + 底部 actionBar 隐藏 = 全屏纯正文阅读，跟真 pixiv 完全一致'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.74.0',
+            date: '2026-05-28',
+            highlights: [
+                '【Pixiv UI 优化 Phase 1】小说阅读器顶部 mini header —— 原本只显示作品名一行、改成「‹ 作者迷你头像 + 作品名小字 + 文档 icon」三段式布局，跟真 pixiv app 对齐',
+                '【Pixiv UI 优化 Phase 1】小说阅读器沉浸式滚动 —— 向下滚动 50px 后顶部 header + 底部操作栏自动滑出隐藏、向上滚或点正文区切换显示。读到入戏时不被工具栏打扰',
+                '【Pixiv UI 优化 Phase 1】右上角「作品详情」入口占位 —— 文档 icon 已加上、点击提示「即将上线」、Phase 2 接通整本简介 / 系列归属 / 作者卡 / 同系列作品 modal',
+                '【沉浸感铁律守住】所有原功能一字不动 —— 字体调整 / 收藏 / 分享 / TXT 导出 / 长图导出 / 删除 / 关闭 / 续章 / 重写 / 章节切换 / 系列目录 modal 全部原样保留',
+                '【不动数据层】novel / chapter / pixivData.settings 字段一字不改、AI 续章读摘要的滑动窗口逻辑 FULL_TEXT_WINDOW=5 完全不动'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.11',
+            date: '2026-05-27',
+            highlights: [
+                '【P3 修复】weibo 设置 → 关于我们版本号硬编码 v2.71.0 —— 改为动态读 Changelog.CURRENT、不再每次发版手动同步',
+                '【P3 修复】weibo batch post createdAt 都用同一个 Date.now() —— 一批 N 条博文 createdAt 完全相同、feed 时间显示全部「刚刚」、排序权重也一样。改 _buildPostFromBlock 接 batchIdx 第 2 参、createdAt 错开 1.5 秒',
+                '【P3 修复】weibo TYPE 正则不容忍方括号 —— LLM 偶尔输出 `TYPE: [normal]` 会匹配失败。正则改 `/^TYPE:\\s*\\[?(repost|normal)\\]?/im` 容忍',
+                '【P3 修复】lofter coverPattern 字面量 "gradient" —— CSS 渲染只用 coverColor 纯色（无渐变铁律）、字面量是误导信号。改为 "solid"',
+                '【P3 修复】lofter NPC schema 死字段清理 —— favoriteCpTags / avgArticleLength / activeIPs 在 _migrateExistingNpcs 预留但全文从未读 / 写。直接删字段 + 删唯一调用点 _defaultArticleLengthByType',
+                '【P3 强化】lofter 合集元数据 prompt 接 plotGate —— 之前漏接、虽然合集名 / 简介不太可能剧透但加上一致性更好（短文 batch / tag lazy seed / 长篇章节都接了）',
+                '【P3 文案柔化】lofter 占位 toast 2 处 —— 「搜索功能 Phase 4 上线」/「评论功能即将上线」→「搜索功能 / 评论发布功能暂不在仿真范围内」。沉浸感更好、不暴露 Phase 工程节奏'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.10',
+            date: '2026-05-27',
+            highlights: [
+                '【P2 修复】weibo._handleLike 多子屏不刷新 —— 之前只刷 home + search、点赞后 topic / personal / myLikes 子屏 UI 不更新、要关闭重开才看到 ❤️ 高亮。加 3 个 if 块：检查对应 sub-screen 存在 → close + reopen 或 re-render',
+                '【P2 修复】openTopic 记录 this._currentTopicId、_handleLike 用来重渲 topic 子屏（避免再传 topicId 参数）',
+                '【P2 修复】_lazySeedingTopics[topicId] = false 改为 delete —— 之前每个进过的 topic 留 key、字典随访问量累积（内存轻量泄漏）',
+                '【P2 修复】_maybeSeedHotsearch 加 _hotsearchSeeding in-flight guard —— 之前 fire-and-forget 在 _refreshing 锁外、快速连点刷新触发并发 LLM 调用',
+                '【P2 修复】n._batchReplyCount 临时字段挂持久 NPC 对象上 —— 之前 _buildBatchWeiboPrompt 在 fanFriends NPC 实例上写 _batchReplyCount、序列化进存档污染 schema。直接删（replyCount 通过 prompt 提示传给 LLM、不需要数据层）',
+                '【P2 修复】搜索结果 FOLLOWER 无上限校验 —— LLM 输出 99999999 会让 stats 计算炸。加 Math.max(100, Math.min(100000, ...)) 上下限',
+                '【P2 修复】详情页 inlineReplies + reactionComments 合并未去重 —— 同 NPC 在两边各产生同款评论（边缘情况）会重复显示。按 (fromNpcId, content 前 40 字) dedup',
+                '【P2 修复】lofter 合集页 follow / 订阅 / 排序 / 视图 4 个按钮去掉多余 _closeSubScreen —— _renderCollectionPage 内 _openSubScreen 自带 remove + append、之前先 close 再 render 是无害但多余的双关闭',
+                '【跨模块 P1 修复】weibo._seedFanFriends push 新 NPC 后让 lofter 自己补 lofter:{} 子字段（idempotent）—— 之前 weibo 中途新增 NPC + 不切回 lofter tab 时、Lofter.init 不重跑 _migrateExistingNpcs、新 NPC 的 articleCount 永远不增、永远成不了合集作者。修法用 delegation：weibo 不知 lofter schema、调 Lofter._migrateExistingNpcs() 让 lofter 自己处理'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.9',
+            date: '2026-05-27',
+            highlights: [
+                '【P1 修复 — lofter 长篇章节 tags 缺合集名 / CP 名】之前 tags 只用 `npc.contentTags + ip`、tag 详情页 / 订阅 tag 几乎无法发现长篇章节。改为先放合集名 + CP 名（cpNickname 或 cpCharA×cpCharB）+ 主作品名、再补 contentTags 前 2 个 + ip、dedup 后上限 6 个',
+                '【P1 修复 — chapterCount undefined 跳过续章】`_autoGenerateOnPlot` 行 2447 `target.chapterCount < 10` 对 undefined 返回 false → 老存档没 chapterCount 字段的合集**永远跳过续章**。改为 `(target.chapterCount || 0) < 10`',
+                '【P1 修复 — inline onclick 拼字符串】lofter「我的」tab 的 update banner 行 2591 onclick 走 `${latestUpdateNotif.onclick}` 模板拼接（内部又拼 `${articleId}`）。改为 data-attr + addEventListener、_getLatestUpdateNotif 返回 articleId 不返回拼好的 onclick 字符串。当前实际安全（_uuid alphanumeric）但 anti-pattern 清掉',
+                '【P1 修复 — weibo 搜索子屏点赞 UI 不刷新】`_handleLike` 末尾检查 `wbSearchSubScreen.classList.contains("wb-active")` 永远 false（_openSubScreen 只设 wb-sub-screen）。改为 element 存在性检查 — 搜索结果点赞后 UI 真正刷新到「已赞」高亮',
+                '【P1 修复 — 搜索结果污染推荐 feed】搜索结果首次点赞迁移到 wd.posts 时 _fromSearch=true 标志已加、但 feed filter（_renderHomeBody 推荐 / 关注 tab）都没用它。推荐 tab `[...posts]` 无过滤、迁移过来的搜索结果会出现在推荐 feed。两个 list 都加 `!p._fromSearch` 过滤、只在「我的赞」可见'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.8',
+            date: '2026-05-27',
+            highlights: [
+                '【P1 i18n 黑名单修复 — weibo 超话简介】`topic.description` 在 _maybeSeedTopics 创建超话时走 I18n.t 翻译后存进 wd.topics、然后 _buildTopicLazySeedPrompt 又把 topic.description 拼回 LLM prompt。用户切英文 / 日文时存储字段会变成非简中字符串、违反 v2.68.5 安全审计建立的 i18n 黑名单铁律',
+                '【强化】weibo 3 处 topic 写入（production / cp / character）改为中文字面量、不走 I18n.t',
+                '【P1 i18n 黑名单修复 — lofter editedAgoDisplay】长篇章节 _generateLofterChapterImpl 写入时硬编码 I18n.t("lofter.time_just_now", "刚刚")、article 持久化后字段不会跟着语言变。改为直接写 "刚刚"',
+                '【P1 i18n 黑名单修复 — lofter atmosphere】tag 详情页首次访问时 atmosphere = I18n.t("lofter.atmosphere_friendly", "评论友好") 写进 hotTagInfo 存储。改为直接写 "评论友好"',
+                '【P1 一致性修复 — browseCount 两处 Math.random 不同步】_renderSubscribedTagRow 行 1525 + renderTagDetail 行 1609 各自 Math.random、订阅卡显示一个数、点进去 tag 详情显示另一个数。订阅卡那处 fallback 还没写回 hotTagInfo、每次 render 都重新 random',
+                '【强化】新增 `_ensureTagInfo(tagName)` 统一缓存 helper：首次访问就写入 hotTagInfo 并 saveData、订阅卡 / tag 详情页 / 任何 render 入口共用一份缓存。两个 render 函数都改成走 helper'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.7',
+            date: '2026-05-27',
+            highlights: [
+                '【P0 修复】Utils.callChatAPI silent failure —— weibo 模块 _generateNpcComment / _maybeSeedHotsearch 调 `_callLLM(prompt, { temperature: 0.9, maxTokens: ... })` 想要更随机的输出、但 _callLLM 签名只接 1 参、options 被静默丢；即使接住、Utils.callChatAPI 第 2 参是 systemPrompt 不是 options、也透不下去。**跟今天 lofter compose userPrompt 同款 silent bug**',
+                '【强化】Utils.callChatAPI 加可选第 4 参 options = { temperature, maxTokens }、向后兼容（不传时行为不变）。callOpenAICompatibleAPI / callGoogleAPI / callClaudeAPI / override 路径全部接 options 透传',
+                '【强化】weibo._callLLM 加可选第 2 参 options 透传 — 现在 _generateNpcComment 的 temperature: 0.9 真正生效、评论会更随机活泼',
+                '【P0 修复】评论嵌套无环路保护 —— _renderCommentTree 第 559-561 行 attach 时只看 parent 在不在池里、不防 A→B→A 互引、_renderCommentNode 递归无 depth 上限。LLM 在同 batch 让 2 条评论互标 REPLY_TO 就触发栈溢出',
+                '【强化】_renderCommentTree 加 cycle 检测 helper（ancestorsOf）：挂载前看 c.id 是否已是 target 的祖先、是则当孤儿（顶层）处理而非挂入 children',
+                '【强化】_renderCommentNode 加 depth >= 6 上限作 safety net —— 即使 cycle 检测漏掉边界情况、也不会无限递归'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.6',
+            date: '2026-05-27',
+            highlights: [
+                '【bug 修复 / 设计偏离】中文圈（微博 + lofter）自动生成被 pixiv 开关挟持 —— v2.71.0 写代码时省事把微博 autoGen 嵌进 pixiv `autoGenOnNewPlot` 的 if 内部。作者当初的设计意图是「中文圈 / 日文圈完全隔离、只在放送局共享世界观」、但代码层面微博被 pixiv 开关挟持：关 pixiv → 微博也跟着关 / 开 pixiv → 微博每次必跟随',
+                '【强化】forum.js 两处 plot hook（addPlotEntry / publishPlotDraft）都拆分：pixiv autoGen 块独立、中文圈 autoGen 块独立（微博 + lofter 共享 lofterData.settings.autoGenOnNewPlot）',
+                '【bug 修复】草稿发布分支 lofter hook 完全缺失 —— forum.js:4448 那个 if 之前根本没出现 lofter 触发。本次补齐',
+                '【bug 修复】forum.js 两处调 `Weibo._generateNpcWeibos(wbCount, "")` 第 2 参 recentPlotSummary 永远传空串 —— 微博 NPC 不知道剧情发生了什么、prompt 里 `最近剧情：${recentPlotSummary}` 永远是空。修：传 `${title} — ${content.slice(0,120)}` / 草稿分支传 `draft.title — draft.summary`',
+                '【UI 更新】lofter 设置 → 自动生成 hint 文案更新：从「与 Pixiv 同款机制：...」改为「剧情更新时同时触发中文圈（微博 + lofter）的内容自动生成、跟日本圈（pixiv）完全独立 — 把这个开关想成"中文同人圈是否跟着剧情活起来"」（中 + 英两份 i18n 都改）',
+                '【架构哲学落地】把「同人圈分中文圈 / 日文圈、只在放送局相遇」这个 mental model 真正落到代码：autoGen 开关 / API 配置 / NPC 池 三者现在都符合这个模型'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.5',
+            date: '2026-05-27',
+            highlights: [
+                '【bug 修复】lofter compose modal「主题方向」输入框上线时**接线断了** —— `_generateLofterCollection(npc, ip)` 函数签名只有 2 个参数、compose 调用 `(picked, null, userPrompt)` 第 3 个被默默丢了。链路全断：合集元数据 + 第 1 章都没收到用户填的方向。修：函数签名加第 3 参 userPrompt、透传到 `_generateCollectionMeta` + 第 1 章 `_generateLofterChapterImpl`',
+                '【强化】lofter 长篇章节 prompt 抄 pixiv 连载框架 —— 作者反馈第 1 章"读起来像短篇、没有下一章的味道"。原 prompt 第 1 章和续章共用一套、第 1 章只多了一句"开篇/留张力"、LLM 当成 oneshot 写',
+                '【强化】章节 prompt 开头明确「长篇连载小说、非 oneshot」+ 加 6 条**连载创作铁律**（连贯推进 / 节奏自然 / 不重复 / 角色忠实 / 原作尊重 / 章节独立性）',
+                '【强化】第 1 章 positionNote 改为「抛出能撑起后续章节的核心张力（未解的关系状态 / 悬而未决的处境 / 刚被点燃的情绪）、不要在第 1 章把故事讲完」',
+                '【强化】章节末态精修：「停在张力最高点、不要在本章发明并解决新事件、不要给完结感结尾、不要"今天就到这里"式收束」',
+                '【新增】lofter 短文 batch prompt 加「中文同人圈常见梗 / 题材调调」段 —— 分 4 类（巧思系 / 关系动力学 / AU·paro / 情境·虐）流畅段落写、不是 bullet 菜单。强调「**绝对不要照单挑梗**、上方仅是底色参考、同人圈每天都在发明新方向」',
+                '【新增】合集元数据 prompt 加「适合长篇连载的题材调调」段 + 不要直接拿梗名当合集名的范例（「花吐症」→「夏末花期」「灵魂互换」→「另一个我的春天」）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.4',
+            date: '2026-05-27',
+            highlights: [
+                '【bug 修复】lofter 在分析未发生剧情（"ep3 预告"等）—— 作者反馈新档只更到 ep2、但 lofter 给出 ep3 预告分析。根因：原 `_getPlotGate` 闸门文案太软、LLM 看到剧情节点列表后会幻觉"接下来"的内容',
+                '【强化】plotGate.promptGateText 重写：① 顶部明确「剧情节点总数 = N」+「最新 = 节点 N」；② 反例清单（✗ 讨论节点 N+1 / ✗ 写 epN+1 预告 / ✗ 据说后面 / ✗ 引用捏造的官方剧透）；③ 允许清单（✓ 讨论节点 N 及之前 / ✓ if 线 paro 二创可以但要标）；④ 兜底「宁可写日常 / 短打 / 创作 note、也不要编造未发生剧情」',
+                '【强化】无剧情时（plots.length === 0）的闸门也加同款铁律：严禁分析任何剧情、围绕世界观 / cp 写非剧情向内容（日常 / 设定考据 / 创作 note）',
+                '【架构】3 处 lofter prompt（短文 batch / tag lazy seed / 长篇章节）都用 plotGate.promptGateText、一处修复全覆盖、改动最小'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.3',
+            date: '2026-05-27',
+            highlights: [
+                '【UX 重构】续写下一章入口从「中间 + 按钮 modal」移到「合集页内部」—— pixiv 同款体感（pixiv 续章按钮在 reader 里、不在主页）。作者反馈「lofter 也应该放在合集内部」',
+                '【新增】合集页顶部 toolbar 加「续写下一章」橙色按钮、点击弹独立 modal',
+                '【新增】续章 modal 含 textarea「本章方向」输入（仿 pixiv UX 同款）—— 用户能填本章提示词、也可以留空让 AI 自由续写',
+                '【架构】prompt 加 userHintBlock（pixiv 同款独立性原则）：有 hint 时标「最高优先级、仅本章适用」；无 hint 时标「本章方向独立、不延续前章」',
+                '【article schema】加 userHint 字段（仅本章保留、为将来 reroll 功能预留）',
+                '【沉浸感】长篇章节 summary 用户不可见 —— 卡片 / 详情页 / 合集列表都不显示 summary（pixiv 同款 ch.synopsis 隐藏）。summary 仅在 LLM prompt 内部用作前序章节滑动窗口的"更早章节摘要"',
+                '【compose modal 简化】移除「续章」选项 —— 现在只有「写新短文」「开新合集」2 个。底部加提示「续章入口在合集页内部」'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.2',
+            date: '2026-05-27',
+            highlights: [
+                '【设计修正】lofter 中间 + 按钮从 toast 占位改为弹「让 NPC 生成新内容」modal —— 参考 pixiv 的「+ 创作菜单」入口设计（不动 pixiv 代码、只参考 UX）',
+                '【新增】Modal 3 个选项：① 让 NPC 写一篇新短文（_generateLofterShorts(1)）；② 让 NPC 开新合集（挑 fan_writer + _generateLofterCollection、自动跳转新合集页）；③ 给某个合集续写下一章（合集选择 picker、_generateNextLofterChapter）',
+                '【保留沉浸感】不加用户手写文章入口（跟 pixiv 的 pixivMenuCreate 区别）—— lofter 用户不发文、只触发 NPC 生成',
+                '【状态判断】Modal 显示 disabled 状态提示：NPC 池为空 / 没合格 fan_writer / 没现有合集时、对应选项灰显不可点'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.1',
+            date: '2026-05-27',
+            highlights: [
+                '【bug 修复】lofter 文章详情页点击文末 tag chip 仍 toast「tag 详情页 Phase 3 上线」—— 实际 Phase 3b 已实装、忘记接通详情页那处 click handler。改成真跳转 openTagDetail',
+                '【bug 修复】lofter 文章详情页合集悬浮卡「目录 N/N」按钮仍 toast「合集目录 Phase 3 上线」—— 实际 Phase 3c 已实装、忘记接通。改成真跳 openCollectionPage'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.73.0',
+            date: '2026-05-27',
+            highlights: [
+                '【新模块】Lofter 上线 —— 中文同人圈生态阶段 2：创作主战场（跟微博"广场"对应、Lofter 是"沉淀创作"）。NPC 池跟微博共用 weiboData.fanFriends、4 类活跃（fan_writer / fan_artist / cp_fan / info_station）、3 类静默过滤（group_organizer / daigou / daily_fan）',
+                '【内容引擎】短文批量 LLM 生成（仿微博 batch 同款一次请求多段）+ 长篇章节单次生成（仿 pixiv 模式、纯中文 prompt 重写、绝对不动 pixiv 代码字面量）+ 合集元数据生成（情绪标签 5 选 1：很甜 / 很虐 / 很真实 / 很治愈 / 很离谱）',
+                '【核心闭环】对喜欢的文章点 ♥ 喜欢 / ☆ 收藏 → 在「我的喜欢 / 收藏」按月分组归档可回看。配套：稍后再看（详情页右下浮动 FAB）+ 浏览历史（自动记 capped 200）+ 关注作者横滚头像（最近 7 天发文带粉红更新点）+ 订阅标签 / 合集',
+                '【tag 详情】绿色渐变背景 + 浏览量 / 参与数 + 圈氛围 chip + **我的陪伴值**（进 tag +1 / 点 ♥ +2 / 点 ☆ +3）+ 我圈太太头像组 + 合集粮单入口 + 4 子 tab + 4 时间窗筛选 chip + lazy seed（< 5 篇时自动调 LLM 生成 5 篇）',
+                '【合集页】合集封面 + 描述 + 订阅 button + 章节列表 + **当前在看高亮**（从浏览历史取最近一条属于本合集的章节）+ 正序 / 倒序 + 列表 / 网格切换 + 进入空合集自动生成第 1 章',
+                '【文章详情】长文段落渲染 + 文末多 tag chip + 编辑于 X · 地区 + 热度 + ☆ 收藏 + 合集悬浮卡（上一篇 / 目录 / 下一篇）+ 评论嵌套（仿微博 v2.72.6 同款博主橙色徽章）+ 底部 sticky bar + 浮动稍后再看 FAB',
+                '【微博联动】fan_writer NPC 发的 long 类型博文（自宣 lofter 新作）点击「全文 → 网页链接」真跳转到对应 Lofter 文章详情页。事件触发型反查（不动微博 prompt 字面量）：自动找该 NPC 最近 7 天 lofter long article 关联 linkedLofterArticleId、没找到保留原 toast 行为',
+                '【自动生成设置】仿 Pixiv 同款独立开关：设置 → 自动生成 section 勾选「剧情更新时自动生成内容」+ 数量 1-5。放送局新增剧情节点时 lofter 后台 fire-and-forget 生成 N 篇（策略：合集 < 2 创建新合集 / 已有合集续章 / 剩余配额短文批量）',
+                '【沉浸感铁律】零管理 UI：用户不能主动创建合集 / 编辑文章 / 管理 NPC 池。合集 / 文章 / 章节都由 NPC 自动产生（init seed + 进空合集触发 + 剧情更新触发）。跟 pixiv 同人作者池保持一致',
+                '【教程】内置教程新增「mod-lofter」完整章节、跟 mod-weibo 同等详尽'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.72.7',
+            date: '2026-05-26',
+            highlights: [
+                '【B 类新功能】转发链 //@A://@B —— 真微博体感：NPC 偶尔转发某条虚拟原博 + 加自己的转发评论 + 可选 1-2 级中间转发链',
+                '【schema】post 新增两个可选字段：`repostQuote: {author, content}` 虚拟原博引用 + `repostChain: [{author, content}]` 中间转发者快照（按倒序、最新在前最早在后）',
+                '【渲染】`_renderPostBody` 处理 type="repost" 时显示：我的评论 + 各级 //@链 + 虚线分隔 + 原博引用；orange `@原博主` 链接色保持真微博体感',
+                '【prompt】`_buildBatchWeiboPrompt` 加可选 TYPE / REPOST_ORIGIN / REPOST_CHAIN 字段、明确"不强制、不每次必出、0-1 个 NPC 转发即可"；防止 LLM 把所有 NPC 都搞成转发',
+                '【解析】`_parseWeiboBatch` 支持 TYPE=repost + REPOST_ORIGIN（原博主|内容）+ REPOST_CHAIN（多行 //@xxx:xxx 倒序）；解析失败自动降级为 normal（避免空白 quote）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.72.6',
+            date: '2026-05-26',
+            highlights: [
+                '【B 类新功能】评论嵌套博主回复 —— 真微博体感：评论区博主可以对某条评论回复、显示在该评论下方缩进 + 「博主」徽章；多级嵌套也支持',
+                '【schema】post.replies / notifications.comments 新增两个可选字段：`replyToCommentId`（指向被回复的 comment id、null = 顶层）+ `isOpReply`（true = 标博主徽章）',
+                '【prompt】详情页「+ 加载更多评论」LLM 生成时偶尔（0-2 条 / 不每次必出）让博主回复某条旧评论：IS_OP=true + REPLY_TO=被回复者 NAME；解析时 name → comment id 反查、防止指向自己',
+                '【渲染】新增 `_renderCommentTree` 树状构建（按 replyToCommentId 挂载）+ `_renderCommentNode` 递归 + `_renderCommentRow` 接受 depth 参数；CSS 加 wb-comment-children 缩进 + 浅灰左边线 + wb-comment-op-badge 橙色徽章（深色模式同步）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.72.5',
+            date: '2026-05-26',
+            highlights: [
+                '【bug 修复】官方情报里没有周边发布、但 NPC 却开始周边讨论 / 代购 / 拼团 —— 加 `_getMerchGate()` 闸门、参考 forum.js / Melonbooks.getEventTopicGate 的设计：检查 `broadcast.officialInfo` 里有没有 `category === "goods"` 条目 + 有没有 `isGoodsRelease=true` 已发售条目',
+                '【机制】闸门关时（无任何周边）：① `_generateNpcWeibos` 从 fanFriends 池过滤掉 `group_organizer` / `daigou` 类型 NPC（他们没业务）；② 4 处发博 / 评论 prompt 都注入禁止文本「不要讨论代购 / 拼团 / 周边购买 / 开箱 / 排单 / 跑单 / 限购 / 团长收款」',
+                '【机制】闸门半开（有预告但未发售）：注入「可以蹲货 / 等开团 / 讨论预告、但不要写已收到货 / 开箱 / 到货反馈 / 跑单已发生」',
+                '【应用范围】4 处 prompt 都接入了闸门：`_buildBatchWeiboPrompt`（首页刷新）/ `_buildTopicLazySeedPrompt`（超话 lazy seed）/ `_generateSearchPosts`（搜索）/ `_generateMoreCommentsForPost`（详情页加载更多评论）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.72.4',
+            date: '2026-05-26',
+            highlights: [
+                '【UI 修正】移除详情页的「+ 点赞」按钮 —— 博文卡片下方本来就有点赞图标、详情页再加一个破坏真实感（不像真微博体感）。删了',
+                '【bug 修复】搜索结果卡片的点赞按钮之前没绑定 click handler —— 现在统一走 `_handleLike`、点击搜索结果上的点赞 = 迁移这条博文到主时间线（带 `_fromSearch` 标记）+ 加进「我的赞」、保持点赞行为跟主时间线一致',
+                '【架构】统一点赞入口 —— 之前主时间线走 `_handleLike` / 详情页走 `_toggleDetailLike`（搜索结果的迁移逻辑在那里）两套；现在合并成一个 `_handleLike` 跨池查找、删 `_toggleDetailLike`'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.72.3',
+            date: '2026-05-26',
+            highlights: [
+                '【重写】微博 NPC 发博 prompt 活人化 —— 作者反馈生成的 NPC 不够活人、用语古早。这一版把所有具体网络用语词清单从 prompt 里清掉（避免「家人们 / 磕到了 / yyds」这种被钉死、被滥用、显得过气营销号感）、改为给方向不给词：① 生态底色段（中国微博半公开广场感 = 比日本推特更吵更碎更快、情绪更外露、允许累 / 急 / 嘴硬 / 阴暗爬行 / 突然破防 / 选择性活跃等活人情绪、给每个 NPC 一个具体生活状态作为语调底色）；② 用语策略段（鼓励中文同人圈黑话 >= 圈内梗 >= 普通网络用语、具体词由 LLM 按时效性自行判断、避开过气营销词）；③ 标点非常规鼓励（「。。。」「！！！」「......」「？？」、emoji 自然散落）',
+                '【重写】7 个 NPC type 的内容画像 —— 去掉所有具体字数框（200-350 字之类）、改为画像式描述：文手卡文 / 深夜放片段 / 改三遍开头 / 心虚更新；画手草稿 / 色块 / 手癖 / 赶稿 / 画不出脸 / 摆烂；普通粉丝 30% 跑题日常 / 生活和作品混在一起；CP 粉抠糖 / 整理粮单 / 允许低浓度阴阳对家（不指向具体 NPC 真名）；拼团团长允许疲惫 / 公事公办 / 偶尔骂跑单或黄牛；代购一半代购消息 + 一半生活（日本好吃的 / 看的番 / 骂插队黄牛 / 吐槽限购 / 跑单的）；情报站客观搬运不掺感情。长度由 LLM 自主判断',
+                '【重写】评论生态段 —— 真实评论区不会每条都认真回应博文。新结构：~30% 表情式反应 + ~30% 跑题抠糖反转 + ~30% 问求催嘲 + ~10% 认真回应博文。允许叠楼（连续 2-3 条相近情绪短评）。评论长度跨度大（2-3 字到 15-30 字）。不要每条都夸博主 / 不要每条都喊老师 / 不要每条都跟主题强相关',
+                '【同步】搜索结果 prompt + 超话 lazy seed prompt 一并按新口径重写 —— 保持三处发博 prompt 风格一致（不然搜索 / 超话和首页生成出来风格断裂）',
+                '【同步】详情页「+ 加载更多评论」prompt 也按新口径重写 —— 跟 NPC 发博时附带的评论保持同一种活人语感'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.72.2',
+            date: '2026-05-26',
+            highlights: [
+                '【新功能】微博详情页加「＋ 加载更多评论」按钮 —— 已有博文打开详情后能继续调一次 LLM 生成 5-8 条评论挂到该博文下、自动避开已经评论过的人、保留排序模式（按热度 / 按时间）；in-flight guard 防双击并发触发',
+                '【新功能】微博详情页加「＋ 点赞」按钮 —— 之前只能在卡片列表点赞、现在详情页也能点；按钮状态会同步「我的赞」记录',
+                '【新功能】搜索结果博文可以点击进详情页 —— 之前是一次性产物（提示「不会进入主时间线」）、现在点击进入完整详情页、首次进入会自动调一次 LLM 生成 5-8 条评论让博文饱满；点赞后这条博文自动迁移到主时间线、在「我的赞」里可见、其他人在主时间线刷不到（保持搜索发现感）',
+                '【bug 修复】导出 / 导入板块选择 modal 中文字一字一行竖排显示 —— 根因：`.modal-window input` 的全局 CSS 给 `type="checkbox"` 也设了 `width: 100%; padding: 10px; border`、checkbox 撑成整行宽把 label 文字挤到右边窄列。选择器排除 `[type="checkbox"]` 和 `[type="radio"]` 修复',
+                '【bug 修复】设置 → 中文同人圈 API 的「启用独立 API」开关在手机上 label 文字竖排 —— 跟上面同根因（`.setting-row input` 没排除 checkbox）、一并修了',
+                '【bug 修复】Mercari 部分浏览器无法滑动 —— 根因：`.mc-body` 只设了 padding 没设 `overflow-y / flex:1 / min-height:0`、依赖浏览器 fallback 自动滚动、大多数环境兜底所以正常、但部分 standalone PWA 模式 + 老 iOS 会失效。补上 `flex:1; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch` 标准滚动三件套',
+                '【优化】设置 → API 接続加「模块独立 API 入口指引」提示卡 —— 之前 pixiv / mercari 的独立 API 在各自 app 内、中文圈的在全局、用户初次找会困惑。现在全局 API 集成 section 里加了导引提示卡告诉用户哪个模块的独立 API 在哪、不配置就走全局'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.72.1',
+            date: '2026-05-26',
+            highlights: [
+                '【重写】搜索改为推特同款 LLM 生成模式 —— 之前 v2.72.0 做成纯本地过滤跟作者预期不一致；现在输入关键词回车 / 点搜索按钮 / 点击热搜 → 调 1 次 LLM 生成 5-7 条与该词相关的虚拟微博（来自中文圈不同类型用户：文手 / 画手 / CP 粉 / 日常粉 / 情报站 / 拼团 / 代购）',
+                '【设计】搜索结果不污染主时间线 —— 存在独立的 `_searchResults` 状态、关闭搜索页就消失；卡片样式跟主时间线一致但不可点击进详情（避免引入"虚拟用户主页"复杂度）；点击会提示"搜索结果为搜索时生成的内容、不会进入主时间线"',
+                '【联动】搜索结果上方显示「相关超话」入口 —— 关键词命中现有 topics 时（name 或 description 含该词）显示快速跳转入口、点击直接进超话页',
+                '【in-flight guard】搜索中再次点搜索按钮会 toast 提示「正在搜索中、请稍候」防双击触发并发 LLM'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.72.0',
+            date: '2026-05-26',
+            highlights: [
+                '【新功能】搜索 —— 发现 tab 的搜索框 + 热搜词全部可点击 → 全屏搜索 sub-screen：即时过滤微博 / 超话 / 热搜词、4 个分类 tab（综合 / 微博 / 超话 / 热搜）；空 query 默认推荐热搜 + 热门超话作为发现入口',
+                '【新功能】超话点进去 lazy seed —— 用户进入帖子数 < 3 的超话时、自动按需触发单次 LLM 请求生成 3-5 条该超话内的博文；按超话 type 偏向挑 NPC（CP 超话偏 cp_fan/fan_writer、作品超话偏 daily_fan/info_station/fan_artist）；prompt 强制每条带 #超话名# 引用 + 兜底注入 topicIds；in-flight guard 防同一超话并发触发',
+                '【优化】评论数量提升 —— 批量生成 prompt 按 follower 给每个 NPC 期望评论数（< 3000 粉 4 条 / 3000-10000 粉 5-6 条 / 10000+ 粉 7-9 条）、热门博文评论自动更多；评论长度短长混合（5-8 字简短 vs 15-30 字感想）、口吻分散（同意 / 提问 / 调侃 / 求文 / 排队 / 安利 等）',
+                '【优化】详情页评论排序 —— 加「按热度 / 按时间」两个 tab：按热度按评论 likes desc 排（热门评论在顶部）、按时间按发布 desc 排；inline reply 的 likes 字段在生成时按 fc 派生 + 随机扰动'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.10',
+            date: '2026-05-25',
+            highlights: [
+                '【bug 修复】用户用官方账号发微博后、自己主页计数显示「微博 1」但列表却显示「还没有发过微博」—— 根因：`_getPostAuthor` 只查 `wd.accounts` 和 `wd.fanFriends`、漏了 `broadcast.officialNpcs`、找不到 author → 卡片渲染为空字符串。修复后官方账号发的博文能正常显示',
+                '【体验】NPC 种子完成后明确 toast 提示「中文圈 NPC 已准备就绪、N 位粉丝入驻」（持续 3.5 秒）—— 之前用户不知道什么时候生成完、可能会反复点刷新触发竞态'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.9',
+            date: '2026-05-25',
+            highlights: [
+                '【bug 修复】新用户第一次进微博刷新生成 NPC 时、如果在 LLM 请求还没回来时再次点刷新会触发竞态、导致重复种子 / 数据写花 / 页面跳出微博 —— 加 `_refreshing` in-flight guard：刷新中再次点击会 toast 提示「正在刷新中、请稍候片刻」直接 return',
+                '【bug 修复】`_maybeSeedWeiboNpcs` 也加 `_seedingNpcs` 保护、防止 init / refreshHome 其他入口并发触发种子重复消耗请求',
+                '【体感】首次种子的 toast 文案优化 ——「正在初始化中文圈 NPC、请稍等 10-20 秒...」+ 持续 8 秒、给用户清晰的等待预期、避免再误点刷新'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.8',
+            date: '2026-05-25',
+            highlights: [
+                '【新功能】博文点开看详情页 + 评论列表 —— 仿真真微博体感、点击微博卡片任意位置（除互动按钮）进入全屏详情页：完整正文 + 头像放大头 + 赞 / 评论 / 转发统计栏 + 评论列表；评论 / 转发按钮也直接跳详情、跟真微博体感一致',
+                '【新功能】NPC 发博自带评论 —— 批量生成 prompt 加 REPLY_1/2/3、每条 NPC 微博出生即带 2-3 条中文圈风格的粉丝评论（同意 / 提问 / 调侃 / 拼车 / 抱抱等口吻分散），刚刷出来的微博点开就有人气',
+                '【优化】超话页改全屏跳转 —— 之前 wb-modal 模式可能被外层 containing block 卷进去看起来像侧边栏、改用 _openSubScreen 统一全屏覆盖（与 v2.71.1 修过的个人主页 / 我的赞 / 编辑资料 / 设置二级页面同一种 sub-screen 体感）',
+                '【优化】顶栏加发微博按钮 —— 铅笔图标 SVG、所有 tab 都显示在顶栏右上、点击进 composer（之前只能从底部 tab 进发博、参考真微博顶栏既有刷新也有发博的双按钮结构）',
+                '【优化】代购微博去掉「代购」紫色 badge —— 真实微博代购靠作品 tag (#作品名#) 自然宣传、不靠平台徽章；prompt 同步加「必须带 1-2 个 #作品名# / #角色名# 超话引用」让 AI 自然生成符合中文圈代购仿真的内容',
+                '【健壮性】_typeBadge 函数保留空壳兼容已有调用点（拼团 / 情报的 badge 同步移除、统一靠内容前缀 / hashtag 自然区分）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.7',
+            date: '2026-05-25',
+            highlights: [
+                '【优化】微博首页刷新请求数大幅下降 —— 参考推特 / 论坛同款「一次请求多段返回」模式重写：原本每个 NPC 各发 1 次请求（4 NPC = 4 请求）→ 改为单次 LLM 请求列出所有 NPC + ---WEIBO--- 分隔块返回（1 次请求拿回 4 段），后续刷新从 5 个请求降到 2 个',
+                '【优化】NPC 内容鲜活度提升 —— 同步引入推特同款 5 个保鲜手法：① 每个 NPC 最近 24h 投稿摘要塞 prompt 作去重锚点、② 7 类 type 多样性指令 + 强制每 NPC 最多 1 条、③ 语气混合（糖 / 吐槽 / 日常 / 安利混着出）、④ 多样性 picker（_pickDiverseNpcs 优先不同 type）、⑤ 严令"不要扎堆同一话题"',
+                '【新功能】零 token 推特官推汉化搬运 —— 复用杂志「存入放送局」搬运同款设计：用户在推特点「转存到放送局」 → broadcast.officialInfo 新增 → 微博下次刷新/进入时扫描到 → 反查推特原 tweet 拿现成的 translation 字段 → 4 种 intro × 4 种 outro 模板拼接成 info_station NPC 博文（0 LLM 调用、0 token）',
+                '【架构】info_station 30% 概率随机翻译推特官推的旧分支（每次刷新都可能跑、消耗 token）剥离 → 改成事件驱动（用户在推特或放送局明确认可的内容才搬运），跟杂志汉化搬运行为对齐'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.6',
+            date: '2026-05-25',
+            highlights: [
+                '【bug 修复】微博首页刷新点击后卡在「正在初始化中文圈 NPC」、API 后台 0 请求 —— 根因：weibo.js `_getWorldContext` 字段名写错了（读的是 `broadcast.worldContext`、实际字段叫 `worldSetting`），其他模块（pixiv / magazine）都是正确的。修复后统一走 `Forum.getWorldContext()` fallback 到 `broadcast.worldSetting`',
+                '【健壮性】`_maybeSeedWeiboNpcs` 原本在缺世界观 / 缺 CP 时 silent return（toast 显示但啥都不做）→ 改成 throw + 外层 catch 显示「刷新失败：请先在放送局填写世界观设定」清晰提示',
+                '【健壮性】fanFriends 池空但 `_seededInitial` flag 已为 true 的卡死路径修复：上次种子失败留下的脏 flag 会被本次刷新自动清掉重试'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.5',
+            date: '2026-05-24',
+            highlights: [
+                '【隐私铁律修补】公开层（教程 / index.html / i18n.js / docs spec/plan）残留的样例用 CP 简称、IP 名清除、替换为中性占位（○○ / AB / ○○展），跟默认账户「Perigee 用户」隐私铁律保持一致'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.4',
+            date: '2026-05-24',
+            highlights: [
+                '内置教程全面更新到 v2.71.x —— banner 从「适配 v2.60」更新到「适配 v2.71.3」、覆盖日本同人圈生态打通 + 中文圈微博 + 情报站汉化搬运三个新工程',
+                '【新增 mod-weibo 完整章节】4 tab 介绍 / 7 类 NPC 子类型 / 中文圈情报站汉化搬运两大数据源（推特官推 + 杂志专访）/ 账号管理（含官方账号跨模块共享）/ 超话热搜 / composer 仿真 / 深色模式 / 独立 API（DeepSeek 默认 + 获取模型）/ 简体中文铁律 / 数据隔离',
+                '【更新 broadcast 章节】放送局 CP 设置 card（v2.69.0）+ productionName 字段（v2.71.0）+ 官方 NPC 跨模块共享说明（推特 / 微博 / Mercari / Magazine / Niconico 共用）',
+                '【更新 mod-twitter 章节】同人作者打通 Pixiv（v2.70.0）：doujin_writer 类型 NPC + 自宣性格 promoteStyle（active/occasional/shy） + 「彼女の好み」折叠区编辑入口',
+                '【更新 mod-pixiv 章节】同人作者 NPC 池（后台自动播种 5 位、零管理 UI 沉浸感铁律） + author 链接跳推特 profile + 自动新作触发推特延迟自然 mention',
+                '【更新 mod-magazine 章节】「存入放送局」按钮 = 触发微博情报站汉化搬运（v2.71.3）+ 设计意图说明（用户认可翻译质量 / 删文章不影响已搬运博文 / 用 article.id 去重）',
+                '【更新 welcome 章节】首页协作示例加入「微博（中文同人圈）有粉丝在拼团/代购/安利/情报站汉化日推日刊」'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.3',
+            date: '2026-05-24',
+            highlights: [
+                '【新功能】杂志专访汉化搬运（中文圈情报站第二条数据源）—— magazine「存入放送局」按钮触发后、weibo info_station 类 NPC 静默生成搬运博文。零 token 实现（纯字符串模板拼接、直接用 magazine 已 AI 压缩好的中文 summary 作节选）',
+                '触发点选「存入放送局」的设计意图 —— 用户已认可翻译质量 + 决定保留 = 该曝光、删除文章不影响已搬运博文（用户对生成结果不满意删文章 = 搬运博文照常存活、跟真实情报站推文一样独立）',
+                '模板 4 种 intro × 4 种 outro 随机组合 + 文章 8 种 type（声優/专访/角色企划/制作专栏/角色对谈/人气投票/读者来信/排行榜）对应中文 label + 受访者 from broadcast.officialNpcs 自动注入',
+                '边缘 case 静默处理（沉浸感铁律）—— info_station NPC 池空跳过 / summary 太短（<20 字）跳过 / 同一篇文章已搬运过跳过（translatedFromArticleId 去重）',
+                '现在中文圈情报站有两大数据源：① 推特上 broadcast.officialNpcs 发的最近 14 天推文（v2.71.2 上线）+ ② 杂志「存入放送局」的专访 / 企划 / 对谈（v2.71.3 上线）—— 跟真实中文圈情报站的日推 + 日刊数据源完全一致'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.2',
+            date: '2026-05-24',
+            highlights: [
+                'Code review 收尾 —— 微博 emoji 全部 SVG 化（卡片 action 👍/💬/🔁/分享 + 发现 tab 榜单/同城/超话社区 + 搜索框 + 长微博链接）跟全站 UI 铁律对齐',
+                '【新功能】中文圈情报站汉化搬运 —— info_station 类 NPC 30% 概率从推特上 broadcast.officialNpcs 发的最新推文里挑一条汉化搬运到微博。中文圈本土玩法、跟真实情报站文化一致。带「【情报搬运】 / @来源 handle / 个人翻译欢迎指正」标准措辞。同一 NPC 不重复搬运同一条推文',
+                '【死代码清理】weibo `_generateNpcWeibos` 自动生成时官方账号筛选分支（spec 说 20% 概率发博 + 70% 高反应、实际 _seedWeiboNpcs 不生成 official 类、永远走不到）。决策：删自动生成分支、官方账号只走「用户手动切换发博」路径（你刚做的 broadcast.officialNpcs 共享池）。手动发博时正确触发 _triggerOfficialReactions 粉丝 70% 高反应',
+                '【P0 修复】openSettingsSubPage 切到 broadcast 官方账号时面板打不开 —— 改成走 _getCurrentAccount() 统一查询',
+                '【P2 修复】spec md 778 行小节标题敏感措辞改为「负面内容过滤策略」、公开层（git tracked）零命中'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.1',
+            date: '2026-05-24',
+            highlights: [
+                '【Bug 1】微博首页刷新一直转圈 —— 根因：weibo `_callLLM` 读全局 API 字段名错了（写的是 `AppState.data.apiUrl` 但实际是 `AppState.data.apiConfig.{url,key,model,mode}`）、没设独立 API 时字段全空抛错被 catch 静默吞。修复：委托 `Utils.callChatAPI` 统一入口、自动支持各种 mode（openai/google/claude/deepseek）',
+                '【Bug 1】刷新友好提示 —— NPC 池空+未设 CP 时 toast 引导去放送局；池空+已设 CP 时自动种子；API 失败显示错误信息（不再静默）',
+                '【Bug 2】4 个 modal（个人主页 / 我的赞 / 设置二级 / 编辑资料）改成「sub-screen 全屏页面跳转」—— 加 `_openSubScreen / _closeSubScreen` helper + `.wb-sub-screen` CSS（absolute inset:0 z-index:100 + 滑入动画），覆盖整个 #weibo 容器（包括底部 nav），仿真真微博的全屏页面跳转',
+                '【Bug 2】「我的」tab 结构重写 —— 真微博点 tab 后是 IMG_1579 一级菜单（会员中心 / 设置 / 会员专属 / 深色 / 我的收藏 / 我的赞 / 主页访客 / 浏览记录 / 客服中心 / 草稿箱）、点击「设置」才进 IMG_1583 二级菜单',
+                '【Bug 2】点赞 toggle —— `myLikedPostIds` 数组 schema + 点赞按钮双向 toggle + 卡片粉色 `wb-act-liked` 高亮状态 + 我的赞 modal（IMG_1586 风格、微博/评论 subtab）',
+                '【Bug 2】返回桌面 bug 修复 —— `Navigation.goTo(\'home\')` 改成 `\'desktop\'`（screen id 是 desktop 不是 home）',
+                '【Bug 3】发微博 composer 改成全屏 sub-screen（IMG_1593 真微博布局）—— 左上 ×、中间账号头像、右上 → 发送、textarea 带橙色光标线、3x 图片网格、「你在哪里？」+「公开」chips、底部工具栏（图片 / 九宫格 / @ / # / 表情 / 字数 / 草稿）。@ 和 # 按钮真的会插入字符',
+                '【Bug 4】账号切换加官方账号支持 —— 新增 `_getCurrentAccount()` helper 统一 personal / fanFriend / broadcast.officialNpcs 三类账号查询、账号切换菜单合并源（① 放送局共享官方 NPC 池声優/監督/制作公司 + ② fanFriends type=\'official\' 兼容旧数据）、空状态引导「可在放送局 → 制作 NPC 添加」',
+                '【Bug 5】深色模式真做 —— 「深色」行右侧 iOS 风格 toggle 开关（持久化到 weiboData.darkMode）、CSS `.wb-dark` 覆盖整个微博 app（首页/我的/卡片/sub-screen/composer/账号切换 全部深色化）、不影响其他模块',
+                '默认账户 layout 迁移 ✓（hotfix 来自 v2.71.0 凌晨）—— `_ensureWeiboIcon()` 函数加固、二屏没图标的老用户自动补桌面图标（mercari v2.67.0 同款坑）',
+                '4 处仿真度改进（首页刷新按钮 / 我的 tab list / 个人主页 / 编辑资料）',
+                '账号 row 跳转修正（账号 row → 个人主页 / 账号与安全 → 切换账号）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.71.0',
+            date: '2026-05-24',
+            highlights: [
+                '微博模块上线 —— 完整中文同人圈生态仿真：4 tab（首页双流 / 发现热搜+超话 / 消息 4 子tab / 我的）+ 7 type 微博卡片（纯文 / 长微博 / 图 / 转发 / 拼团 / 情报 / 代购 / 日常）+ composer + 草稿箱',
+                '7 类中文圈 NPC 子类型 —— 同人文手 / 同人画手 / 拼团组织者 / 代购 / 情报站 / 日常粉 / CP 粉 / 官方账号、每类独立 prompt 模板生成本土风格内容',
+                '官方账号机制 —— 声优本人 / 制作公司 / 工作室可登录发博、自动触发粉丝 70%+ 高反应率（点赞 / 评论 / 转发）',
+                '账号管理参考推特 —— 默认个人账户（Perigee 用户占位、用户可随时改）+ 可新建多个 + 下拉切换发帖身份（个人 ⇄ 官方 NPC）、去掉 line 流程',
+                '超话自动播种（沉浸感铁律：无管理 UI）—— 进入「发现 → 超话」时根据 broadcast.cpSettings 静默生成主角超话 / CP 超话 / 作品超话',
+                '热搜动态生成 —— 跟随剧情 + CP + 混入娱乐 / 社会 / 财经中性底噪反衡、4 类标签（hot / new / boom）',
+                '中文同人圈 API 独立配置 —— 设置 → API 集成 新「中文同人圈 API」section、4 preset 下拉（DeepSeek 默认 / OpenAI / Gemini / Claude）、URL 自动填、点击「获取模型」动态拉真实可用模型列表（future-proof、模型名升级无需改代码）',
+                'broadcast.cpSettings 加 productionName 字段（放送局世界 tab CP 设置下方）—— 用于微博作品超话 + 中文圈 NPC prompt 注入',
+                'autoGenOnNewPlot 复用 —— 微博 NPC 自动生成挂入 pixiv 同 trigger（forum.js 剧情推进点）',
+                'i18n 三语 105 个微博 key + 21 个 settings/broadcast key—— 微博 / lofter UI 跟随平台原生中文、i18n.lang=ja 时 fallback 简体中文（lofter 只有中文、微博中英）',
+                '所有 NPC 生成内容强制简体中文输出（prompt 末尾铁律）—— 不做翻译折叠、中文圈平台原生即简中',
+                '设置 → 数据管理 → 「重置中文圈 NPC 池」按钮（半隐藏 maintenance）',
+                'sw.js VERSION 2.70.0 → 2.71.0 + 加入 weibo.js / weibo.css 到 coreUrls',
+                '桌面图标 SVG 加入 APP_REGISTRY、放在第二屏（mercari 之后）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.70.0',
+            date: '2026-05-23',
+            highlights: [
+                '日本同人圈生态整合 —— 推特 fanFriends 中的「文手 NPC（doujin_writer）」打通到 pixiv `autoGenerateNovel`：从 doujin_writer 池 weighted pick 作者、用 NPC 自己的 `writingStyleId` 注入 prompt、`<AUTHOR>` 字段强制覆盖、`novel.author_npc_id` 关联推特 fanFriend',
+                '推特 timeline 按 promoteStyle（active / occasional / shy）延迟自然 mention pixiv 新作：`_buildDoujinWriterNewWorksPrompt` 注入最近 3 天 / 10 篇新作信息、LLM 按性格决定要不要自宣（active 必发 / occasional 30% / shy 5%）、自宣推带 PIXIV_LINK 链接卡片',
+                '推特 fanFriend profile 改造 —— doujin_writer 类型新增作者信息卡（pixivHandle / 文体 / 擅长主题 chips / promoteStyle 标签）+ 在 pixiv 的作品 section + 「彼女の好み」折叠区（默认折叠、展开可微调 writingStyleId / contentTags / promoteStyle / pixivHandle / bio）',
+                'pixiv novel 卡片 author 字段：`author_npc_id` 存在时变成链接、点击跳推特 fanFriend profile',
+                '后台 idempotent 种子播种（沉浸感铁律：无 UI）—— 首次进 pixiv 检测池空 + 有 worldContext + 有 CP → 默默生成 5 位 doujin_writer NPC、不 toast / 不 modal / 用户感觉不到、不满足条件时静默跳过',
+                '设置 → 数据管理 → 「重置同人作者池」按钮（半隐藏 maintenance）',
+                'fanFriends 上限 15 → 20、type 枚举 `\'doujin\'` → `\'doujin_writer\'` + 新增 `\'doujin_artist\'`（占位）、prompt type 描述拆成文手 + 絵師两类',
+                '一次性数据迁移：旧 `type=\'doujin\'` fanFriend → `\'doujin_writer\'` + 补 6 个默认字段（`pixivHandle / writingStyleId / contentTags / promoteStyle / melonbooksCircleId / hasUnlockableContent`），`_doujinTypeMigratedV2` flag 控制幂等',
+                'i18n 三语各加约 20 个 key（tw.profile_* + settings.writers_pool_* + t.tw_preferences_saved）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.69.0',
+            date: '2026-05-21',
+            highlights: [
+                'CP 系统挪进放送局 —— 数据从 `pixivData.settings.{cp, cpCharA, cpCharB, cpNickname}` + `forumData.cpNickname`（双源 + 隐性 bug）统一到 `broadcast.cpSettings`。13 处读取点全部走 `Broadcast.getCP()` helper，pixiv 小说 / 剧情扩写 / Goods 池 / IP cafe 菜单 / mercari 行情等创作工具的行为完全不变（只换数据来源、prompt 模板一字不动）',
+                'pixiv 设置页 CP 编辑入口移除，统一到放送局世界 tab 末尾新 CP 设置 card（cpCharA / cpCharB / cpNickname 三个 input + 多语言提示）',
+                '论坛主贴 / 回复 / 推特 / 未来微博 NPC 模块继续不读 CP（保持现状）—— 这是作者的核心玩法依赖：NPC 从剧情自然推理 CP、保留猜测乐趣',
+                '老存档自动迁移（app.js loadData 后跑一次幂等迁移，把 pixivData/forumData 的 CP 字段搬到 broadcast.cpSettings，并清掉 forumData.cpNickname 隐性 bug）',
+                'i18n 三语各加 9 个 key（broadcast.cp_* 8 个 + pixiv.cp_moved_hint）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.10',
+            date: '2026-05-21',
+            highlights: [
+                'pixiv 小说长篇生成 load failed 修复 —— utils.js 给所有 LLM API 调用（callChatAPI override 分支 + callOpenAICompatibleAPI + callGoogleAPI + callClaudeAPI）统一加 `_fetchWithTimeout` helper：AbortController + 10 分钟显式 timeout（默认浏览器 ~5 分钟就抛 load failed）。错误对象挂 `code` 分类：timeout / network / api / safety / parse / truncated',
+                '生成失败友好提示 + 重试入口（pixiv-novel.js） —— 失败时不再只是 toast 一句「load failed」，在小说列表顶部插失败提示条：按 err.code 显示对应标题 + 解释 + 「立即重试」「修改后重试」「关闭」三按钮。生成 modal 输入态保留（hide 不 destroy），点立即重试 = 直接重新生成、点修改后重试 = 重开 modal 让用户改字数/提示词',
+                'i18n.js 三语各加 17 个 key —— err_timeout/network/api/safety/parse/truncated/unknown 各 title+hint，retry_now / retry_edit / err_close（中/日/英）',
+                'systemPrompt / max_tokens / maxOutputTokens / 用户数据一字未动'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.9',
+            date: '2026-05-20',
+            highlights: [
+                'LINE 聊天「官方 NPC 身份」从推特解耦 + 加独立性格设定 —— 之前 LINE 聊天的官方身份是直接复用推特 active identity（line.js:1806 `Twitter._getActiveIdentity()`），推特那侧 NPC 账号是 ref `broadcast.officialNpcs[]`、只能选不能配性格、LINE 聊天体验受限。现在 LINE Home → 身份管理 每个 persona 加两个新字段：`officialNpcId`（下拉从 broadcast.officialNpcs 选）+ `officialPersonality`（专给 AI 看的性格/经历/背景设定 textarea），跟推特简介性质区分（推特简介放工作邮箱/近况、LINE 身份放 LLM 角色设定）',
+                'LLM 注入路径 (line.js:1806) 改成优先读 active persona 的 officialNpcId + officialPersonality；persona 没配 → fallback 到推特 active identity（向后兼容，老用户数据不变）',
+                'i18n.js 三语各加 6 个 key (line.official_identity_card / hint / npc_label / npc_none / personality_label / personality_placeholder)'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.8',
+            date: '2026-05-20',
+            highlights: [
+                'pixiv 小说生成「load failed」修复 —— 加「最少字数」专用 number input（位置：文风选择后、额外提示词前）。generateNovel 读这个字段动态生成 `Target length: at least N words. Aim for N - N*1.4 words.` 覆盖原来 hardcode 的 `Target length: 1500 - 3000 words.`，并加指令告诉 LLM「不要输出字数元信息」。根因：用户在额外提示词手写「800 字以上」之类时跟默认 1500-3000 words 冲突 → Gemini 输出迷失 / fetch 报 load failed',
+                '推特账号切换 dropdown 显示「公式アカウント」修复 —— v1 时代 `t.userName` 默认值 `公式アカウント` 被 v2 迁移代码搬进 personalAccounts[0].name 没改名。加一次性 migrate（flag `_renamedOfficialDefaultV2_68_8`）：检测 isReal=true + name===\'公式アカウント\' → rename 成「私のアカウント」/ handle=\'myaccount\'，跑一次后标记不重复。新用户走 v2 兜底中性默认（行 147）不受影响、用户自己改过的其他名字也不动'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.7',
+            date: '2026-05-20',
+            highlights: [
+                '放送局 → 剧情编辑 modal 加「✨ AI 扩写」区块 —— 写几句大概剧情、AI 自动扩成正文（context 宽：作品设定 + 角色/staff + 最近 5 话剧情，保连续性）；长度三档「短 ~300 字 / 中 ~800 字 / 长 ~1500 字」固定档让用户选；扩出来填回内容栏、用户可继续改细节',
+                '三处 AI 生成入口全部加输出语言 dropdown —— 剧情扩写 / 周边方案 / 咖啡店菜单。默认「跟随界面」（当前 i18n 语言），用户可手动 override 中/日/英任一种。作者用日语界面 → 默认输出日语（不打扰），其他用户用中文界面 → 默认输出中文（看懂）',
+                'forum.js 加通用 `_buildLangSuffix(lang)` helper —— 三处共用同一套语言后缀机制，AI prompt systemPrompt 末尾自动拼「请用中文/日文/英文书写」指令'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.6',
+            date: '2026-05-20',
+            highlights: [
+                '切语言时动态卡片/列表立即刷新 —— i18n.js 在派发 languageChanged 后中央化调用各模块的 switchTab(currentTab) / renderArticleList / renderThreadList / renderTimeline，14 个主模块全覆盖。之前切语言后必须离开 panel 再回来才能看到新语言、现在切完即变',
+                'magazine FEATURE 文章 emoji 修复 —— 之前 article.featureLabel 存的是翻译后标签（"包里的东西"），而 _FEATURE_EMOJIS 的 key 是英文 enum（"bag"），查询永远落到 ✨ fallback。现在 article 新增 featureKey 字段存 enum，渲染时优先用 featureKey；老数据通过 _FEATURE_LABELS 反查兼容'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.5',
+            date: '2026-05-20',
+            highlights: [
+                'i18n 安全审计 + 加固 —— 4 个 subagent 审完翻译改造后扫出约 25 处问题，全部修复。systemPrompt 字面量 100% 干净（30+ 模板 0 处被碰过）/ AppState 存储 enum 100% 干净 —— 作者那条「不动 systemPrompt」铁律守住了',
+                '修了 9 处「I18n.t 输出 → 存进数据 → 下一轮喂回 LLM」的间接污染 —— pixiv-novel 完结/书籍化事件 summary 影响 6 个模块 systemPrompt（最大）/ pixiv-illust 论坛分享 thread / forum 常驻 OP 默认文 / twitter Space 语音占位+マシュマロ回答+Poipiku 分享三处 tweet content / LINE 两处转账 desc fallback。全部改硬编码日文（跟 systemPrompt 同等待遇）',
+                '修了 6 处「getter 翻译值 → 拼进 systemPrompt」污染 —— melonbooks `_PRODUCT_TYPES` / `_EVENT_TYPES` 拆出 `_PRODUCT_TYPES_JA` / `_EVENT_TYPES_JA` 写死日文双轨；forum `OFFICIAL_CATEGORIES[*]` 每个 category 加 `labelJa` 字段，AI prompt 路径 4 处改用 `labelJa`',
+                'Tier B 8 处 NPC name / fallback 同模式硬编码（推文 `ファン` / NPC 默认名 / `（削除されたアカウント）` / mercari 默认 `グッズ` 等）',
+                'docs/i18n-guide.md 新增三段规范 —— 「⚠️ i18n 黑名单字段」段（黑名单字段清单 + 跨边界陷阱原理）/ 「5.5 跨语言对象的双轨」段（getter + `_X_JA` 双轨范式 + 已应用清单）/ 新 anti-pattern「把会喂回 LLM 的字段用 I18n.t 翻」'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.4',
+            date: '2026-05-20',
+            highlights: [
+                '全站多语言·第三期 —— 之前 LINE / Twitter / Forum / Pixiv / Magazine / Melonbooks / Niconico / Mercari 这些平台仿真模块切语言时还有大量日文不动；这一版把这些平台的所有 UI 全部接入翻译',
+                'LINE 873 处（顶栏 tab 名 / 状态文字 / 输入框提示 / 菜单项 / 聊天设定页 / 共享/转账/Pay modal / VOOM 动态 / 贴图管理 / 身份切换 / Pay 余额 / 时间日期 / 错误提示）',
+                'Twitter / X 547 处（tab / 推文操作 / 个人页 / Space / DM / Marshmallow / Poipiku / 通知 / 搜索 / 趋势 / 粉丝类型 / 时间）',
+                'Pixiv 平台 364 处（小说卡片 / 阅读器 / 章节操作 / TOC / CP 设置 / 文风预设 / 字号 / 独立 API / 插画生成）',
+                'Forum 330 处（情报分类 / 周边构成 / 咖啡店菜单 / 常驻串 / NPC 编辑 / 总结 / 帖子卡 / 翻页 / 传说 NPC / 星期 / 时间相对格式）',
+                'Magazine 162 处 + Melonbooks 196 处（杂志阅读器·翻译·广播剧化·分享导出 / 即售会档期·商品状态·稀有度·购物车·购买记录）',
+                'Niconico 105 处 + Mercari 102 处（视频分类·我的列表·排行榜·音频剧 / 商品状态·稀有度·市场价·热度·搜索·收藏）',
+                'i18n.js 新增 ~1200 三语词条（中文用简中、日文保留原文、英文按各平台官方词），共 ~3600 行字典扩充',
+                'i18n.js 新增 `data-i18n-label` 钩子（用于 `<optgroup>` 标签属性翻译）',
+                'docs/i18n-guide.md 大改：删掉「保留日文」分支、强化「systemPrompt / 内部功能层永远不动」铁律（避免改了 prompt 影响 AI 输出 → 破坏所有功能）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.3',
+            date: '2026-05-20',
+            highlights: [
+                '杂志「记事类型」三语 —— 生成弹窗的 16 个记事类型 / 企划模板 / 主题输入框、以及杂志卡片上显示的类型 badge，全部跟随语言切换（声優インタビュー / Voice Actor Interview / 声优访谈）',
+                'Pixiv 编辑弹窗三语 —— 创作主面板、生成弹窗、创建小说 / 编辑小说 / 编辑章节 / 添加章节 / 续章 / 文风预设 / 插画生成 7 个 modal 的 label / option / placeholder',
+                'Forum 设置区三语 —— 论坛规则 / 传说 NPC 卡 / 偏好（字体大小） / 论坛维护 4 张卡片所有标题和说明',
+                '数据导出 19 个模块标签 + Modal 标题 / 按钮三语 —— 全部跟随语言',
+                'character / dictionary / decorations / fortune / github-backup / desktop-edit / magazine 共 7 个模块的 confirm / alert / 渲染文案 三语',
+                '仿真平台 LINE / Twitter 按官方多语言原词 —— LINE 的「キャンセル / 投稿する / 送金する / チャージ / 閉じる / スタンプ管理 / グループ作成」、X 的「キャンセル / 閉じる / ✦スペースを開始」会按选择的语言显示官方词',
+                '没官方多语言的仿真平台（Niconico / Melonbooks / Forum 2ch 风格术语 / Mercari 纯日文 UI）保留日文 —— 是日本平台沉浸感的一部分',
+                '新落 docs/i18n-guide.md —— 完整规范，以后加新功能 / 新模块 / 新 app 时照单走'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.2',
+            date: '2026-05-20',
+            highlights: [
+                '全站多语言·第一期收尾 —— 通用按钮（取消 / 保存 / 确认 / 删除 / 关闭…）补齐，LINE 返回 Perigee 的悬停提示、Pixiv 编辑弹窗、世界书 modal、Fortune、旅行记账、Onboarding、Magazine、Mail、Twitter 身份编辑等全部接入翻译',
+                '深层 API 折叠面板 —— NovelAI 反代设置 + MiniMax TTS 设置（区域 / Endpoint / 音色 / 読音对照表 / 语速 / 语言增强）的 label、placeholder、说明 `<p>` 都接入',
+                '设置区 4 个动态小区域 —— 自定义图标列表、小组件列表、GitHub 备份卡片、数据管理「存储用量」字符串改用 i18n（GitHub 备份卡片的注释含 `<code>` / `<strong>` 也跟着切换）',
+                'i18n.js 又加了两个属性钩子 —— `data-i18n-title`（hover 提示）和 `data-i18n-html`（含 `<code>` 等子元素的说明）；同时新增约 100 条词条',
+                '第一期到此结束。仿真平台原生日文（LINE 的「キャンセル / 投稿する」、Twitter 的「✦スペースを開始」等）按最早的「平台文字另算」决定保留为后期任务，将来统一接入各平台官方多语言原词'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.1',
+            date: '2026-05-19',
+            highlights: [
+                '全站多语言·第一期 B 批 —— 所有操作提示（toast）现在跟随语言切换。「已保存」「生成失败」「已复制」这类一闪而过的小提示，中 / 日 / 英三套',
+                '覆盖 22 个模块、438 处提示，含带数字的提示（如「已生成 5 条回复」）也会按各语言语序正确组句',
+                '依旧只动提示文案 —— 功能、数据、发给 AI 的提示词一个字没碰'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.68.0',
+            date: '2026-05-19',
+            highlights: [
+                '全站多语言·第一期 —— 设置和放送局的界面文字现在跟随「设置 → 语言」切换。中 / 日 / 英三套，标题、按钮、说明、下拉项、输入框提示都会一起变',
+                '本批覆盖：设置首页、外观・美化、API 接続、数据管理、关于、放送局（世界 / 剧情 / 情报 / 角色 / 总结）—— 约 140 处界面文字接入翻译',
+                '只动界面显示文字 —— 功能、数据、发给 AI 的提示词一律没碰'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.67.6',
+            date: '2026-05-19',
+            highlights: [
+                '放送局 NPC 编辑：「角色 / 职位」输入框加了下拉箭头提示 —— 之前它能下拉选预设职位（監督 / 声優 / 脚本…），但外观和普通输入框一样、看不出来，现在右侧有箭头明示',
+                'LINE 返回桌面按钮 —— 四个 tab（ホーム / トーク / VOOM / ウォレット）顶栏左上角都加了返回 Perigee 桌面的按钮，不再藏在 tab 内容里'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.67.5',
+            date: '2026-05-19',
+            highlights: [
+                'LINE 聊天消息气泡修复 —— 之前气泡会坍缩成一条竖线、文字逐字竖排，现已恢复正常的横向气泡',
+                'LINE 发消息报错修复 + 重试 —— 修掉新用户发消息必现的 AI 调用报错；AI 回复失败后新增「再試行」按钮，点一下重新生成、不用重打',
+                'pixiv 小说「格式错误」修复 —— 长篇曾因输出上限过小被截断、解析失败；现已大幅提高上限（可写两三万字的一发完结）并加解析容错',
+                'X 模块几处稳健性加固'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.67.4',
+            date: '2026-05-19',
+            highlights: [
+                'Mercari 首页加「市場を更新」按钮 —— 点一下市场就流动起来:新卖家上架、商品被买走 SOLD、价格波动,跟真实フリマ刷新一样',
+                '几处稳健性修复:角色搜索按钮换了更稳的写法;Mercari 出品分享到 LINE 时不再被误标成メロンブックス'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.67.3',
+            date: '2026-05-18',
+            highlights: [
+                'Mercari 加上返回按钮 —— 之前进了 Mercari 没有出口,现在顶栏左上角可一键回 Perigee 首页'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.67.2',
+            date: '2026-05-18',
+            highlights: [
+                'Mercari 在线上打不开的修复 —— 部署脚本的文件清单漏了 mercari.js 和 mercari.css 两个新文件,它们从没被上传到服务器,导致首页一片空白、配色全失效。补全清单后重新部署',
+                'Mercari 顶栏不再被手机状态栏遮挡(补了安全区留白)',
+                'Mercari 桌面图标改成「方块 + m」,不再和メロンブックス的购物袋图标撞脸;图标文字也修正显示「メルカリ」'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.67.1',
+            date: '2026-05-18',
+            highlights: [
+                'Mercari 图标在老用户桌面不显示的修复 —— Perigee 的桌面只渲染已保存布局里的图标,新上线的 app 不会自动进老用户的桌面;2.67.0 的 Mercari 因此在老存档上看不到。补了一个迁移:启动时检测桌面有没有 mercari,没有就自动补一个图标(已有则不动)',
+                '教程:Music Lab 从「辅助工具」移到「创作模块」分组 —— 和论坛 / Pixiv / Mercari 等创作向模块归在一起'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.67.0',
+            date: '2026-05-18',
+            highlights: [
+                'Mercari 二手市场上线 —— 你在放送局发布的官方周边,会在一个拟真的二手市场上流通。看自己推的角色 / CP 的周边被炒价、求购、秒空,甚至被仿冒。首页是真 Mercari 那样的瀑布流,点进出品有商品说明 / 出品者 / 相场对比 / 买家留言区,还能分享到 LINE',
+                '价格是创作的「回声」—— 二手价不是手动调的,跟着剧情自动波动:角色热度 × 周边稀缺度。你写一段角色的高光戏,他名下那些早发售的老周边二手价会应声上涨。每次放送局发布新剧情,Mercari 重算全场行情',
+                '黄牛与假货 —— 越贵越抢手的周边(尤其咖啡厅 / 活动特典),越多転売ヤー和偽物。黄牛挂天价、留言区被买家骂;假货潜伏不明示,要你自己从留言区线索看破,被买家扒穿后会盖上「偽物の疑い」标记',
+                '卖家介绍和买家留言由 AI 演 —— 贴着你的世界观和剧情。默认懒加载:点进某个出品才生成它的留言区,不点不花 API。可以给 Mercari 单独配一个 API(独立于全局),也能设成预生成',
+                '行情榜 +配套改动 —— 「今話の市場」榜看角色人气 / 高騰グッズ / 完売速報;pixiv 的 CP 设定改成结构化(角色 A × 角色 B + 简称,没绑声优也能手填);放送局周边发布表单加「关联角色」;手动「市場イベント」能亲手引爆一场假货风波或黄牛炒作'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.66.1',
+            date: '2026-05-17',
+            highlights: [
+                '周边条目从卡片改回「行式」—— 和访谈 / 推特情报等其他分类统一成一行一行,带回了 #编号(按发布顺序,改 UI 前那个一目了然的序号又回来了)。结构化周边在行里显示「¥价格 ｜ 稀缺度 ｜ 状态 ｜ 来源」',
+                '情报条目去掉了开头的分类小标签 —— 既然已经按「周边 / 访谈 / 推特情报…」分区,每条再标一次分类就重复了,去掉更清爽',
+                '「添加官方情报」按钮从列表底部挪到顶部 —— 情报条目一多,不用再翻到最底下才能发布',
+                'README 更新 —— 之前还停留在项目最早期的「泰坦2方屏聊天机」版本,重写成现在的 Perigee OS'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.66.0',
+            date: '2026-05-17',
+            highlights: [
+                '放送局的「周边」结构化 —— 官方情报里的周边从一坨纯文本,升级成带字段的对象:名称 / 类型 / 价格 / 稀缺度(通常 / 限定 / 特典)/ 贩售状态 / 来源。这是将来 Mercari 二手市场的数据地基',
+                '「情报」tab 改成分类分区 —— 周边 / 访谈 / 推特情报 / 活动 / 设定集 各归各的区,周边那区用卡片显示价格 / 稀缺度 / 状态,不再六类混成一长条;空的分类不显示',
+                '周边贩售状态跟着剧情走 —— 标「预告 / 受注中」的周边,在你发布下一话剧情时自动转「贩售中」。咖啡厅 / 快闪 / 周年展的特典,靠「来源」字段就能接入,不用单独造活动系统',
+                '不动其他模块的读取 —— 周边没搬家,getWorldContext(推特 / 论坛 / 杂志 / niconico / Melonbooks / LINE 共用的世界上下文)对周边只多输出一行属性标签、对其他一切一字不变;历史的旧周边纯文本一条不丢,标「旧」可点进去补全字段'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.65.0',
+            date: '2026-05-17',
+            highlights: [
+                '世界书支持导入 / 导出 SillyTavern 格式 JSON — 列表页新增「导入世界书」、每本书详情页新增「导出这本世界书」。导出生成标准 SillyTavern 格式 .json（一本一文件），能直接丢回 SillyTavern 用；导入认 SillyTavern 世界书文件，comment→标题 / key→关键词 / disable→开关 自动映射。方便备份，也方便把外面的世界书搬进来',
+                '导入同名世界书会弹窗确认 —「覆盖那本」（保留原书 id，放送局 / 角色绑定不断）或「另存为新书」（名字自动加后缀）。导入新书不会自动进放送局激活列表，要不要生效你自己勾',
+                'SillyTavern 的高级触发设置（常驻 / 递归 / 触发深度 / 概率等）Perigee 没有对应功能，导入时略过 — 那些条目按普通关键词条目导入，内容和关键词不丢；导入完成的提示会告诉你有几条这样的条目'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.64.0',
+            date: '2026-05-16',
+            highlights: [
+                'Melonbooks 同人即売会加「档期状态机」+ 展会话题闸门 — 即売会有了告知→開催間近→開催中→終了四档档期，绑剧情推进（和商品新刊共用一套机制，绑下一话剧情、发布时推进一档；也能手动推进）。论坛和推特只有在即売会处于「開催間近~終了直後」窗口内时才会讨论同人展会 —— 治了「剧情才两集，论坛/推特就凭空热议一个还不存在的展会」',
+                'Melonbooks UI 大改 — 商品封面占位换成「書影風」（米白底 + 标题明朝体 + 橙细线），告别随机 emoji；ランキング改数字徽章；全模块 emoji 换成线性 SVG；即売会卡片 / 详情页加档期 badge 和推进按钮；卡片去渐变、配色收拾',
+                '移除商品「周边(グッズ)」类型 — 周边整体让给将来要做的 Mercari（二手流通）。已生成过的旧周边商品保留显示，不动你的存档'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.63.0',
+            date: '2026-05-16',
+            highlights: [
+                'Pixiv 长篇连载续章改用「滑动窗口」记忆 — 之前续写下一章只喂前面所有章节的 ~300 字摘要，AI 看不到上一章实际怎么收尾，新章开头容易和上一章结尾重复。现在借鉴写预设的经验：最近 5 章喂纯日语全文，更早的章节才喂摘要。喂回去的全文会先剥掉中文翻译折叠块，避免译文混进日语生成。续写 / 重写（reroll）都生效',
+                'Pixiv 修中文提示词夹进日语正文的出戏问题 — 你用中文填的标题 / 标签 / 追加指示 / 续章方向，AI 有时会把中文措辞原样搬进日语原文。现在语言指令明确告诉 AI：那些只是创作指令，要理解意图后用地道日语重写，不能照抄。短篇 / 续章 / 后台自动生成三处统一生效',
+                'Pixiv 完結按钮防误触 + 可反悔 — 之前「完結する」一点就完结、没有确认、也撤不回。现在加二次确认弹窗（并在文案里写明完结后能取消，让人安心点确认），完结后的连载新增「連載を再開」按钮，随时撤销回连载中',
+                '清理死代码 — 移除旧版 generateNextChapter（连载续章早已改用 generateNextSerialChapter，旧函数没有任何调用点）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.9',
+            date: '2026-05-03',
+            highlights: [
+                '底部 bar 在无 home indicator 设备（iPhone SE3 等 LCD）上贴底 — v2.62.8 用 max(10, inset) 在 SE3 上 inset=0 时还会兜底 10px 留出空白。改成纯 env 模式（无 max 兜底），SE3 上 padding-bottom=0 紧贴底，iPhone 17 等保留 inset 让出 home indicator。覆盖：tw-bottom-nav / melon-detail-bar / pixiv-action-bar / tw-dm-input-bar / nico-comment-input / lv-comment-input。LINE line-tab-bar 一直用的是这个模式（作者参考 LINE 的处理后反馈）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.8',
+            date: '2026-05-03',
+            highlights: [
+                '推特 profile 页返回按钮被灵动岛挡的修复 — profile 子页面用 top:-inset 把 screen 上推让 banner 触顶，先前给 profile.tw-top-bar-back 加的 padding reset 反而抵消了 inset，导致按钮 y=10px 落进灵动岛内点不到。去掉那条 reset，让按钮正常下移到 inset 下方',
+                '底部 bar 的 home indicator 间距从 calc(基础+inset) 改成 max(基础, inset) — 之前底部空白偏大（底部 nav 距屏幕底 40+px buffer 重复），现在直接紧贴 home indicator 上方。改动覆盖：tw-bottom-nav / melon-detail-bar / pixiv-action-bar / tw-dm-input-bar / nico-comment-input / lv-comment-input。FAB 和 toast 类悬浮元素保留 calc 模式（它们需要距 indicator 留 buffer 不挡正文）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.7',
+            date: '2026-05-03',
+            highlights: [
+                'Pixiv 长篇连载整本 TXT 导出 — 长篇连载点 TXT 按钮会弹小对话框选「本章 / 整本」（短篇仍走单章导出无对话框）。整本模式：章节标题 + 空行 + 正文，章之间 40 个 ─ 横线分隔，文件名带「_全集」后缀，不附作品名/作者/tags 头部',
+                'Music widget B 方案：真正能播放 — editMusic 模态新增「内置歌单」select（列出 Music.songs 中 stage=done 的歌）+「外链音频 URL」input；play 按钮真响应（IndexedDB blob 或外链）；播放时黑胶持续旋转、进度条 timeupdate 跟随、▶/⏸ 图标自动切换；选了内置歌曲未填 title/artist 时自动从 song 同步',
+                '全局音频协调器 AudioCoordinator — widget / Music Lab 详情页 / 放送局广播剧（niconico audio-drama）/ LINE voice 四个入口的 audio element 全部纳入互斥协调，任一开始播时其他自动让出'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.6',
+            date: '2026-05-03',
+            highlights: [
+                'safe-area 兼容性全面排查 — 14 处 CSS 规则补吃 env(safe-area-inset-*)：推特顶栏 / 推特底部 5 图标 nav / 推特 DM 输入栏 / LINE 子页面顶栏 / LINE 底部 tabbar（含 mobile 媒体查询）/ LINE 主聊天输入栏 / LINE 语音 FAB+评论输入栏 / メロン详情底栏 / Pixiv 操作栏 / Nico 评论输入栏 / 全局 toast 三处悬浮元素',
+                '顺手纠正两处错误注释 — `.line-tab-bar` 和 `.pixiv-action-bar` 原本写着「safe-area-inset-bottom 已由 body padding 处理」，但 body 的 padding 对 absolute 定位的 .screen 实际无效，这两处从一开始就没真正被处理过'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.5',
+            date: '2026-05-02',
+            highlights: [
+                '帮助中心「楽曲（Music Lab）」章节翻新 — 反映 v2.62.x 的实际行为：放送局-centric / 三段 pipeline（写歌词 → 确认 → 风格 prompt → MiniMax 合成）/ 楽曲タイプ 8 种 / 关联プロット 是「锚点」不是「内容素材」/ 注音括弧禁用提示 等等'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.4',
+            date: '2026-05-02',
+            highlights: [
+                '清理：v2.62.3 voiceFromKlaude 里又遗留的一处 NPC 名 → 「作者的 NPC 名」'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.3',
+            date: '2026-05-02',
+            highlights: [
+                'Music Lab：歌詞生成 prompt を本格修正 — 「キャラソン / ED / 完結記念曲が最新 1 話だけに偏る」問題を解決。新メソッド _buildStoryTimelineContext で全 arc（mergedSummaries / plotSummaries / 未圧縮 plotProgress）を毎回注入する',
+                '関連プロットの語義を「アンカー」に変更 — 選んだ ep は「歌が発売される話数」であって「歌の内容素材」ではない。AI には「アンカーは WHERE で WHAT じゃない」と明記、キャラソン等は arc 全体を素材に書くよう指示',
+                '往期更新ページのプライベート情報を ✨ / 「某 NPC」「某画师」に置換（v2.61.2 / .3 entries）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.2',
+            date: '2026-05-02',
+            highlights: [
+                'Music Lab：歌詞確認ステップを追加 — 歌詞執筆完了後、ユーザーが詳細ページで「この歌詞で楽曲を生成 →」を押すまで MiniMax 楽曲合成は走らない。歌詞が気に入らなければ「歌詞を書き直す」で歌詞だけ再生成、確認段階に戻る（MiniMax 配額の浪費を防ぐ）',
+                '歌詞執筆 prompt に注音括弧禁止条款を追加 — 「宇宙（そら）」のような漢字+仮名の併記は MiniMax が両方読み上げてしまうため。仮名で歌わせたい場合は最初からひらがな表記する',
+                '純音楽（BGM/サントラ）は確認ステップ不要 — 歌詞内容（[Instrumental]）に確認すべきものがないため自動連走'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.1',
+            date: '2026-05-02',
+            highlights: [
+                'Music Lab：「関連キャラ」入力欄を撤廃 — broadcast.officialNpcs は声優・監督・製作人であって作品内のキャラではないため。作品内キャラ情報は世界書から自動で読まれる',
+                'タイトル入力を任意化 — 空欄なら歌詞執筆時に LLM が一緒にタイトルも自動命名',
+                'API レスポンス処理を schema 通りに修正 — `data.data.audio` パス + `status === 2` チェック（status=1 は「合成中」、念のため検出）',
+                'lyrics 文字数上限を 1000 → 3500 に修正（1000 は music-cover の制限、music-2.6 は 3500）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.62.0',
+            date: '2026-05-02',
+            highlights: [
+                'Music Lab 全面重構 — CP-centric 設計を放送局-centric へ：旧 lyricProjects（CP・角色A・角色B 単独管理）を全廃、楽曲は放送局の plotProgress + worldBookIds + officialNpcs を直接読む（pixiv-novel と同款の統合フロー）',
+                'MiniMax 楽曲生成 API 接入 — 3 段パイプライン：①LLM が歌詞執筆（[Verse]/[Chorus] 段落タグ自動付与）→ ②LLM が音楽スタイル prompt 生成（"Anime ED, J-Pop, Acoustic..." の英語タグ列）→ ③MiniMax music-2.6 で楽曲合成（hex フォーマット直接落 IndexedDB、CDN 依存なし永久持有）',
+                '楽曲タイプ 8 種：OP / ED / 挿入歌 / キャラソン / イメージソング / 純音楽 / テーマソング / その他 — 各タイプに既定スタイルヒント、純音楽は is_instrumental 自動オン',
+                '段階別再生成 UI：歌詞から / スタイルから / 楽曲のみ — 失敗や気に入らない段階だけ再生成可能。各段階完了時に保存されるので途中失敗してもデータは残る'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.61.5',
+            date: '2026-05-02',
+            highlights: [
+                '推特「放送局に保存」ボタンの UI 文言を実際の保存先に合わせて 4 箇所修正：「論壇に保存できません / 論壇が初期化されていません / 論壇の官方情報に保存しました」→ いずれも「放送局」「公式情報」へ',
+                '顺手把推特个人账号推文拦截判定从旧 schema（postedAsIdentityType）改为 v2 主字段（postedAsAccountId.startsWith("personal:")）— 不再依赖兼容期字段，将来移除兼容期也不会断'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.61.4',
+            date: '2026-05-02',
+            highlights: [
+                '推特リプライ欄の人選を日本のSNS文化に沿わせた：投稿直後の第一陣は「親しい関係者のみ」で公式NPC最大 3 件、残りは fan/anti — 路人勢は遠慮がちな初期反応を再現',
+                '「リプライを読み込む」追加バッチでは公式NPCを完全禁止 — 後追いで官方が反応する場合は引用ツイートで行うのが自然なため、リプライ欄は徐々に「路人潮」化',
+                'AIが上限を破った場合の後置フィルタを実装 — 多発を防ぐ保険'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.61.3',
+            date: '2026-05-02',
+            highlights: [
+                '推特时间线刷新机制升级：NPC 不再凭空发推 — 每次刷新会从「直近 24 小时既存推文池」（含用户用 NPC 身份发的真推）里挑一部分做引用 / 反应，让真推自然滚雪球被讨论',
+                '比例：约 70% 是 NPC 自己的新主题推文，约 30% 是对既存推文的引用 — NPC 既有日常发声、也会真的「看到」彼此的推文互动',
+                '同一条推文最多被引用 2 次（避免反复消费一条），引用元自己不会引用自己',
+                'NPC 个人主页修复：现在会同时显示 AI 自动生成的推文 + 用户用该 NPC 身份发的真推（之前漏读了真推那部分）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.61.2',
+            date: '2026-05-02',
+            highlights: [
+                '杂志「論壇に保存」全部改成「放送局に保存」 — v2.60 重构后数据其实早就存到放送局了，只是按钮文案没跟上',
+                'キャラ対談 / 角色企划保存到放送局：从「前 600 字截断」改成 LLM 压缩 — 长对谈不再断章取义，AI 会保留各角色「」对白原文 + 中文要约',
+                '推特：多次「リプライを読み込む」时会从已经回复过的 NPC 池里排除，避免同一 NPC 反复刷帖',
+                '推特：时间线刷新生成 NPC 推文时，会注入每个 NPC 直近 24 小时已经发过什么（合并用户用 NPC 身份发的 + AI 自动生成的），强约束撞主题禁止 — 解决"以官方账号发了推、刷新后 AI 又造了几条同主题假推文"',
+                '推特「関係者の反応」按钮重新触发时，已经反应过的 NPC 不会被重复选中'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.61.1',
+            date: '2026-05-01',
+            highlights: [
+                '清理：往期更新历史里一处遗留的角色名占位符 → ✨'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.61.0',
+            date: '2026-05-01',
+            highlights: [
+                '新增「云备份（GitHub）」— 在数据管理页填 GitHub 用户名 / 仓库 / PAT 即可一键推送 AppState 到指定仓库的 backup.json，每次推送自动是一个 commit，版本历史天然保留',
+                '云备份的 PAT 独立存 localStorage，<strong>不会被「导出全部数据」包含</strong>，避免分享备份时泄露 token',
+                '支持几十 MB 大数据备份；接近 50MB 给提示，超过 100MB（GitHub 单文件硬限）拦下',
+                '从云端恢复前会强提醒先做一份本地备份兜底'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.60.7',
+            date: '2026-05-01',
+            highlights: [
+                '帮助中心世界书示例：把举例换成中性版本，加了「角色代号 / 绰号 / 缩写也可以写进关键词」的实用建议'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.60.6',
+            date: '2026-05-01',
+            highlights: [
+                '更新弹窗 UI 微调：「往期更新」按钮加了边框，和「稍后」视觉一致',
+                '更新弹窗加了「完整教程」按钮 — 看完更新后可以直接跳到帮助中心，不管你之前打开过没'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.60.5',
+            date: '2026-05-01',
+            highlights: [
+                '修复：v2.60 重构后推特切换账号看不到官方 NPC、杂志生成时显示「沒有 NPC」、Space 配音时漏掉 NPC — 都是同一类底层问题（数据迁移时漏匹配几种字段写法）',
+                '修复：Pixiv 小说读放送局绑定的世界书时，只读了第一本（多选时其他几本被忽略） — 现已读全部',
+                '修复：推特用 NPC 账号身份发推可能直接报错卡住',
+                '调整：5 处提示文字从「论坛设置」改成「放送局」 —「世界观请先在 XX 设定」「在 XX 添加 NPC」之类，避免找错地方',
+                '帮助中心整个翻新：21 章覆盖所有 app；新增放送局 5 tabs 详解、MiniMax 声线克隆完整 5 步流程（含必须先调用一次扣费的关键提醒）、舅舅党彩蛋说明、メロン → Pixiv 一键转流程；FAQ 加了升级迁移、多板块去哪了、放送局图标找不到、SW 缓存等条目'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.60.0',
+            date: '2026-05-01',
+            highlights: [
+                '新增「放送局」app — 主屏第一位独立图标。把世界设定 / 剧情 / 情报 / 官方 NPC / 总结 全部从论坛设置里抽出来集中维护',
+                '5 tabs 结构：世界 / 剧情 / 情报 / 角色 / 总结 — 每张 tab 专注一件事',
+                '论坛设置精简到只剩论坛规则、传说 NPC、偏好（匿名 / 用户名 / 字号）、维护',
+                '砍掉多板块功能（同时维护多套世界） — 一直没人用，直接简化',
+                '砍掉「AI 用官方名义在论坛发帖」的废弃功能 — 早期残留，不再触发',
+                '老用户存档自动迁移：旧 forumData 字段抽离到 broadcast 命名空间、多板块扁平化、官方贴合并进普通帖；桌面布局自动加放送局图标到空位'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.59.0',
+            date: '2026-04-30',
+            highlights: [
+                '数据备份大改：「导出全部数据」回归（含 API 设置、世界书、所有 module 的真·全量备份）',
+                '新增「选择板块导出…」— 弹窗勾选要备份的板块，18 个细分类（LINE / 论坛 / 推特 / Pixiv / 杂志 / メロン / ニコニコ / 写作 / 歌词 / 占卜 / 旅行 / 学习工具 / 日历 / 桌面 / 个人资料 / 钱包 / 世界书 / 系统设置）',
+                '导入：自动识别文件里的板块、勾选要恢复哪些；其它板块保持不变（不会因为旧备份缺字段就被清空）',
+                '导出格式与之前的旧 backup 兼容（扁平 AppState 字段），老备份直接拿来导入也 OK'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.58.0',
+            date: '2026-04-30',
+            highlights: [
+                '修复：取消录音时麦克风没有真正关掉（红点会一直亮）',
+                '修复：发推音频每次播放都泄漏一份 blob URL；旧 audio 的报错事件可能误删新音频数据',
+                '修复：Space 删除时如果 TTS 还在合成，最后那段语音会变成孤儿 blob 占着 IDB',
+                '加速：推特时间线生图缩略图从串行加载改成并行（手机上肉眼可见快）',
+                '加速：Space TTS 合成的 saveData 从每条一存改成最后一次性存',
+                '其他细节：录音状态机统一、波形 HTML 模块级缓存、parseInt 加 radix、avatar/banner 选择器合并'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.57.0',
+            date: '2026-04-30',
+            highlights: [
+                '论坛设置重构：原来一长条的设置项分成「世界设定 / 剧情 / 角色 / 偏好 / 论坛维护」五张卡',
+                '存储用量、数据备份、一键清空全部内容 → 移到「设置 → 数据管理」（跨模块的事务放在外层更合理）',
+                '论坛设置只保留「清空全部帖子」（论坛专属维护操作）',
+                '每张卡片标题加 SVG 图标作为视觉锚点'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.56.0',
+            date: '2026-04-30',
+            highlights: [
+                '推特搜索结果可以点开了 — 点推文进 thread 看评论、点头像看那个账号的预览、点 ♡ 标记喜欢',
+                '官方 NPC 帖子下的评论生成更像「真的粉丝」— 不再混进新闻通讯社风的「【話題】…がトレンド入り！」类内容（那种属于转推不是回复）',
+                '论坛 NPC 设置：「姓名」和「账号」拆成两个字段，账号字段以 @ 开头独立显示；TTS 朗读名字时不会再把 @handle 也念出来'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.55.0',
+            date: '2026-04-30',
+            highlights: [
+                'NPC 在 Space 里的回应自动接 MiniMax TTS — 真的能"听"到他们说话',
+                '每条 NPC 回应文字下方出现「聞く」播放按钮，点击播放 NPC 配音',
+                '合成期间显示「音声合成中…」占位（异步进行，不阻塞会话）',
+                '需要 NPC 绑定声優 voiceId（论坛 NPC 设置）+ MiniMax API Key',
+                '没绑 voiceId 的 NPC 仅显示文字，不影响会话',
+                '删除 Space 时自动清空 PerigeeAudio 里的语音 blob，不留垃圾'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.54.0',
+            date: '2026-04-30',
+            highlights: [
+                'Space 入口移到发推编辑器里的 LIVE 按钮（更像真推特）',
+                'Space 创建弹窗：参与者列表布局修复，名字看得清了',
+                'Space 加录音按钮（仅 NPC 主持人可见）— 长按说话、松开发送',
+                '用户语音通过用户配置的 LLM API 多模态识别（Gemini / OpenAI 兼容）',
+                '其他 NPC 自动接力反应（1〜3 名，纯文字，下一批接 TTS）',
+                '不管说什么语言，NPC 都用日语回应'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.53.0',
+            date: '2026-04-30',
+            highlights: [
+                '推特顶栏右上加 📻 永久入口 — Space 找回家了',
+                '搜索页顶部加「ライブ中のスペース」横滚发现区',
+                '创建 Space 必须用官方 NPC 身份；个人账号点 📻 会引导切换',
+                '默认主持人 = 当前激活的 NPC（玩起来更顺）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.52.0',
+            date: '2026-04-29',
+            highlights: [
+                '更新提示统一到这一个弹窗了 — 顶部那个小条幅去掉，避免双弹窗困惑',
+                '新版本上线弹窗加了「看看以前更新了什么」按钮，点开直达往期更新页'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.51.0',
+            date: '2026-04-29',
+            highlights: [
+                '评论可以回评论了 — 每条回复带 4 按钮（评论 / 转推 / 喜欢 / 共有）',
+                '点评论按钮就地展开输入框，提交后被回复方自动给你回复 + 1〜2 条粉丝跟评',
+                '同一作者连续回复、A→B→A 这种链路自动连竖线',
+                '用官方账号回评 NPC 时，AI 会照剧情身份给反应（不写 prompt 硬塞，让模型自己读上下文）'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.50.0',
+            date: '2026-04-29',
+            highlights: [
+                '推特发推可以加图片和音频了：本地上传 / 外部 URL 二选一',
+                '本地图片可选「圧縮」（800px / 80%）或保留原图',
+                '本地音频走 PerigeeAudio（IndexedDB Blob 存储），不污染主数据',
+                '音频自定义播放器：播放 / 进度条 / 时长跳转',
+                '加载失败的外链图片/音频会自动从推文里删掉，保持时间线美观',
+                '修复 banner 编辑按钮被顶部返回栏遮挡导致点不动的 bug'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.49.0',
+            date: '2026-04-29',
+            highlights: [
+                '推特主页加上粉丝/关注数（公众号默认随机粉丝、个人账号 0 起步靠涨）',
+                '发推 / 评论后自动涨粉 1〜15，附带「○○など N 名にフォローされました」通知',
+                '主页头图（banner）可以自己上传图片了 — 个人账号 + 官方 NPC 都能换',
+                '所有 follower / following 数字改成完整逗号格式 2,909,855，更接近真推特'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.48.0',
+            date: '2026-04-29',
+            highlights: [
+                '推特详情页五按钮一排（评论 / 转推 / 喜欢 / 翻译 / 分享），数字内联，跟真推特一致',
+                '转推功能：可转推 / 可取消，自己时间线显示「○○さんがリポスト」',
+                '引用推文：点开发推编辑器带原推卡片预览',
+                '回复输入框固定在详情页底部，点评论按钮直接聚焦',
+                '右上角「...」菜单收纳删除',
+                '加载更多回复按下后插入骨架占位行 + 按钮变「読み込み中…」'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.47.0',
+            date: '2026-04-28',
+            highlights: [
+                '使用指南大补充：新增「世界书设定」一节，论坛章节扩充官方情报机制 + 跨模块转入',
+                '调整模块顺序：论坛上提到第一位（毕竟是玩法核心）',
+                '更新弹窗变成「这次改了什么」+「来自小克」的小卡片',
+                '设置 → 关于 → 加了「往期更新」入口，可以翻看一路走过来的所有版本'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.46.0',
+            date: '2026-04-28',
+            highlights: [
+                '外观页大重构：5 个主题（柔粉 / 夜空 / 夏雨 / ジャーナル / ミニマル）',
+                '字体设定独立成模块，5 种字体可以自由组合',
+                '自定义 CSS 加了「📋 复制模板」按钮，改两行就能做自己的主题',
+                '把壁纸 + 纹理合并到「背景」一栏，点哪生效哪'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.45.0',
+            date: '2026-04-28',
+            highlights: [
+                '帮助中心：18 节完整使用指南（设置 → 使用指南）',
+                '首次启动 4 步引导（欢迎 / API 配置 / 板块速览 / 完成）',
+                '完成引导后自动跳到完整指南'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.44.0',
+            date: '2026-04-27',
+            highlights: [
+                'TTS 引擎上线：MiniMax 语音合成',
+                '杂志一键生成广播剧 → 自动发布到 Niconico（带分段播放器）',
+                '声優身份绑定（NPC → 角色 → voiceId 自动关联）',
+                '当て字読音対照表：教 AI 怎么读「月見里 / 一(にのまえ)」这类特殊汉字'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.42.0',
+            date: '2026-04-27',
+            highlights: [
+                '推特身份系统 v2：支持多个个人账号（真名 / 匿名小号 / CP 站号 / 团粉号）',
+                '日系化大改造：新主题 / 字体 / 纹理',
+                '4 个 bug 修复：图标乱飞、贴纸交互、字体兼容性等'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.41.0',
+            date: '2026-04-23',
+            highlights: [
+                '推特拟真度大幅提升（搜索 / 通知 / DM / Space）',
+                'M3 関係者反応系统（NPC 对推文的连锁反应）',
+                'NPC 头像上传'
+            ],
+            voiceFromKlaude: ''
+        },
+        {
+            version: '2.40.0',
+            date: '2026-04-22',
+            highlights: [
+                '桌面时钟 widget',
+                '推特全套拟真化（关注 / 推荐 / Trending）',
+                '后端清理：合并旧 conversation.js 到 line.js'
+            ],
+            voiceFromKlaude: ''
+        }
+    ],
+
+    getLatest() { return this.versions[0]; },
+    getHistory() { return this.versions; },
+    findVersion(v) { return this.versions.find(x => x.version === v); }
+};

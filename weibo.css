@@ -1,0 +1,1908 @@
+/* 微博模块 - v2.71.0 中文同人圈生态 */
+/* 详见 docs/superpowers/specs/2026-05-23-weibo-module-design.md */
+/* 视觉铁律：微博官方调（橙红粉）+ 去渐变 */
+
+/* ========== 容器 + 顶部 + 底部 nav ========== */
+
+#weibo {
+    background: #f5f5f5;
+    color: #333;
+}
+.weibo-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: #f5f5f5;
+    overflow: hidden;
+    position: relative;
+}
+.weibo-top-bar {
+    flex-shrink: 0;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+}
+.wb-top-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #333;
+}
+.weibo-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.weibo-tab-screen {
+    min-height: 100%;
+}
+.weibo-bottom-nav {
+    flex-shrink: 0;
+    display: flex;
+    background: #fff;
+    border-top: 1px solid #e8e8e8;
+    padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+}
+.wb-nav-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    color: #999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 0;
+    cursor: pointer;
+    transition: color 0.15s;
+}
+.wb-nav-btn span {
+    font-size: 11px;
+}
+.wb-nav-btn.active {
+    color: #ff8200;
+}
+.wb-back-home {
+    position: absolute;
+    top: 12px;
+    left: 14px;
+    z-index: 10;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wb-empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+}
+
+/* ========== 首页 - 双流 + 卡片 ========== */
+
+.wb-home-subtabs {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+    padding: 12px 0;
+}
+.wb-subtab {
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: 500;
+    color: #999;
+    padding: 4px 8px;
+    position: relative;
+    cursor: pointer;
+}
+.wb-subtab.active {
+    color: #333;
+    font-weight: 700;
+}
+.wb-subtab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 3px;
+    background: #ff8200;
+    border-radius: 2px;
+}
+.wb-home-empty {
+    background: #fff8e8;
+    padding: 10px 16px;
+    color: #b58a00;
+    font-size: 13px;
+}
+.wb-feed {
+    padding: 0;
+}
+.wb-post-card {
+    background: #fff;
+    padding: 14px 16px;
+    border-bottom: 6px solid #f5f5f5;
+}
+.wb-post-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.wb-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: #ff8200;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    flex-shrink: 0;
+    font-size: 14px;
+}
+.wb-post-meta {
+    flex: 1;
+    min-width: 0;
+}
+.wb-post-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+.wb-post-sub {
+    color: #999;
+    font-size: 12px;
+}
+.wb-v-badge {
+    display: inline-block;
+    background: #ff8200;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 4px;
+    line-height: 1.3;
+}
+.wb-official-tag {
+    display: inline-block;
+    background: #2196f3;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+}
+.wb-follow-btn {
+    background: #ff8200;
+    color: #fff;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.wb-type-badge {
+    display: inline-block;
+    color: #fff;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+.wb-post-body {
+    color: #333;
+    font-size: 14px;
+    line-height: 1.65;
+    word-wrap: break-word;
+}
+.wb-topic-link {
+    color: #ff8200;
+}
+.wb-mention {
+    color: #2196f3;
+}
+.wb-long-link {
+    color: #ff8200;
+    margin-top: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.wb-img-grid {
+    display: grid;
+    gap: 4px;
+    margin-top: 8px;
+}
+.wb-img-grid-1 {
+    grid-template-columns: 1fr;
+    max-width: 200px;
+}
+.wb-img-grid-2, .wb-img-grid-4 {
+    grid-template-columns: 1fr 1fr;
+    max-width: 280px;
+}
+.wb-img-grid-3, .wb-img-grid-5, .wb-img-grid-6, .wb-img-grid-7, .wb-img-grid-8, .wb-img-grid-9 {
+    grid-template-columns: repeat(3, 1fr);
+}
+.wb-img-placeholder {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #ffe6cc;
+    border-radius: 4px;
+}
+.wb-repost-quote {
+    background: #f8f8f8;
+    border-left: 3px solid #ddd;
+    padding: 8px 10px;
+    margin-top: 8px;
+    color: #666;
+    font-size: 13px;
+}
+/* v2.72.7 转发链 */
+.wb-repost-chain-item {
+    color: #555;
+    line-height: 1.55;
+    padding: 2px 0;
+}
+.wb-repost-origin {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed #e0e0e6;
+    color: #444;
+    line-height: 1.55;
+}
+.wb-repost-origin-author {
+    color: #ff8200;
+    font-weight: 500;
+}
+.wb-dark .wb-repost-chain-item { color: #999; }
+.wb-dark .wb-repost-origin { border-top-color: #2a2a2a; color: #b0b0b6; }
+.wb-dark .wb-repost-origin-author { color: #ff9942; }
+.wb-post-actions {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 12px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+}
+.wb-act {
+    background: none;
+    border: none;
+    color: #999;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.wb-act svg { flex-shrink: 0; }
+.wb-act-like:active {
+    color: #ff6b9d;
+}
+
+/* ========== 我的 + Profile ========== */
+
+.wb-profile-head {
+    background: #fff;
+    padding: 24px 20px 18px;
+    display: flex;
+    gap: 16px;
+    border-bottom: 8px solid #f5f5f5;
+}
+.wb-avatar-large {
+    width: 64px;
+    height: 64px;
+    font-size: 24px;
+}
+.wb-profile-meta {
+    flex: 1;
+}
+.wb-profile-name {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+}
+.wb-profile-bio {
+    color: #999;
+    font-size: 13px;
+    margin: 4px 0 10px;
+}
+.wb-profile-stats {
+    display: flex;
+    gap: 16px;
+    color: #666;
+    font-size: 13px;
+}
+.wb-profile-actions {
+    background: #fff;
+    border-bottom: 8px solid #f5f5f5;
+}
+.wb-btn-row {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    color: #333;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    text-align: left;
+}
+.wb-btn-row:last-child {
+    border-bottom: none;
+}
+.wb-btn-row:active {
+    background: #fafafa;
+}
+.wb-profile-posts-header {
+    background: #fff;
+    padding: 12px 20px;
+    color: #666;
+    font-size: 13px;
+}
+
+/* ========== Toggle 开关（深色模式等用）========== */
+
+.wb-toggle {
+    width: 44px;
+    height: 24px;
+    background: #d0d0d0;
+    border-radius: 12px;
+    position: relative;
+    flex-shrink: 0;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+.wb-toggle.on {
+    background: #ff8200;
+}
+.wb-toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    transition: left 0.2s;
+}
+.wb-toggle.on .wb-toggle-knob {
+    left: 22px;
+}
+
+/* ========== 深色模式（#weibo.wb-dark）========== */
+
+#weibo.wb-dark {
+    background: #121212;
+    color: #d0d0d0;
+}
+.wb-dark .weibo-container { background: #121212; }
+.wb-dark .weibo-top-bar { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-top-title { color: #e0e0e0; }
+.wb-dark .wb-top-action { color: #e0e0e0; }
+.wb-dark .weibo-bottom-nav { background: #1f1f1f; border-top-color: #2a2a2a; }
+.wb-dark .wb-nav-btn { color: #777; }
+.wb-dark .wb-nav-btn.active { color: #ff8200; }
+.wb-dark .wb-home-subtabs { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-subtab { color: #888; }
+.wb-dark .wb-subtab.active { color: #e0e0e0; }
+.wb-dark .wb-home-empty { background: #1f1f1f; color: #888; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-feed { background: #121212; }
+.wb-dark .wb-card { background: #1f1f1f; border-bottom: 1px solid #2a2a2a; }
+.wb-dark .wb-card-name { color: #e0e0e0; }
+.wb-dark .wb-card-meta, .wb-dark .wb-card-source { color: #888; }
+.wb-dark .wb-card-body, .wb-dark .wb-card-content { color: #d0d0d0; }
+.wb-dark .wb-card-actions { border-top-color: #2a2a2a; }
+.wb-dark .wb-act { color: #999; }
+.wb-dark .wb-act-liked { color: #ff7799; }
+.wb-dark .wb-modal-bar { background: #1f1f1f; border-bottom-color: #2a2a2a; color: #e0e0e0; }
+.wb-dark .wb-modal-title { color: #e0e0e0; }
+.wb-dark .wb-modal-close { color: #d0d0d0; }
+.wb-dark .wb-modal-body { background: #121212; }
+.wb-dark .wb-settings-list { background: #121212; }
+.wb-dark .wb-me-header { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-me-name { color: #e0e0e0; }
+.wb-dark .wb-me-sub { color: #888; }
+.wb-dark .wb-me-row { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-settings-label { color: #d0d0d0; }
+.wb-dark .wb-settings-row { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-settings-row .wb-chevron { color: #666; }
+.wb-dark .wb-settings-group { background: #121212; }
+.wb-dark .wb-settings-trail-text { color: #888; }
+.wb-dark .wb-acc-item { background: #1f1f1f; }
+.wb-dark .wb-acc-item.active { background: #2a1f10; }
+.wb-dark .wb-acc-name { color: #e0e0e0; }
+.wb-dark .wb-acc-name small { color: #888; }
+.wb-dark .wb-acc-section-title { color: #888; }
+.wb-dark .wb-acc-section-hint { color: #777; }
+.wb-dark .wb-acc-empty { background: #1f1f1f; color: #888; }
+.wb-dark .wb-acc-add { background: #1f1f1f; color: #ff8200; border-color: #ff8200; }
+.wb-dark .wb-personal-banner { filter: brightness(0.75); }
+.wb-dark .wb-personal-body { background: #1f1f1f; }
+.wb-dark .wb-personal-name { color: #e0e0e0; }
+.wb-dark .wb-personal-bio { color: #aaa; }
+.wb-dark .wb-personal-stat b { color: #e0e0e0; }
+.wb-dark .wb-personal-stat span { color: #888; }
+.wb-dark .wb-personal-posts-header { background: #1f1f1f; border-bottom-color: #2a2a2a; color: #d0d0d0; }
+.wb-dark .wb-personal-feed { background: #121212; }
+.wb-dark .wb-circle-btn { background: #2a2a2a; color: #e0e0e0; }
+.wb-dark .wb-edit-row { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-edit-label { color: #d0d0d0; }
+.wb-dark .wb-edit-value { color: #888; }
+.wb-dark .wb-likes-subtabs { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-empty { color: #888; background: transparent; }
+.wb-dark .wb-comp-bar { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-comp-bar-x, .wb-dark .wb-comp-bar-send { color: #e0e0e0; }
+.wb-dark .wb-comp-area { background: #121212; }
+.wb-dark .wb-comp-textarea { color: #e0e0e0; background: transparent; }
+.wb-dark .wb-comp-textarea::placeholder { color: #555; }
+.wb-dark .wb-comp-image-plus { border-color: #444; }
+.wb-dark .wb-comp-chip { background: #2a2a2a; color: #888; }
+.wb-dark .wb-comp-toolbar-bottom { background: #1f1f1f; border-top-color: #2a2a2a; }
+.wb-dark .wb-comp-tool { color: #d0d0d0; }
+.wb-dark .wb-comp-draft-btn { background: rgba(255,130,0,0.15); }
+.wb-dark .wb-toggle { background: #444; }
+.wb-dark .wb-toggle.on { background: #ff8200; }
+.wb-dark .wb-discover-search .wb-search-box { background: #2a2a2a; color: #888; }
+.wb-dark .wb-discover-subtabs { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-hot-item, .wb-dark .wb-topic-card { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-notif-subtabs { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-notif-item { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-v-badge { background: #ff8200; color: #fff; }
+.wb-dark .wb-personal-back svg, .wb-dark .wb-personal-icon-btn svg { stroke: #fff; }
+
+/* ========== Sub-screen（个人主页 / 我的赞 / 编辑资料 / 设置二级）：
+   仿真真微博的全屏页面跳转，覆盖 weibo 容器内一切（包括底部 nav） ========== */
+
+.wb-sub-screen {
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    animation: wbSubSlideIn 0.22s ease-out;
+}
+.wb-dark .wb-sub-screen { background: #121212; }
+.wb-dark .wb-personal-modal { background: #121212; }
+@keyframes wbSubSlideIn {
+    from { transform: translateX(12%); opacity: 0.6; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ========== Modal (composer / 切账号 / 草稿 / 超话 / 陌生人私信) ========== */
+
+.wb-modal {
+    position: fixed;
+    inset: 0;
+    background: #fff;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+}
+.wb-modal-bar {
+    flex-shrink: 0;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 44px;
+}
+.wb-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 4px;
+}
+.wb-modal-title {
+    font-size: 16px;
+    font-weight: 500;
+    flex: 1;
+    text-align: center;
+}
+.wb-modal-submit {
+    background: #ff8200;
+    color: #fff;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 14px;
+    font-size: 14px;
+    cursor: pointer;
+}
+.wb-modal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+/* Composer 全屏（IMG_1593 风格） */
+
+.wb-comp-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    position: relative;
+}
+.wb-comp-bar-x {
+    background: none;
+    border: none;
+    color: #333;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+.wb-comp-bar-avatar-wrap {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+.wb-avatar-comp {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+}
+.wb-comp-bar-send {
+    background: none;
+    border: none;
+    color: #333;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+.wb-comp-area {
+    flex: 1;
+    padding: 12px 16px 0;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+.wb-comp-textarea {
+    width: 100%;
+    min-height: 140px;
+    border: none !important;
+    outline: none;
+    resize: none;
+    font-size: 16px;
+    color: #333;
+    font-family: inherit;
+    line-height: 1.5;
+    padding: 4px 0 4px 8px;
+    background: transparent;
+    box-shadow: inset 2px 0 0 0 #ff8200;
+    border-radius: 0;
+    box-sizing: border-box;
+}
+.wb-comp-textarea::placeholder {
+    color: #bbb;
+}
+.wb-comp-image-grid {
+    margin-top: 16px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+.wb-comp-image-plus {
+    aspect-ratio: 1;
+    border: 1.5px dashed #ddd;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+.wb-comp-chips {
+    display: flex;
+    gap: 12px;
+    margin-top: auto;
+    padding: 16px 0 12px;
+}
+.wb-comp-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: #f5f5f5;
+    border-radius: 16px;
+    font-size: 13px;
+    color: #888;
+    cursor: pointer;
+}
+.wb-comp-toolbar-bottom {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-top: 1px solid #f0f0f0;
+    background: #fff;
+}
+.wb-comp-tool {
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+}
+.wb-comp-toolbar-spacer { flex: 1; }
+.wb-comp-count {
+    color: #bbb;
+    font-size: 13px;
+}
+.wb-comp-draft-btn {
+    background: #fff5e6;
+    color: #ff8200;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+/* Composer 旧 modal 版本（已废弃、保留兼容） */
+
+.wb-comp-account {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+.wb-comp-account span {
+    font-weight: 500;
+    color: #333;
+}
+#wbCompText {
+    width: 100%;
+    border: 1px solid #e8e8e8;
+    border-radius: 6px;
+    padding: 10px;
+    font-size: 14px;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 120px;
+    box-sizing: border-box;
+}
+.wb-comp-options {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 12px 0;
+}
+.wb-comp-options label {
+    color: #666;
+    font-size: 13px;
+}
+.wb-comp-options select {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 13px;
+}
+.wb-comp-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+.wb-comp-toolbar button {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    padding: 6px 14px;
+    border-radius: 14px;
+    cursor: pointer;
+    font-size: 13px;
+    color: #666;
+}
+
+/* Drafts */
+
+.wb-draft-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+}
+.wb-draft-content {
+    color: #333;
+    font-size: 14px;
+}
+.wb-draft-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    color: #999;
+    font-size: 12px;
+}
+.wb-draft-delete {
+    background: none;
+    border: none;
+    color: #ff5544;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+/* 账号切换 */
+
+.wb-acc-section-title {
+    color: #999;
+    font-size: 12px;
+    margin: 16px 0 8px;
+    padding-left: 16px;
+}
+.wb-acc-section-hint {
+    color: #aaa;
+    font-size: 12px;
+    padding: 8px 16px 4px;
+    line-height: 1.5;
+}
+.wb-acc-empty {
+    color: #aaa;
+    font-size: 13px;
+    padding: 16px;
+    background: #fff;
+    margin: 0 16px;
+    border-radius: 8px;
+    text-align: center;
+}
+.wb-acc-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: #fff;
+    margin: 0 16px 4px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.wb-acc-item:active {
+    background: #fafafa;
+}
+.wb-acc-item.active {
+    background: #fff8e8;
+}
+.wb-acc-name {
+    flex: 1;
+    font-size: 14px;
+}
+.wb-acc-name small {
+    display: block;
+    color: #999;
+    font-size: 12px;
+    margin-top: 2px;
+}
+.wb-acc-active {
+    color: #ff8200;
+    font-size: 18px;
+}
+.wb-acc-add {
+    background: #fff;
+    color: #ff8200;
+    border: 1px dashed #ff8200;
+    padding: 10px;
+    margin: 4px 16px 0;
+    width: calc(100% - 32px);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+.wb-acc-official {
+    background: rgba(33, 150, 243, 0.05);
+}
+
+/* ========== 发现 ========== */
+
+.wb-discover-search {
+    background: #fff;
+    padding: 8px 16px;
+}
+.wb-search-box {
+    background: #f0f0f0;
+    border-radius: 18px;
+    padding: 6px 14px;
+    color: #999;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.wb-search-placeholder {
+    color: #999;
+}
+.wb-discover-subtabs {
+    display: flex;
+    justify-content: center;
+    gap: 32px;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+    padding: 10px 0;
+}
+.wb-quick-entries {
+    display: flex;
+    justify-content: space-around;
+    background: #fff;
+    padding: 16px 0;
+    border-bottom: 8px solid #f5f5f5;
+}
+.wb-quick-circle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #666;
+}
+.wb-hot-header {
+    display: flex;
+    justify-content: space-between;
+    background: #fff;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+    color: #333;
+}
+.wb-hot-all {
+    color: #ff8200;
+}
+.wb-hot-list {
+    background: #fff;
+}
+.wb-hot-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f5f5f5;
+}
+.wb-hot-rank {
+    width: 20px;
+    text-align: center;
+    color: #999;
+    font-weight: 600;
+    font-size: 13px;
+}
+.wb-hot-rank.top {
+    color: #ff5544;
+}
+.wb-hot-title {
+    flex: 1;
+    color: #333;
+    font-size: 14px;
+}
+.wb-hot-tag {
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 2px;
+}
+.wb-hot-tag-hot {
+    background: #ff5544;
+}
+.wb-hot-tag-new {
+    background: #4caf50;
+}
+.wb-hot-tag-boom {
+    background: #d32f2f;
+}
+
+/* 超话 */
+
+.wb-topic-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #fff;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+}
+.wb-topic-cover {
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.wb-topic-meta {
+    flex: 1;
+    min-width: 0;
+}
+.wb-topic-name {
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+}
+.wb-topic-stats {
+    color: #999;
+    font-size: 12px;
+    margin-top: 4px;
+    display: flex;
+    gap: 8px;
+}
+.wb-topic-follow {
+    background: #ff8200;
+    color: #fff;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.wb-topic-follow-big {
+    background: #ff8200;
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.wb-topic-section-title {
+    background: #fff;
+    color: #999;
+    padding: 12px 16px;
+    font-size: 13px;
+    border-bottom: 1px solid #f0f0f0;
+    border-top: 8px solid #f5f5f5;
+}
+.wb-topic-section-title:first-of-type {
+    border-top: none;
+}
+.wb-topic-header {
+    background: #fff;
+    padding: 20px;
+    display: flex;
+    gap: 16px;
+    border-bottom: 8px solid #f5f5f5;
+}
+.wb-topic-cover-big {
+    width: 64px;
+    height: 64px;
+    font-size: 22px;
+}
+.wb-topic-info {
+    flex: 1;
+}
+.wb-topic-name-big {
+    color: #333;
+    font-size: 18px;
+    font-weight: 600;
+}
+.wb-topic-desc {
+    color: #666;
+    font-size: 13px;
+    margin: 6px 0 10px;
+}
+
+/* ========== 消息 / 通知 ========== */
+
+.wb-notif-subtabs {
+    display: flex;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+}
+.wb-notif-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 12px;
+    font-size: 14px;
+    color: #999;
+    cursor: pointer;
+    position: relative;
+}
+.wb-notif-tab.active {
+    color: #333;
+    font-weight: 600;
+}
+.wb-notif-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 2px;
+    background: #ff8200;
+}
+.wb-badge {
+    background: #ff5544;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    margin-left: 4px;
+}
+.wb-notif-item, .wb-like-item, .wb-dm-item {
+    background: #fff;
+    padding: 12px 16px;
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.wb-notif-body, .wb-like-body, .wb-dm-body {
+    flex: 1;
+    min-width: 0;
+}
+.wb-notif-head {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+.wb-notif-name {
+    color: #333;
+    font-size: 14px;
+    font-weight: 500;
+}
+.wb-notif-time {
+    color: #999;
+    font-size: 12px;
+}
+.wb-notif-text {
+    color: #555;
+    font-size: 13px;
+    line-height: 1.5;
+    word-wrap: break-word;
+}
+.wb-notif-quote {
+    background: #f8f8f8;
+    color: #999;
+    font-size: 12px;
+    padding: 6px 8px;
+    margin-top: 6px;
+    border-radius: 4px;
+}
+.wb-notif-thanks {
+    background: none;
+    color: #2196f3;
+    border: none;
+    padding: 0;
+    margin-top: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+.wb-like-header {
+    background: #fff;
+    color: #999;
+    padding: 10px 16px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+}
+.wb-stranger-entry {
+    background: #fff;
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 8px solid #f5f5f5;
+    color: #ff8200;
+    cursor: pointer;
+    font-size: 14px;
+}
+.wb-dm-preview {
+    color: #666;
+    font-size: 13px;
+}
+
+/* ========== Weibo API 设置 ========== */
+
+#weiboApiCard .wb-model-pick-btn {
+    background: #f5f5f5;
+    color: #333;
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    display: inline-block;
+}
+#weiboApiCard .wb-model-pick-btn:active {
+    background: #ff8200;
+    color: #fff;
+}
+
+/* ========== 顶部 refresh 按钮（home tab）========== */
+.weibo-top-bar {
+    position: relative;
+}
+.wb-top-actions {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.wb-top-action {
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wb-top-action:active {
+    color: #ff8200;
+}
+
+/* ========== 我的 tab 设置 list 风格（IMG_1583）========== */
+.wb-settings-list {
+    background: #f5f5f5;
+}
+.wb-settings-row {
+    background: #fff;
+    padding: 15px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 0.5px solid #f0f0f0;
+    cursor: pointer;
+}
+.wb-settings-row:active {
+    background: #fafafa;
+}
+.wb-settings-label {
+    color: #333;
+    font-size: 15px;
+}
+.wb-settings-trail {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.wb-settings-trail-text {
+    color: #999;
+    font-size: 13px;
+}
+.wb-chevron {
+    color: #ccc;
+    font-size: 18px;
+    line-height: 1;
+}
+.wb-settings-group {
+    height: 10px;
+    background: #f5f5f5;
+}
+.wb-avatar-tiny {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+}
+.wb-settings-logout {
+    background: #fff;
+    padding: 16px;
+    text-align: center;
+    color: #ff5544;
+    font-size: 15px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+.wb-settings-logout:active {
+    background: #fafafa;
+}
+
+/* ========== 个人主页 modal（IMG_1582 风格）========== */
+.wb-personal-modal {
+    background: #f5f5f5;
+}
+.wb-personal-banner {
+    height: 180px;
+    background: #4ec9c5;
+    background-image:
+        linear-gradient(135deg, transparent 50%, rgba(255,255,150,0.4) 50%),
+        linear-gradient(45deg, rgba(255,255,255,0.1), transparent);
+    position: relative;
+    flex-shrink: 0;
+}
+.wb-personal-back {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wb-personal-banner-actions {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    gap: 8px;
+}
+.wb-personal-icon-btn {
+    width: 32px;
+    height: 32px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wb-personal-info {
+    background: #fff;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 50px;
+    position: relative;
+}
+.wb-personal-avatar {
+    position: absolute;
+    top: -48px;
+    left: 20px;
+    width: 88px;
+    height: 88px;
+    border: 4px solid #fff;
+    font-size: 30px;
+    box-sizing: content-box;
+}
+.wb-personal-action-row {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.wb-circle-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.wb-circle-btn:active {
+    background: #ff8200;
+    color: #fff;
+}
+.wb-personal-body {
+    background: #fff;
+    padding: 12px 20px 18px;
+    border-bottom: 8px solid #f5f5f5;
+}
+.wb-personal-name {
+    font-size: 19px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+}
+.wb-personal-bio {
+    color: #888;
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+.wb-personal-stats {
+    display: flex;
+    gap: 24px;
+}
+.wb-personal-stat {
+    font-size: 13px;
+    color: #666;
+}
+.wb-personal-stat b {
+    color: #333;
+    font-size: 16px;
+    margin-right: 4px;
+    font-weight: 600;
+}
+.wb-personal-posts-header {
+    background: #fff;
+    padding: 12px 20px;
+    color: #666;
+    font-size: 13px;
+    border-bottom: 1px solid #f0f0f0;
+}
+.wb-personal-feed {
+    background: #fff;
+}
+
+/* ========== 编辑个人资料 modal（IMG_1588 风格）========== */
+.wb-edit-profile-body {
+    padding: 0;
+    background: #f5f5f5;
+}
+.wb-edit-avatar-section {
+    background: #fff;
+    padding: 24px 0;
+    display: flex;
+    justify-content: center;
+    border-bottom: 10px solid #f5f5f5;
+}
+.wb-avatar-xl {
+    width: 88px;
+    height: 88px;
+    font-size: 32px;
+    border: 3px solid #fff;
+    box-shadow: 0 0 0 1px #e8e8e8;
+}
+.wb-edit-row {
+    background: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+    cursor: pointer;
+}
+.wb-edit-row:active {
+    background: #fafafa;
+}
+.wb-edit-row-decorative {
+    cursor: default;
+}
+.wb-edit-row-decorative:active {
+    background: #fff;
+}
+.wb-edit-label {
+    color: #333;
+    font-size: 15px;
+    min-width: 70px;
+}
+.wb-edit-value {
+    flex: 1;
+    color: #555;
+    font-size: 15px;
+    word-break: break-all;
+}
+
+/* ========== 「我的」tab IMG_1579 一级菜单 ========== */
+.wb-me-header {
+    background: #fff;
+    padding: 20px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    border-bottom: 0.5px solid #f0f0f0;
+}
+.wb-me-header:active {
+    background: #fafafa;
+}
+.wb-me-avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 22px;
+}
+.wb-me-meta {
+    flex: 1;
+    min-width: 0;
+}
+.wb-me-name {
+    font-size: 19px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+}
+.wb-me-sub {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #999;
+    font-size: 13px;
+}
+.wb-renew-badge {
+    background: #f0f0f0;
+    color: #ff8200;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    border: 1px solid #ffd9b8;
+}
+.wb-me-row {
+    background: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 0.5px solid #f0f0f0;
+    cursor: pointer;
+}
+.wb-me-row:active {
+    background: #fafafa;
+}
+.wb-me-row .wb-settings-label {
+    flex: 1;
+    font-size: 15px;
+}
+.wb-me-icon {
+    color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.wb-dot-red {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff5544;
+    display: inline-block;
+}
+
+/* ========== 设置二级子页面 body 内嵌结构 ========== */
+.wb-settings-sub-body {
+    padding: 0;
+    background: #f5f5f5;
+}
+
+/* ========== 我的赞 subtab ========== */
+.wb-likes-subtabs {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    background: #fff;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+/* ========== 点赞 active 高亮 ========== */
+.wb-act-liked {
+    color: #ff6b9d;
+    font-weight: 500;
+}
+
+/* ========== 微博详情页（点开博文）+ 评论行（v2.71.8）========== */
+.wb-detail-body {
+    padding: 0;
+    background: #fff;
+}
+.wb-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 0.5px solid #f0f0f0;
+}
+.wb-avatar-lg {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+.wb-avatar-sm {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.wb-detail-meta {
+    flex: 1;
+    min-width: 0;
+}
+.wb-detail-name {
+    font-size: 15px;
+    font-weight: 500;
+    color: #333;
+}
+.wb-detail-sub {
+    font-size: 13px;
+    color: #999;
+    margin-top: 2px;
+}
+.wb-detail-content {
+    padding: 14px 16px 18px;
+    font-size: 16px;
+    line-height: 1.55;
+    color: #333;
+    white-space: pre-wrap;
+    word-break: break-word;
+    border-bottom: 0.5px solid #f0f0f0;
+}
+.wb-detail-stats-bar {
+    display: flex;
+    justify-content: space-around;
+    padding: 12px 16px;
+    border-bottom: 8px solid #f5f5f5;
+    color: #888;
+    font-size: 14px;
+}
+.wb-detail-stats-bar span:not(:last-child) {
+    border-right: 1px solid #eee;
+    padding-right: 16px;
+    flex: 1;
+    text-align: center;
+}
+.wb-detail-stats-bar span:last-child {
+    flex: 1;
+    text-align: center;
+}
+.wb-detail-comment-section {
+    padding: 14px 0;
+}
+.wb-detail-section-title {
+    padding: 0 16px 10px;
+    font-size: 15px;
+    color: #ff8200;
+    font-weight: 500;
+}
+.wb-comment-row {
+    display: flex;
+    gap: 10px;
+    padding: 12px 16px;
+    border-bottom: 0.5px solid #f5f5f5;
+}
+.wb-comment-content {
+    flex: 1;
+    min-width: 0;
+}
+.wb-comment-name {
+    font-size: 13px;
+    color: #666;
+}
+.wb-comment-text {
+    font-size: 15px;
+    color: #333;
+    margin: 4px 0 6px;
+    line-height: 1.5;
+    word-break: break-word;
+}
+.wb-comment-time {
+    font-size: 12px;
+    color: #aaa;
+}
+.wb-detail-empty {
+    padding: 32px 16px;
+    text-align: center;
+    color: #aaa;
+    font-size: 14px;
+}
+
+/* 详情页深色模式 */
+.wb-dark .wb-detail-body { background: #121212; }
+.wb-dark .wb-detail-head { border-bottom-color: #2a2a2a; }
+.wb-dark .wb-detail-name { color: #e0e0e0; }
+.wb-dark .wb-detail-sub { color: #888; }
+.wb-dark .wb-detail-content { color: #d0d0d0; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-detail-stats-bar { color: #888; border-bottom-color: #1f1f1f; }
+.wb-dark .wb-detail-stats-bar span:not(:last-child) { border-right-color: #2a2a2a; }
+.wb-dark .wb-detail-section-title { color: #ff9942; }
+.wb-dark .wb-comment-row { border-bottom-color: #1f1f1f; }
+.wb-dark .wb-comment-name { color: #999; }
+.wb-dark .wb-comment-text { color: #d0d0d0; }
+.wb-dark .wb-comment-time { color: #666; }
+.wb-dark .wb-detail-empty { color: #666; }
+
+/* ========== 详情页评论排序 tabs（v2.72.0）========== */
+.wb-detail-comment-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px 8px;
+}
+.wb-detail-comment-head .wb-detail-section-title {
+    padding: 0;
+}
+.wb-detail-sort-tabs {
+    display: flex;
+    gap: 4px;
+}
+.wb-detail-sort {
+    background: none;
+    border: none;
+    font-size: 13px;
+    color: #999;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+.wb-detail-sort.active {
+    color: #ff8200;
+    font-weight: 500;
+}
+.wb-comment-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+.wb-comment-likes {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: #aaa;
+    font-size: 12px;
+}
+.wb-dark .wb-detail-sort { color: #888; }
+.wb-dark .wb-detail-sort.active { color: #ff9942; }
+.wb-dark .wb-comment-likes { color: #777; }
+
+/* ========== 搜索全屏 sub-screen（v2.72.0）========== */
+.wb-search-bar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: #fff;
+    border-bottom: 1px solid #e8e8e8;
+}
+.wb-search-input-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #f5f5f5;
+    border-radius: 18px;
+    padding: 6px 12px;
+    color: #888;
+}
+.wb-search-input {
+    flex: 1;
+    background: none;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    color: #333;
+    min-width: 0;
+}
+.wb-search-input::placeholder { color: #aaa; }
+.wb-search-clear {
+    background: none;
+    border: none;
+    color: #888;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.wb-search-tabs {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: space-around;
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+}
+.wb-search-tabs .wb-subtab {
+    padding: 10px 0;
+    flex: 1;
+}
+.wb-search-body {
+    padding: 0;
+    background: #f5f5f5;
+}
+.wb-search-section {
+    background: #fff;
+    margin-bottom: 8px;
+    padding: 8px 0;
+}
+.wb-search-section-title {
+    padding: 8px 16px;
+    font-size: 14px;
+    color: #999;
+    font-weight: 500;
+}
+.wb-search-hot-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+.wb-search-hot-row:active { background: #fafafa; }
+.wb-search-topic-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    cursor: pointer;
+}
+.wb-search-topic-row:active { background: #fafafa; }
+.wb-search-topic-row .wb-topic-cover {
+    width: 42px;
+    height: 42px;
+    border-radius: 6px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+.wb-search-topic-meta { flex: 1; min-width: 0; }
+.wb-search-topic-name { font-size: 15px; color: #333; }
+.wb-search-topic-stats { font-size: 12px; color: #aaa; margin-top: 2px; }
+.wb-search-empty {
+    padding: 40px 16px;
+    text-align: center;
+    color: #aaa;
+    font-size: 14px;
+}
+/* 深色模式 */
+.wb-dark .wb-search-bar { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-search-input-wrap { background: #2a2a2a; color: #aaa; }
+.wb-dark .wb-search-input { color: #e0e0e0; }
+.wb-dark .wb-search-input::placeholder { color: #777; }
+.wb-dark .wb-search-clear { color: #aaa; }
+.wb-dark .wb-search-tabs { background: #1f1f1f; border-bottom-color: #2a2a2a; }
+.wb-dark .wb-search-body { background: #121212; }
+.wb-dark .wb-search-section { background: #1a1a1a; }
+.wb-dark .wb-search-section-title { color: #888; }
+.wb-dark .wb-search-topic-name { color: #e0e0e0; }
+.wb-dark .wb-search-topic-stats { color: #777; }
+.wb-dark .wb-search-empty { color: #666; }
+
+/* ========== 搜索 v2.72.1 重写：LLM 生成相关微博 ========== */
+.wb-search-go {
+    background: #ff8200;
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.wb-search-go:active { background: #e67500; }
+.wb-search-loading {
+    padding: 60px 16px;
+    text-align: center;
+    color: #999;
+}
+.wb-spinner {
+    width: 28px;
+    height: 28px;
+    border: 3px solid #f0f0f0;
+    border-top-color: #ff8200;
+    border-radius: 50%;
+    margin: 0 auto 14px;
+    animation: wbSpin 0.8s linear infinite;
+}
+@keyframes wbSpin {
+    to { transform: rotate(360deg); }
+}
+.wb-search-loading-text {
+    font-size: 14px;
+    color: #888;
+}
+.wb-search-result-card { cursor: pointer; }
+.wb-dark .wb-spinner { border-color: #2a2a2a; border-top-color: #ff9942; }
+.wb-dark .wb-search-loading-text { color: #888; }
+
+/* v2.72.6 评论嵌套：博主回复缩进 + 博主徽章 */
+.wb-comment-children {
+    margin-left: 36px;
+    padding-left: 10px;
+    border-left: 2px solid #f0eef0;
+    margin-top: 4px;
+}
+.wb-comment-op-badge {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 1px 6px;
+    background: #ff8200;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 4px;
+    vertical-align: middle;
+}
+.wb-dark .wb-comment-children { border-left-color: #2a2a2a; }
+.wb-dark .wb-comment-op-badge { background: #ff9942; color: #1a1a1a; }
+
+/* v2.72.2 详情页：点赞按钮 + 加载更多评论按钮 */
+.wb-detail-actions {
+    padding: 10px 14px 4px;
+    display: flex;
+    justify-content: center;
+}
+.wb-detail-like-btn {
+    flex: 0 0 auto;
+    padding: 7px 22px;
+    border: 1px solid #ff8200;
+    background: transparent;
+    color: #ff8200;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+.wb-detail-like-btn:active { transform: scale(0.96); }
+.wb-detail-like-btn.active {
+    background: #ff8200;
+    color: #fff;
+}
+.wb-detail-more-wrap {
+    padding: 14px 14px 18px;
+    display: flex;
+    justify-content: center;
+}
+.wb-detail-more-btn {
+    flex: 0 0 auto;
+    padding: 8px 24px;
+    border: 1px solid #e0e0e6;
+    background: #fafafa;
+    color: #555;
+    border-radius: 18px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+}
+.wb-detail-more-btn:hover { background: #f3f3f5; }
+.wb-detail-more-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.wb-dark .wb-detail-like-btn {
+    border-color: #ff9942;
+    color: #ff9942;
+}
+.wb-dark .wb-detail-like-btn.active {
+    background: #ff9942;
+    color: #1a1a1a;
+}
+.wb-dark .wb-detail-more-btn {
+    background: #1a1a1a;
+    border-color: #2a2a2a;
+    color: #b0b0b6;
+}
+.wb-dark .wb-detail-more-btn:hover { background: #222; }

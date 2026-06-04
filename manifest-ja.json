@@ -1,0 +1,25 @@
+{
+    "name": "ペリギーOS",
+    "short_name": "ペリギー",
+    "description": "スマートオフィスアシスタント - AI駆動のチャット、文書作成、学習プラットフォーム",
+    "lang": "ja",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "orientation": "portrait",
+    "background_color": "#f2f4f6",
+    "theme_color": "#007AFF",
+    "icons": [
+        {
+            "src": "icon-192-v4.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "icon-512-v4.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

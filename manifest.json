@@ -1,0 +1,22 @@
+{
+  "name": "Perigee OS",
+  "short_name": "Perigee",
+  "description": "智能办公助手 - AI驱动的聊天、文书和学习平台",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f4f6",
+  "theme_color": "#007AFF",
+  "icons": [
+    {
+      "src": "icon-192-v4.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512-v4.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
