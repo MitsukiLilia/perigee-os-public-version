@@ -12,6 +12,7 @@ node_modules/
 .superpowers/
 deploy.sh
 sync-public.sh
+cloudflare-worker.js
 *.local.json
 
 # internal dev docs (kept private)

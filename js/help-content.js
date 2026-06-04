@@ -39,7 +39,7 @@ const HelpContent = {
             parent: 'getting-started',
             title: '第一步：访问与登录',
             body: `
-                <p>在线演示站 <code>perigee-os.org</code> 采用邀请制，首次访问需要输入访问码（用户名 + 密码），用于防止滥用。</p>
+                <p>本演示站采用邀请制，首次访问需要输入访问码（用户名 + 密码），用于防止滥用。</p>
 
                 <h4>访问码的特点</h4>
                 <ul>
@@ -58,7 +58,7 @@ const HelpContent = {
 
                 <h4>iPhone（必须用 Safari）</h4>
                 <ol>
-                    <li>用 Safari 打开 <code>perigee-os.org</code></li>
+                    <li>用 Safari 打开本站</li>
                     <li>底部分享按钮（向上箭头方框）</li>
                     <li>滑到「添加到主屏幕」</li>
                     <li>编辑名字 → 添加</li>
@@ -1089,7 +1089,7 @@ const HelpContent = {
                 <h4>方法 2（强制）</h4>
                 <p>打开浏览器开发者工具：</p>
                 <ul>
-                    <li>Application → Service Workers → 找到 perigee-os.org 的 SW → Unregister</li>
+                    <li>Application → Service Workers → 找到 本站 的 SW → Unregister</li>
                     <li>Application → Storage → Clear site data（这会清你的所有数据，<strong>做之前先备份！</strong>）</li>
                 </ul>
             `
@@ -1128,7 +1128,7 @@ const HelpContent = {
                 <ul>
                     <li><code>python3 -m http.server 8000</code> 启动后访问 <code>localhost:8000</code></li>
                     <li>大部分功能正常</li>
-                    <li>但<strong>认证服务</strong>（perigee-os.org/api/）跑在线上，本地不通 — 所以本地版打不开需要认证的页面</li>
+                    <li>但<strong>认证服务</strong>跑在独立的认证后端上，纯本地（file://）打开时连不上 — 所以本地直接打开会卡在认证页</li>
                 </ul>
                 <p>完整本地体验需要自己部署 Node.js 认证服务到 <code>127.0.0.1:3847</code>。</p>
             `
@@ -1152,7 +1152,7 @@ const HelpContent = {
 
                 <h4>朋友第一次使用</h4>
                 <ol>
-                    <li>把 <code>perigee-os.org</code> 链接发给朋友</li>
+                    <li>把本站链接发给朋友</li>
                     <li>用账号密码登录</li>
                     <li>登进去之后会自动看到本帮助中心的引导（首次启动）</li>
                     <li>按引导先配 API → 然后随意探索</li>

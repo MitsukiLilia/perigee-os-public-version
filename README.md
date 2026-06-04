@@ -50,11 +50,11 @@ It is not a chatbot, but an immersive tool for **creating and observing the echo
 
 ## Online demo & self-hosting / 在线演示与自部署
 
-The hosted demo at **perigee-os.org** is gated behind an access check (`/api/auth`) to prevent abuse and scraping. That gate is part of the hosted deployment's own back-end and is **not** included in this repository.
+A live demo is hosted on **GitHub Pages**: https://mitsukililia.github.io/perigee-os-public-version/
 
-If you self-host this source, you will reach that login screen, since the auth back-end is not part of this repository. The rest of the app runs entirely client-side.
+Access is gated by a lightweight login backed by an independent serverless auth service, to prevent abuse and scraping. That auth service is **not** part of this repository; self-hosting requires providing your own. The app itself runs entirely client-side.
 
-线上演示 **perigee-os.org** 启用了访问控制（`/api/auth`），用于防止滥用与爬虫；该校验属于线上部署自有的后端，**不包含在本仓库内**。若你自行部署本源码，会停在登录页 —— 因为该认证后端不包含在本仓库内。其余部分完全在客户端运行。
+在线演示托管在 **GitHub Pages**：https://mitsukililia.github.io/perigee-os-public-version/ —— 访问需通过一道轻量登录（由独立的 serverless 认证服务校验），用于防止滥用与爬虫。该认证服务**不包含在本仓库内**；自行部署需自备。应用本身完全在客户端运行。
 
 ## Local run / 本地运行
 

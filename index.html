@@ -46,11 +46,18 @@
         </div>
     </div>
     <script>
+    // 认证门后端 = 独立的 Cloudflare Worker（与 VPS 隔离）。部署 Worker 后把网址填到这里：
+    const AUTH_ENDPOINT = 'https://perigee-auth.mitsuki1wang.workers.dev';
     async function checkAuth() {
         if (localStorage.getItem('perigee_auth') === 'granted') {
             try {
-                const res = await fetch('/api/check');
-                if (res.status === 403) {
+                const res = await fetch(AUTH_ENDPOINT, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({check: true})
+                });
+                const data = await res.json();
+                if (data.open === false) {
                     localStorage.removeItem('perigee_auth');
                     document.getElementById('auth-screen').style.display = 'flex';
                     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -73,7 +80,7 @@
         if (!user || !pass) { msg.textContent = 'Please enter both fields'; return; }
         btn.disabled = true; btn.textContent = '...';
         try {
-            const res = await fetch('/api/auth', {
+            const res = await fetch(AUTH_ENDPOINT, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({username: user, password: pass})
@@ -84,7 +91,7 @@
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('desktop').classList.add('active');
             } else {
-                msg.textContent = 'Invalid or already used code';
+                msg.textContent = 'Invalid credentials';
             }
         } catch(e) {
             msg.textContent = 'Connection error';
