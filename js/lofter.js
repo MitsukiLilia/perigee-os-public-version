@@ -323,7 +323,12 @@ const Lofter = {
 
     // ========== _callLLM（共用微博中文圈 API override）==========
     // 不在 lofter 单独存 apiOverride、共用 weiboData.apiOverride
-    async _callLLM(prompt) {
+    // systemPrompt（v2.94.2 新增、可选）：短文路径把作者人设/世界观/规则放 system role
+    //   （DS 对 system 的指令遵循显著强于 user message）；其他路径（tag/长篇/合集）不传 = null、
+    //   行为完全不变（整段仍走 user message）。
+    // temperature: 1 — lofter 创作统一温度（作者定、保险值）。只作用于 lofter 自身的 4 条生成路径、
+    //   不影响其他板块（Weibo._callLLM 是另一个独立同名方法、各管各的）。
+    async _callLLM(prompt, systemPrompt = null) {
         const override = AppState.data.weiboData?.apiOverride;
         const overrideConfig = (override?.enabled && override.apiKey && override.model)
             ? {
@@ -335,8 +340,9 @@ const Lofter = {
             : null;
         return await Utils.callChatAPI(
             [{ role: 'user', content: prompt }],
-            null,
-            overrideConfig
+            systemPrompt,
+            overrideConfig,
+            { temperature: 1 }
         );
     },
 
@@ -415,14 +421,23 @@ const Lofter = {
             ? `\n【用户指定文章类型（本篇必须是这个形态、优先级高于 NPC 画像默认行为）：${typeInfo.label}】\n${typeInfo.desc}\n↑ 即便被挑中的 NPC 平时偏别的方向、这一篇也要按「${typeInfo.label}」来写、TYPE 字段相应填 ${typeInfo.baseType}。\n`
             : '';
 
-        return `你在模拟中国 lofter 平台同人创作圈的发文行为、按下方 NPC 列表生成 ${npcs.length} 篇短文 / 杂谈。
+        const system = `你是中国 lofter 平台的同人创作者，正在发布你的新作或创作动态。
+
+【你的定位 — 先是作者，其次才是粉丝】
+你的首要任务是**写出文笔在线、角色还原的好内容**。你首先是一个「会写东西的作者」，把注意力放在作品本身——把人物写活、把情绪写到位、把那个瞬间写得有质感、有呼吸感。粉丝式的日常情绪（拖稿、卡文、嗑到糖、半夜不睡）是给作品做包装的调味，不要喧宾夺主，更不要让一篇沦为纯粹的碎碎念。
+动笔前，先在心里过一遍：这个角色是什么性格、此刻在什么情境、ta 会怎么想、会怎么说话——想清楚了再落笔。宁可慢，也要像。
+
+【角色还原 — 最高优先级】
+你笔下出现的角色（无论原作角色还是世界观里的原创角色），都必须符合 ta 在下方世界观 / 世界书里的设定：
+- 性格、价值观、行为逻辑要对得上 ta 的人设，不要写成另一个人
+- 说话的语气、用词、节奏、口癖要像 ta 本人，而不是「一个角色在念台词」
+- 角色之间的关系、相处模式、称呼要符合设定里的关系
+- 与原作设定冲突的「魔改」只允许出现在明确标注的 if 线 / paro / 二创里、且仍要保留角色的内核
+写得不像，就是这篇文最大的失败——比文笔平庸更糟。
 
 【世界观】
 ${worldCtx || '（未设定）'}
 ${plotGate.promptGateText}
-${userPromptBlock}${articleTypeBlock}
-【NPC 列表（按 TAG 顺序生成、每 NPC 1 篇）】
-${npcLines}
 
 【生态底色 — lofter 不是微博】
 - lofter 是中文同人圈的创作主战场（不是广场）：节奏更慢、内容更深、文 / 图为主
@@ -431,7 +446,7 @@ ${npcLines}
 - 不是营销号 / 不是创作教程 / 不是 AI 总结、是真实创作者随手发
 
 【按 NPC type 的内容画像】
-- fan_writer  — 写文为主：段落片段 / 自宣（不必每次）/ 写作笔记 / 角色分析 / 改三遍开头碎碎念 / 卡文丧 / 灵感暴击。允许只放一句、允许很丧、允许长一些（300-800 字）
+- fan_writer  — **写文为主、这是重点**：尽量发出一段真正的同人正文 / 片段（有场景、有对白、有情绪推进、角色写得像 ta 本人），而不只是谈"我在写"。写作笔记 / 自宣（不必每次）/ 角色分析 / 改三遍开头碎碎念 / 卡文丧 / 灵感暴击可作点缀。允许长一些（300-800 字）、把角色写像与文笔写稳放在第一位
 - fan_artist  — 发图为主：草稿心得 / 摸鱼日记 / 角色立绘 / 画废了 / 只放局部 / 配图描述。允许文字非常简短（几十字够了）
 - cp_fan      — 短打抠糖 / 糖点逐句分析 / 新粉求补课 / 整理粮单 / 接力安利。允许激动但不像营销号、**允许极轻度阴阳对家 CP**（不指向具体真人、不超一两句）
 - info_station — 情报整理 / 周边介绍 / 设定考据 / 翻译杂志摘要 / 官方放出的截图描述。客观陈述、不掺感情
@@ -478,6 +493,16 @@ TAG: [N2]
 ...
 
 不要输出 JSON、不要 markdown 代码块、不要 prefix、不要其他说明文字。`;
+
+        // user：本次具体任务（NPC 列表 + 用户方向 + 触发）—— 动态部分放 user message
+        const user = `按下方 NPC 列表，为每个 NPC 各写 1 篇短文 / 杂谈，共 ${npcs.length} 篇。
+${userPromptBlock}${articleTypeBlock}
+【NPC 列表（按 TAG 顺序生成、每 NPC 1 篇）】
+${npcLines}
+
+请严格按 system 里规定的 ---LOF--- 格式输出这 ${npcs.length} 篇。记住：先把角色写像、把文笔写稳，再考虑粉丝氛围与配图。`;
+
+        return { system, user };
     },
 
     // 解析 ---LOF--- 分隔块
@@ -609,8 +634,8 @@ TAG: [N2]
 
         this._genLock = Date.now();
         try {
-            const prompt = this._buildShortPrompt(npcs, userPrompt, typeInfo);
-            const raw = await this._callLLM(prompt);
+            const { system, user } = this._buildShortPrompt(npcs, userPrompt, typeInfo);
+            const raw = await this._callLLM(user, system);
             const parsedBlocks = this._parseLofterBatch(raw, npcs);
             if (parsedBlocks.length === 0) {
                 Utils.showToast(I18n.t('lofter.toast_gen_format_error', '生成格式错误、请稍后重试'));

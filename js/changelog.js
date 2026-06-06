@@ -3,9 +3,49 @@
 // voiceFromKlaude 写自然一点，像我们平时聊天那样 — 让用户看到我们一起做这件事的痕迹
 
 const Changelog = {
-    CURRENT: '2.94.0',
+    CURRENT: '2.96.1',
 
     versions: [
+        {
+            version: '2.96.1',
+            date: '2026-06-06',
+            highlights: [
+                '【微博返回键不再被灵动岛挡住】之前在微博里进正文详情、搜索、超话、个人主页、账号管理、编辑资料、发博这些页面，顶部的返回键（‹）会被 iPhone 灵动岛压住、点不到。现在微博全套顶栏都补上了灵动岛安全区，返回键、标题、操作图标都让到了安全区下方。老问题，这次一次修干净',
+            ],
+            voiceFromKlaude: '',
+        },
+        {
+            version: '2.96.0',
+            date: '2026-06-06',
+            highlights: [
+                '【论坛图标全线性化】论坛里的彩色 emoji 控件都换成了和系统统一的线性描边图标——置顶标记、周边横幅、长图 / 纯文本导出、咖啡店菜单、各处「AI 生成 / 扩写」按钮，深色浅色主题下都跟着文字颜色自适应。论坛 AI 生成提示词里的 emoji（生成规则标记和 2ch 颜文字那些）一个没碰',
+            ],
+            voiceFromKlaude: '',
+        },
+        {
+            version: '2.95.0',
+            date: '2026-06-05',
+            highlights: [
+                '【抽签 / AI 家教 / 文书的零星图标换成线性 SVG】emoji 大扫除继续推进——抽签按钮的骰子、AI 家教消息的删除键、文书邮件列表的文档头像和附件回形针，这几处原本的彩色 emoji 都换成了和系统统一的线性描边图标，深色浅色主题下都跟着文字颜色自适应、清晰协调',
+            ],
+            voiceFromKlaude: '',
+        },
+        {
+            version: '2.94.2',
+            date: '2026-06-05',
+            highlights: [
+                '【lofter 短文：让 AI 当「作者」而不是「粉丝」】重写了 lofter 短文的提示词——重心从「模拟一个发帖的粉丝」转到「写出角色还原、文笔在线的好内容」，新增「角色还原」最高优先级约束（你笔下的角色无论原作还是原创，都必须符合 ta 设定里的性格和说话方式）。配合把人设规则迁到 system role、创作温度提到 1，专治换 DeepSeek 后文笔差 / 角色写不像。只动 lofter，其他板块一行没碰',
+            ],
+            voiceFromKlaude: '',
+        },
+        {
+            version: '2.94.1',
+            date: '2026-06-05',
+            highlights: [
+                '【X 刷新不再「报错但内容正常」】刷新推特时，后台是 5 路并发生成（公式NPC推文 / 同人推文 / 同人活动 / 趋势 / 通知）。以前只要有一路失败（内容太长被模型拒、网络抖一下等），整个刷新就弹「更新失敗」红字——哪怕推文其实已经正常刷出来了。现在单路失败默默跳过、成功的照常显示，只有 5 路全军覆没才提示',
+            ],
+            voiceFromKlaude: '',
+        },
         {
             version: '2.94.0',
             date: '2026-06-04',
@@ -1024,7 +1064,7 @@ const Changelog = {
             version: '2.62.9',
             date: '2026-05-03',
             highlights: [
-                '底部 bar 在无 home indicator 设备（iPhone SE3 等 LCD）上贴底 — v2.62.8 用 max(10, inset) 在 SE3 上 inset=0 时还会兜底 10px 留出空白。改成纯 env 模式（无 max 兜底），SE3 上 padding-bottom=0 紧贴底，iPhone 17 等保留 inset 让出 home indicator。覆盖：tw-bottom-nav / melon-detail-bar / pixiv-action-bar / tw-dm-input-bar / nico-comment-input / lv-comment-input。LINE line-tab-bar 一直用的是这个模式（作者参考 LINE 的处理后反馈）'
+                '底部 bar 在无 home indicator 设备（iPhone SE3 等 LCD）上贴底 — v2.62.8 用 max(10, inset) 在 SE3 上 inset=0 时还会兜底 10px 留出空白。改成纯 env 模式（无 max 兜底），SE3 上 padding-bottom=0 紧贴底，iPhone 17 等保留 inset 让出 home indicator。覆盖：tw-bottom-nav / melon-detail-bar / pixiv-action-bar / tw-dm-input-bar / nico-comment-input / lv-comment-input。LINE line-tab-bar 一直用的是这个模式（作者就是看 LINE 觉得合适才反馈的）'
             ],
             voiceFromKlaude: ''
         },

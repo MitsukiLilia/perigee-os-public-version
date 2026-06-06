@@ -1055,7 +1055,7 @@ const I18n = {
 
             // 抽签
             'fortune.clear_history': '清空',
-            'fortune.draw': '🎲 抽签',
+            'fortune.draw': '抽签',
 
             // TTS 配置
             'tts.add_mapping': '追加',
@@ -1913,7 +1913,7 @@ const I18n = {
             'forum.goods_pool_set': '套装（多个角色组合）',
             'forum.goods_ai_hint_label': '提示（可选）',
             'forum.goods_ai_hint_placeholder': '例：仅徽章、A 和 B 的周边、亚克力立牌等',
-            'forum.goods_ai_gen_btn': '✨ AI 生成方案',
+            'forum.goods_ai_gen_btn': 'AI 生成方案',
             'forum.goods_ai_generating': '生成中…',
             'forum.goods_ai_failed': '生成失败，请重试',
             'forum.goods_ai_parse_failed': '解析失败',
@@ -1951,10 +1951,10 @@ const I18n = {
             // カフェ AI 生成
             'forum.cafe_ai_hint_label': '提示（可选）',
             'forum.cafe_ai_hint_placeholder': '例：以甜品为主、A 和 B 的联名饮品、和风主题等',
-            'forum.cafe_ai_gen_btn': '☕ 生成咖啡店菜单',
+            'forum.cafe_ai_gen_btn': '生成咖啡店菜单',
             'forum.cafe_ai_generating': '生成中…',
             // 阶段 3 — 剧情 AI 扩写 + 三处 AI 输出语言选择（v2.68.7）
-            'forum.plot_ai_summary': '✨ AI 扩写（写大概 → 自动扩成正文）',
+            'forum.plot_ai_summary': 'AI 扩写（写大概 → 自动扩成正文）',
             'forum.plot_ai_outline_placeholder': '写几句话大概剧情、或几个关键剧情点…',
             'forum.plot_ai_length_short': '短 ~300 字',
             'forum.plot_ai_length_mid': '中 ~800 字',
@@ -1964,7 +1964,7 @@ const I18n = {
             'forum.ai_lang_zh': '中文',
             'forum.ai_lang_ja': '日本語',
             'forum.ai_lang_en': 'English',
-            'forum.plot_ai_expand_btn': '✨ 扩写',
+            'forum.plot_ai_expand_btn': '扩写',
             'forum.plot_ai_expanding': '扩写中…',
             't.forum_plot_ai_outline_empty': '请先写一些剧情大纲',
             't.forum_plot_ai_expanded': '✓ 扩写完成，可继续修改细节',
@@ -2031,8 +2031,8 @@ const I18n = {
             // 导出 modal
             'forum.export_h3': '导出帖子',
             'forum.export_choose': '选择导出格式',
-            'forum.export_text': '📋 纯文本（.txt 下载）',
-            'forum.export_image': '🖼 长条图片（截图）',
+            'forum.export_text': '纯文本（.txt 下载）',
+            'forum.export_image': '长条图片（截图）',
 
             // 总结管理 modal
             'forum.summary_manage_title': '管理总结',
@@ -2050,7 +2050,7 @@ const I18n = {
             'forum.summary_scope_hint': '将总结：{parts}',
             'forum.summary_plots_n': '共 {n} 条剧情',
             'forum.summary_infos_n': '{n} 条关联官方情报',
-            'forum.summary_gen_btn': '✨ AI 生成第 {n} 期综合总结',
+            'forum.summary_gen_btn': 'AI 生成第 {n} 期综合总结',
             'forum.summary_generating': '生成中...',
             'forum.summary_all_done': '✅ 所有剧情已总结完毕。',
             'forum.summary_no_plot': '暂无剧情可总结。',
@@ -2059,7 +2059,7 @@ const I18n = {
             'forum.summary_info_count': '情报：{n}条',
             'forum.summary_regenerate': '重新生成',
             'forum.summary_confirm_save': '确认保存',
-            'forum.summary_gen_default_btn': '✨ AI 生成总结',
+            'forum.summary_gen_default_btn': 'AI 生成总结',
             'forum.legend_empty_text': '暂无传说NPC',
             'forum.legend_empty_hint': '在帖子列表或详情页点 ☆ 标记',
 
@@ -2068,7 +2068,7 @@ const I18n = {
             'forum.draft_summary_prompt': '梗概:',
 
             // 周边速发 banner
-            'forum.goods_banner_text': '📦 顺手发个周边？',
+            'forum.goods_banner_text': '顺手发个周边？',
             'forum.goods_banner_btn': '快速发布',
 
             // 时间相对
@@ -3945,7 +3945,7 @@ const I18n = {
             'travel.clear': 'クリア',
 
             'fortune.clear_history': 'クリア',
-            'fortune.draw': '🎲 おみくじ',
+            'fortune.draw': 'おみくじ',
 
             'tts.add_mapping': '追加',
 
@@ -4746,7 +4746,7 @@ const I18n = {
             'forum.goods_pool_set': 'セット（複数キャラまとめて）',
             'forum.goods_ai_hint_label': 'ヒント（任意）',
             'forum.goods_ai_hint_placeholder': '例：缶バッジのみ、AとBのグッズ、アクリルスタンドなど',
-            'forum.goods_ai_gen_btn': '✨ AI生成方案',
+            'forum.goods_ai_gen_btn': 'AI生成方案',
             'forum.goods_ai_generating': '生成中…',
             'forum.goods_ai_failed': '生成に失敗しました。再試行してください',
             'forum.goods_ai_parse_failed': '解析失敗',
@@ -4782,10 +4782,10 @@ const I18n = {
 
             'forum.cafe_ai_hint_label': 'ヒント（任意）',
             'forum.cafe_ai_hint_placeholder': '例：デザート中心、AとBのコラボドリンク、和風テーマなど',
-            'forum.cafe_ai_gen_btn': '☕ カフェメニューを生成',
+            'forum.cafe_ai_gen_btn': 'カフェメニューを生成',
             'forum.cafe_ai_generating': '生成中…',
             // 阶段 3 — 剧情 AI 扩写 + 三处 AI 输出语言选择（v2.68.7）
-            'forum.plot_ai_summary': '✨ AIで補完（大綱から本文を自動生成）',
+            'forum.plot_ai_summary': 'AIで補完（大綱から本文を自動生成）',
             'forum.plot_ai_outline_placeholder': '剧情の大まかな流れか主要なポイントを書いてください…',
             'forum.plot_ai_length_short': '短 約300字',
             'forum.plot_ai_length_mid': '中 約800字',
@@ -4795,7 +4795,7 @@ const I18n = {
             'forum.ai_lang_zh': '中国語',
             'forum.ai_lang_ja': '日本語',
             'forum.ai_lang_en': 'English',
-            'forum.plot_ai_expand_btn': '✨ 補完',
+            'forum.plot_ai_expand_btn': '補完',
             'forum.plot_ai_expanding': '生成中…',
             't.forum_plot_ai_outline_empty': '大綱を入力してください',
             't.forum_plot_ai_expanded': '✓ 補完完了、細部を編集できます',
@@ -4857,8 +4857,8 @@ const I18n = {
 
             'forum.export_h3': 'スレを書き出す',
             'forum.export_choose': '形式を選択',
-            'forum.export_text': '📋 プレーンテキスト（.txt ダウンロード）',
-            'forum.export_image': '🖼 縦長画像（スクリーンショット）',
+            'forum.export_text': 'プレーンテキスト（.txt ダウンロード）',
+            'forum.export_image': '縦長画像（スクリーンショット）',
 
             'forum.summary_manage_title': '総括の管理',
             'forum.summary_modal_title': 'ストーリー & 情報総合まとめ',
@@ -4875,7 +4875,7 @@ const I18n = {
             'forum.summary_scope_hint': '総括対象：{parts}',
             'forum.summary_plots_n': '計 {n} 件のストーリー',
             'forum.summary_infos_n': '{n} 件の関連公式情報',
-            'forum.summary_gen_btn': '✨ AI で第 {n} 期総合まとめを生成',
+            'forum.summary_gen_btn': 'AI で第 {n} 期総合まとめを生成',
             'forum.summary_generating': '生成中...',
             'forum.summary_all_done': '✅ すべてのストーリーが総括済みです。',
             'forum.summary_no_plot': '総括するストーリーがありません。',
@@ -4884,14 +4884,14 @@ const I18n = {
             'forum.summary_info_count': '情報：{n}件',
             'forum.summary_regenerate': '再生成',
             'forum.summary_confirm_save': '保存して確定',
-            'forum.summary_gen_default_btn': '✨ AI で総括を生成',
+            'forum.summary_gen_default_btn': 'AI で総括を生成',
             'forum.legend_empty_text': '伝説NPC がまだいません',
             'forum.legend_empty_hint': 'スレ一覧または詳細で ☆ をタップしてマーク',
 
             'forum.draft_title_prompt': 'タイトル:',
             'forum.draft_summary_prompt': 'あらすじ:',
 
-            'forum.goods_banner_text': '📦 ついでにグッズも発表？',
+            'forum.goods_banner_text': 'ついでにグッズも発表？',
             'forum.goods_banner_btn': 'クイック投稿',
 
             'forum.time_just_now': 'たった今',
@@ -6762,7 +6762,7 @@ const I18n = {
             'travel.clear': 'Clear',
 
             'fortune.clear_history': 'Clear',
-            'fortune.draw': '🎲 Draw',
+            'fortune.draw': 'Draw',
 
             'tts.add_mapping': 'Add',
 
@@ -7564,7 +7564,7 @@ const I18n = {
             'forum.goods_pool_set': 'Set (multiple characters)',
             'forum.goods_ai_hint_label': 'Hint (optional)',
             'forum.goods_ai_hint_placeholder': 'e.g. badges only, A and B goods, acrylic stand etc.',
-            'forum.goods_ai_gen_btn': '✨ AI generate plan',
+            'forum.goods_ai_gen_btn': 'AI generate plan',
             'forum.goods_ai_generating': 'Generating…',
             'forum.goods_ai_failed': 'Generation failed, please try again',
             'forum.goods_ai_parse_failed': 'Parse failed',
@@ -7600,10 +7600,10 @@ const I18n = {
 
             'forum.cafe_ai_hint_label': 'Hint (optional)',
             'forum.cafe_ai_hint_placeholder': 'e.g. dessert-focused, A×B collab drink, Japanese theme',
-            'forum.cafe_ai_gen_btn': '☕ Generate cafe menu',
+            'forum.cafe_ai_gen_btn': 'Generate cafe menu',
             'forum.cafe_ai_generating': 'Generating…',
             // Phase 3 — Plot AI expansion + per-AI output language selector (v2.68.7)
-            'forum.plot_ai_summary': '✨ AI Expand (Outline → Full Plot)',
+            'forum.plot_ai_summary': 'AI Expand (Outline → Full Plot)',
             'forum.plot_ai_outline_placeholder': 'Write a brief plot summary or key story beats…',
             'forum.plot_ai_length_short': 'Short ~300 chars',
             'forum.plot_ai_length_mid': 'Medium ~800 chars',
@@ -7613,7 +7613,7 @@ const I18n = {
             'forum.ai_lang_zh': 'Chinese',
             'forum.ai_lang_ja': 'Japanese',
             'forum.ai_lang_en': 'English',
-            'forum.plot_ai_expand_btn': '✨ Expand',
+            'forum.plot_ai_expand_btn': 'Expand',
             'forum.plot_ai_expanding': 'Expanding…',
             't.forum_plot_ai_outline_empty': 'Please write an outline first',
             't.forum_plot_ai_expanded': '✓ Expanded, edit details below',
@@ -7675,8 +7675,8 @@ const I18n = {
 
             'forum.export_h3': 'Export thread',
             'forum.export_choose': 'Choose format',
-            'forum.export_text': '📋 Plain text (.txt download)',
-            'forum.export_image': '🖼 Long screenshot',
+            'forum.export_text': 'Plain text (.txt download)',
+            'forum.export_image': 'Long screenshot',
 
             'forum.summary_manage_title': 'Manage summaries',
             'forum.summary_modal_title': 'Plot & Info combined summary',
@@ -7693,7 +7693,7 @@ const I18n = {
             'forum.summary_scope_hint': 'Will summarize: {parts}',
             'forum.summary_plots_n': '{n} plots',
             'forum.summary_infos_n': '{n} linked official info',
-            'forum.summary_gen_btn': '✨ AI generate period {n} summary',
+            'forum.summary_gen_btn': 'AI generate period {n} summary',
             'forum.summary_generating': 'Generating...',
             'forum.summary_all_done': '✅ All plots have been summarized.',
             'forum.summary_no_plot': 'No plots to summarize.',
@@ -7702,14 +7702,14 @@ const I18n = {
             'forum.summary_info_count': 'Info: {n} items',
             'forum.summary_regenerate': 'Regenerate',
             'forum.summary_confirm_save': 'Confirm save',
-            'forum.summary_gen_default_btn': '✨ AI generate summary',
+            'forum.summary_gen_default_btn': 'AI generate summary',
             'forum.legend_empty_text': 'No legend NPCs yet',
             'forum.legend_empty_hint': 'Tap ☆ in the thread list or detail page to mark',
 
             'forum.draft_title_prompt': 'Title:',
             'forum.draft_summary_prompt': 'Summary:',
 
-            'forum.goods_banner_text': '📦 Post goods while you\'re at it?',
+            'forum.goods_banner_text': 'Post goods while you\'re at it?',
             'forum.goods_banner_btn': 'Quick post',
 
             'forum.time_just_now': 'just now',

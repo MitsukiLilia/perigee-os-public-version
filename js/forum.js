@@ -412,7 +412,7 @@ const Forum = {
                 <div class="fch-thread-item" data-tid="${t.id}" onclick="Forum.openThread('${t.id}')">
                     <div style="flex:1; min-width:0;">
                         ${categoryBadge}
-                        <div class="fch-thread-title">${t.isPersistent ? '<span style="color:var(--accent-color);margin-right:4px;font-size:11px;">📌</span>' : ''}${_esc(this.stripTranslationTags(t.title))}</div>
+                        <div class="fch-thread-title">${t.isPersistent ? '<span style="color:var(--accent-color);margin-right:4px;display:inline-flex;align-items:center;"><svg style="width:12px;height:12px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24z"/></svg></span>' : ''}${_esc(this.stripTranslationTags(t.title))}</div>
                         <div class="fch-thread-time">${timeAgoStr}</div>
                     </div>
                     <div class="fch-thread-meta">
@@ -3012,7 +3012,9 @@ CONTENT:
         if (!btn || !container) return;
 
         btn.disabled = true;
-        btn.textContent = I18n.t('forum.goods_ai_generating', '生成中…');
+        const _goodsLbl = btn.querySelector('.fch-svg-label');
+        if (_goodsLbl) _goodsLbl.textContent = I18n.t('forum.goods_ai_generating', '生成中…');
+        else btn.textContent = I18n.t('forum.goods_ai_generating', '生成中…');
         container.innerHTML = '';
 
         try {
@@ -3104,7 +3106,9 @@ ${infoText ? `\n最近の公式情報（ツイート・イベント等）：\n${
             console.error('[AI Goods]', e);
         } finally {
             btn.disabled = false;
-            btn.textContent = I18n.t('forum.goods_ai_gen_btn', '✨ AI生成方案');
+            const _goodsRestoreLbl = btn.querySelector('.fch-svg-label');
+            if (_goodsRestoreLbl) _goodsRestoreLbl.textContent = I18n.t('forum.goods_ai_gen_btn', 'AI生成方案');
+            else btn.textContent = I18n.t('forum.goods_ai_gen_btn', 'AI生成方案');
         }
     },
 
@@ -3146,8 +3150,10 @@ ${infoText ? `\n最近の公式情報（ツイート・イベント等）：\n${
         const lengthSpec = length === 'short' ? '約300字' : length === 'long' ? '約1500字' : '約800字';
 
         btn.disabled = true;
-        const originalBtnText = btn.textContent;
-        btn.textContent = I18n.t('forum.plot_ai_expanding', '扩写中…');
+        const _expandLbl = btn.querySelector('.fch-svg-label');
+        const originalBtnText = _expandLbl ? _expandLbl.textContent : btn.textContent;
+        if (_expandLbl) _expandLbl.textContent = I18n.t('forum.plot_ai_expanding', '扩写中…');
+        else btn.textContent = I18n.t('forum.plot_ai_expanding', '扩写中…');
 
         try {
             const worldSetting = AppState.data.broadcast.worldSetting || '';
@@ -3194,7 +3200,8 @@ ${outline}
             Utils.showToast(I18n.t('t.forum_plot_ai_failed', '扩写失败：') + (e.message || e));
         } finally {
             btn.disabled = false;
-            btn.textContent = originalBtnText;
+            if (_expandLbl) _expandLbl.textContent = originalBtnText;
+            else btn.textContent = originalBtnText;
         }
     },
 
@@ -3206,7 +3213,9 @@ ${outline}
         if (!btn || !resultDiv) return;
 
         btn.disabled = true;
-        btn.textContent = I18n.t('forum.cafe_ai_generating', '生成中…');
+        const _cafeLbl = btn.querySelector('.fch-svg-label');
+        if (_cafeLbl) _cafeLbl.textContent = I18n.t('forum.cafe_ai_generating', '生成中…');
+        else btn.textContent = I18n.t('forum.cafe_ai_generating', '生成中…');
         resultDiv.style.display = 'none';
         if (actionsDiv) actionsDiv.style.display = 'none';
 
@@ -3258,7 +3267,9 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
             console.error('[AI Cafe]', e);
         } finally {
             btn.disabled = false;
-            btn.textContent = I18n.t('forum.cafe_ai_gen_btn', '☕ カフェメニューを生成');
+            const _cafeRestoreLbl = btn.querySelector('.fch-svg-label');
+            if (_cafeRestoreLbl) _cafeRestoreLbl.textContent = I18n.t('forum.cafe_ai_gen_btn', 'カフェメニューを生成');
+            else btn.textContent = I18n.t('forum.cafe_ai_gen_btn', 'カフェメニューを生成');
         }
     },
 
@@ -3281,7 +3292,7 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
         banner.id = 'goodsQuickBanner';
         banner.className = 'goods-quick-banner';
         banner.innerHTML = `
-<span class="goods-quick-text">${I18n.t('forum.goods_banner_text', '📦 顺手发个周边？')}</span>
+<span class="goods-quick-text" style="display:inline-flex;align-items:center;gap:6px;"><svg style="width:14px;height:14px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>${I18n.t('forum.goods_banner_text', '顺手发个周边？')}</span>
 <button class="glass-btn goods-quick-btn" onclick="Forum._quickOpenGoodsModal(); document.getElementById('goodsQuickBanner').remove()">${I18n.t('forum.goods_banner_btn', '快速发布')}</button>
 <button class="goods-quick-close" onclick="document.getElementById('goodsQuickBanner').remove()">×</button>`;
         document.body.appendChild(banner);
@@ -4018,7 +4029,7 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
                     </select>
                 </div>
                 <div id="summaryScopeHint" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;"></div>
-                <button id="summaryGenerateBtn" class="glass-btn primary" style="width:100%;" onclick="Forum.doGenerateSummary()">${I18n.t('forum.summary_gen_btn', { n: allSummaries.length + 1 })}</button>
+                <button id="summaryGenerateBtn" class="glass-btn primary" style="width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;" onclick="Forum.doGenerateSummary()"><svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/></svg><span class="fch-svg-label">${I18n.t('forum.summary_gen_btn', { n: allSummaries.length + 1 })}</span></button>
             </div>`;
         } else if (uncoveredPlots.length === 0 && allSummaries.length > 0 && !this._summaryPreviewData) {
             html += `<p style="font-size:13px;color:var(--text-secondary);margin-top:8px;">${I18n.t('forum.summary_all_done', '✅ 所有剧情已总结完毕。')}</p>`;
@@ -4073,7 +4084,7 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
         if (!scope || scope.plots.length === 0) { Utils.showToast(I18n.t('t.forum_select_summary_scope', '请选择总结范围')); return; }
 
         const btn = document.getElementById('summaryGenerateBtn');
-        if (btn) { btn.textContent = I18n.t('forum.summary_generating', '生成中...'); btn.disabled = true; }
+        if (btn) { const _sumLbl = btn.querySelector('.fch-svg-label'); if (_sumLbl) _sumLbl.textContent = I18n.t('forum.summary_generating', '生成中...'); else btn.textContent = I18n.t('forum.summary_generating', '生成中...'); btn.disabled = true; }
 
         try {
             const data = AppState.data.forumData;
@@ -4156,7 +4167,7 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
         } catch (e) {
             Utils.showToast(I18n.t('t.forum_gen_failed', '生成失败：') + e.message);
             console.error('[Summary Gen Error]', e);
-            if (btn) { btn.textContent = I18n.t('forum.summary_gen_default_btn', '✨ AI 生成总结'); btn.disabled = false; }
+            if (btn) { const _sumErrLbl = btn.querySelector('.fch-svg-label'); if (_sumErrLbl) _sumErrLbl.textContent = I18n.t('forum.summary_gen_default_btn', 'AI 生成总结'); else btn.textContent = I18n.t('forum.summary_gen_default_btn', 'AI 生成总结'); btn.disabled = false; }
         }
     },
 

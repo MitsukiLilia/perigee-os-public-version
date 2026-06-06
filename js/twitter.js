@@ -807,15 +807,28 @@ const Twitter = {
         if (btn) btn.classList.add('spinning');
         try {
             // 五つのジェネレーター並列（ツイート×2 + 同人イベント + トレンド + 通知）
-            await Promise.all([
+            // allSettled：一部が失敗（API超限/タイムアウト等）しても成功分は反映し続ける。
+            // 旧 Promise.all は1つでも失敗すると全体が「更新失敗」になり、"刷新报错但内容正常" の原因だった。
+            const _genLabels = ['npcTweets', 'fanTweets', 'fandomEvent', 'trends', 'notifications'];
+            const _results = await Promise.allSettled([
                 this._generateNpcTweets(),
                 this._generateFanTweets(),
                 this._generateFandomEvent(),
                 this._generateTrends(),
                 this._generateNotifications()
             ]);
+            _results.forEach((r, i) => {
+                if (r.status === 'rejected') console.warn(`[Twitter refresh] ${_genLabels[i]} failed:`, r.reason);
+            });
             this.renderTimeline();
-            Utils.showToast(I18n.t('t.tw_timeline_updated', '✓ タイムラインを更新しました'));
+            const _failedCount = _results.filter(r => r.status === 'rejected').length;
+            if (_failedCount === _results.length) {
+                // 全ジェネレーター失敗 = APIキー失効/ネット全断など本当の異常のみ通知
+                const _firstErr = _results.find(r => r.status === 'rejected')?.reason;
+                Utils.showToast(I18n.t('t.tw_refresh_failed', '更新失敗：') + (_firstErr?.message || ''));
+            } else {
+                Utils.showToast(I18n.t('t.tw_timeline_updated', '✓ タイムラインを更新しました'));
+            }
 
             // renderTimeline() 完了後、art 画像の非同期生成を開始
             const t = this._ensureData();

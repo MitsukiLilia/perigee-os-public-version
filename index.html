@@ -46,18 +46,11 @@
         </div>
     </div>
     <script>
-    // 认证门后端 = 独立的 Cloudflare Worker（与 VPS 隔离）。部署 Worker 后把网址填到这里：
-    const AUTH_ENDPOINT = 'https://perigee-auth.mitsuki1wang.workers.dev';
     async function checkAuth() {
         if (localStorage.getItem('perigee_auth') === 'granted') {
             try {
-                const res = await fetch(AUTH_ENDPOINT, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({check: true})
-                });
-                const data = await res.json();
-                if (data.open === false) {
+                const res = await fetch('/api/check');
+                if (res.status === 403) {
                     localStorage.removeItem('perigee_auth');
                     document.getElementById('auth-screen').style.display = 'flex';
                     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -80,7 +73,7 @@
         if (!user || !pass) { msg.textContent = 'Please enter both fields'; return; }
         btn.disabled = true; btn.textContent = '...';
         try {
-            const res = await fetch(AUTH_ENDPOINT, {
+            const res = await fetch('/api/auth', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({username: user, password: pass})
@@ -91,7 +84,7 @@
                 document.getElementById('auth-screen').style.display = 'none';
                 document.getElementById('desktop').classList.add('active');
             } else {
-                msg.textContent = 'Invalid credentials';
+                msg.textContent = 'Invalid or already used code';
             }
         } catch(e) {
             msg.textContent = 'Connection error';
@@ -3114,8 +3107,8 @@
             <div id="fortuneResult" class="fortune-result">?</div>
 
             <!-- 抽签按钮 -->
-            <button id="drawBtn" class="glass-btn primary" style="font-size: 18px; padding: 16px 48px; margin: 30px 0;"
-                data-i18n="fortune.draw" onclick="Fortune.draw()">🎲 抽签</button>
+            <button id="drawBtn" class="glass-btn primary" style="font-size: 18px; padding: 16px 48px; margin: 30px 0; display: inline-flex; align-items: center; justify-content: center; gap: 8px;"
+                onclick="Fortune.draw()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1" fill="currentColor"/><circle cx="15.5" cy="8.5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="8.5" cy="15.5" r="1" fill="currentColor"/><circle cx="15.5" cy="15.5" r="1" fill="currentColor"/></svg><span data-i18n="fortune.draw">抽签</span></button>
 
             <!-- 选项预览 -->
             <div class="settings-card" style="width: 100%; max-width: 400px;">
@@ -4143,7 +4136,7 @@
                 data-i18n-placeholder="forum.plot_content_placeholder"></textarea>
             <!-- AI 扩写区块（可选用，扩写后填回内容栏） -->
             <details id="plotAiExpandSection" style="margin-top:8px; padding:8px 10px; background:var(--bg-secondary); border-radius:8px; font-size:12px;">
-                <summary style="color:var(--text-secondary); cursor:pointer;" data-i18n="forum.plot_ai_summary">✨ AI 扩写（写大概 → 自动扩成正文）</summary>
+                <summary style="color:var(--text-secondary); cursor:pointer; display:inline-flex;align-items:center;gap:6px;"><svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/></svg><span class="fch-svg-label" data-i18n="forum.plot_ai_summary">AI 扩写（写大概 → 自动扩成正文）</span></summary>
                 <div style="margin-top:8px;">
                     <textarea id="plotAiOutline" rows="3" placeholder="写几句话大概剧情、或几个关键剧情点…"
                         data-i18n-placeholder="forum.plot_ai_outline_placeholder"
@@ -4161,8 +4154,8 @@
                             <option value="en" data-i18n="forum.ai_lang_en">English</option>
                         </select>
                     </div>
-                    <button class="glass-btn" id="plotAiExpandBtn" style="width:100%; font-size:12px;"
-                        data-i18n="forum.plot_ai_expand_btn" onclick="Forum._aiGenerateExpandedPlot()">✨ 扩写</button>
+                    <button class="glass-btn" id="plotAiExpandBtn" style="width:100%; font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;"
+                        onclick="Forum._aiGenerateExpandedPlot()"><svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/></svg><span class="fch-svg-label" data-i18n="forum.plot_ai_expand_btn">扩写</span></button>
                 </div>
             </details>
             <div class="modal-actions">
@@ -4207,8 +4200,8 @@
                 </div>
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;" data-i18n="forum.goods_ai_hint_label">提示（可选）</label>
                 <input type="text" id="goodsAiHint" placeholder="例：仅徽章、A 和 B 的周边、亚克力立牌等" data-i18n-placeholder="forum.goods_ai_hint_placeholder" style="margin-bottom:8px;">
-                <button class="glass-btn" style="width:100%; font-size:13px;" id="goodsAiGenBtn"
-                    data-i18n="forum.goods_ai_gen_btn" onclick="Forum._aiGenerateGoods()">✨ AI 生成方案</button>
+                <button class="glass-btn" style="width:100%; font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;" id="goodsAiGenBtn"
+                    onclick="Forum._aiGenerateGoods()"><svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3z"/></svg><span class="fch-svg-label" data-i18n="forum.goods_ai_gen_btn">AI 生成方案</span></button>
                 <div id="goodsAiCandidates"></div>
             </div>
             <!-- 周边结构化字段（仅 goods 类别显示） -->
@@ -4274,8 +4267,8 @@
                 </div>
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;" data-i18n="forum.cafe_ai_hint_label">提示（可选）</label>
                 <input type="text" id="cafeAiHint" placeholder="例：以甜品为主、A 和 B 的联名饮品、和风主题等" data-i18n-placeholder="forum.cafe_ai_hint_placeholder" style="margin-bottom:8px;">
-                <button class="glass-btn" style="width:100%; font-size:13px;" id="cafeAiGenBtn"
-                    data-i18n="forum.cafe_ai_gen_btn" onclick="Forum._aiGenerateCafeMenu()">☕ 生成咖啡店菜单</button>
+                <button class="glass-btn" style="width:100%; font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:6px;" id="cafeAiGenBtn"
+                    onclick="Forum._aiGenerateCafeMenu()"><svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg><span class="fch-svg-label" data-i18n="forum.cafe_ai_gen_btn">生成咖啡店菜单</span></button>
                 <div id="cafeAiResult"
                     style="display:none; margin-top:8px; font-size:12px; color:var(--text-secondary); background:var(--bg-secondary); border-radius:8px; padding:10px; white-space:pre-wrap; line-height:1.6;">
                 </div>
@@ -4416,8 +4409,8 @@
             <h3 data-i18n="forum.export_h3">导出帖子</h3>
             <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 16px;" data-i18n="forum.export_choose">选择导出格式</p>
             <div style="display:flex;flex-direction:column;gap:10px;">
-                <button class="glass-btn" onclick="Forum._exportText()" data-i18n="forum.export_text">📋 纯文本（.txt 下载）</button>
-                <button class="glass-btn" onclick="Forum._exportImage()" data-i18n="forum.export_image">🖼 长条图片（截图）</button>
+                <button class="glass-btn" style="display:inline-flex;align-items:center;gap:6px;" onclick="Forum._exportText()"><svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><span class="fch-svg-label" data-i18n="forum.export_text">纯文本（.txt 下载）</span></button>
+                <button class="glass-btn" style="display:inline-flex;align-items:center;gap:6px;" onclick="Forum._exportImage()"><svg style="width:16px;height:16px;flex-shrink:0;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg><span class="fch-svg-label" data-i18n="forum.export_image">长条图片（截图）</span></button>
             </div>
             <div class="modal-actions" style="margin-top:14px;">
                 <button class="glass-btn"
