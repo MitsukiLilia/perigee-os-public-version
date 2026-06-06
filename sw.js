@@ -1,6 +1,6 @@
 // Service Worker for Perigee OS
 // 版本号：每次更新代码时修改此版本号以强制更新缓存
-const VERSION = '2.96.2';
+const VERSION = '2.96.5';
 const CACHE_NAME = `perigee-os-v${VERSION}`;
 
 // 核心本地资源（必须全部成功，否则 SW 安装失败）

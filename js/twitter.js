@@ -32,6 +32,16 @@ const Twitter = {
         mailMd: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-4px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`,
         pin: `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-1px"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`,
         birdLg: `<svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`,
+        book: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
+        palette: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
+        paletteLg: `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
+        tv: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>`,
+        sparkles: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M12 3l1.9 4.6L18.5 9.5 13.9 11.4 12 16l-1.9-4.6L5.5 9.5l4.6-1.9z"/><path d="M19 14l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/><path d="M5 16l.6 1.4L7 18l-1.4.6L5 20l-.6-1.4L3 18l1.4-.6z"/></svg>`,
+        shopping: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>`,
+        tent: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M3.5 21 14 3"/><path d="M20.5 21 10 3"/><path d="M15.5 21 12 15l-3.5 6"/><path d="M2 21h20"/></svg>`,
+        radio: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M4.9 19.1C1 15.2 1 8.8 4.9 4.9"/><path d="M7.8 16.2c-2.3-2.3-2.3-6.1 0-8.5"/><circle cx="12" cy="12" r="2"/><path d="M16.2 7.8c2.3 2.3 2.3 6.1 0 8.5"/><path d="M19.1 4.9C23 8.8 23 15.1 19.1 19"/></svg>`,
+        headphones: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>`,
+        calendar: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`,
     },
 
     // 情報アクセス制限ルール → 见 Utils.PROMPTS.infoAccessRule()
@@ -787,7 +797,7 @@ const Twitter = {
         ${this._renderQuotedTweetHtml(tweet)}
         ${tweet.poll ? this._renderPoll(tweet) : ''}
         ${tweet.pixivLink ? `<a class="tw-pixiv-link-card" href="${this._esc(tweet.pixivLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
-            <div class="tw-pixiv-link-icon">📕</div>
+            <div class="tw-pixiv-link-icon">${this._svg.book}</div>
             <div class="tw-pixiv-link-text">${I18n.t('tw.profile_pixiv_link_card_title', 'pixiv で読む')}</div>
         </a>` : ''}
         ${tlBlock}
@@ -4444,7 +4454,7 @@ CONTENT: [DMテキスト、自然な日本語で2〜4文]
         const cards = live.slice(0, 5).map(s => {
             const npc = this._getNpc(s.hostNpcId);
             const hostName = npc ? (npc.name || npc.role) : I18n.t('tw.space_host_default', 'ホスト');
-            const listenerStr = s.listenerCount ? `🎧 ${this._fmtNum(s.listenerCount)}` : '';
+            const listenerStr = s.listenerCount ? `${this._svg.headphones} ${this._fmtNum(s.listenerCount)}` : '';
             return `<div class="tw-discover-space" onclick="Twitter.openSpace('${this._esc(s.id)}')">
     <div class="tw-discover-space-live"><span class="tw-space-live-dot"></span>${I18n.t('tw.space_live_now', 'ライブ中')}</div>
     <div class="tw-discover-space-title">${this._esc(s.title)}</div>
@@ -4453,7 +4463,7 @@ CONTENT: [DMテキスト、自然な日本語で2〜4文]
         }).join('');
         return `<div class="tw-discover-section">
     <div class="tw-discover-header">
-        <span>${I18n.t('tw.space_live_section_title', '📻 ライブ中のスペース')}</span>
+        <span>${this._svg.radio} ${I18n.t('tw.space_live_section_title', 'ライブ中のスペース')}</span>
         <span class="tw-discover-more" onclick="Twitter.showAllSpaces()">${I18n.t('tw.space_view_all', 'すべて ›')}</span>
     </div>
     <div class="tw-discover-spaces-row">${cards}</div>
@@ -5015,12 +5025,12 @@ CATEGORY: [episode/character/goods/event/fandom]
 </details>`;
         }
 
-        const catIcon = { episode: '📺', character: '✨', goods: '🛍️', event: '🎪', fandom: '💬' };
+        const catIcon = { episode: this._svg.tv, character: this._svg.sparkles, goods: this._svg.shopping, event: this._svg.tent, fandom: this._svg.chat };
         const items = trends.map((tr, i) => `<div class="tw-trend-item tw-trend-clickable" onclick="Twitter._searchFromTrend('${this._esc(tr.tag)}')">
     <div class="tw-trend-rank">${i + 1}</div>
     <div class="tw-trend-info">
         <div class="tw-trend-tag">${this._esc(tr.tag)}</div>
-        <div class="tw-trend-count">${catIcon[tr.category] || '💬'} ${this._esc(tr.count)}</div>
+        <div class="tw-trend-count">${catIcon[tr.category] || this._svg.chat} ${this._esc(tr.count)}</div>
     </div>
     <div style="color:var(--text-secondary);font-size:20px;padding-right:4px;">›</div>
 </div>`).join('');
@@ -5077,12 +5087,12 @@ ${items}
         const pillClass = isLive ? 'tw-space-pill tw-space-pill-live' : 'tw-space-pill';
         const badge = isLive
             ? `<div class="tw-space-live-badge"><span class="tw-space-live-dot"></span>${I18n.t('tw.space_live_now', 'ライブ中')}</div>`
-            : `<div class="tw-space-archived-badge">${I18n.t('tw.space_archived', '📻 アーカイブ')}</div>`;
+            : `<div class="tw-space-archived-badge">${this._svg.radio} ${I18n.t('tw.space_archived', 'アーカイブ')}</div>`;
         const npc = this._getNpc(space.hostNpcId);
         const hostName = npc ? (npc.name || npc.role) : I18n.t('tw.space_host_default', 'ホスト');
         const otherCount = (space.speakerNpcIds || []).length - 1;
         const hostsStr = otherCount > 0 ? I18n.t('tw.space_others_count', {name: this._esc(hostName), n: otherCount}) : this._esc(hostName);
-        const listenerStr = isLive ? `🎧 ${this._fmtNum(space.listenerCount || 0)}人` : '';
+        const listenerStr = isLive ? `${this._svg.headphones} ${this._fmtNum(space.listenerCount || 0)}人` : '';
         return `<div class="${pillClass}" onclick="Twitter.openSpace('${this._esc(space.id)}')">
     ${badge}
     <div class="tw-space-pill-title">${this._esc(space.title)}</div>
@@ -5109,7 +5119,7 @@ ${items}
         const isLive = space.status === 'live';
         const statusBar = isLive
             ? `<div class="tw-space-status-bar"><div class="tw-space-status-live"><span class="tw-space-live-dot"></span>${I18n.t('tw.space_live_now', 'ライブ中')}</div><div class="tw-space-listeners">${I18n.t('tw.space_listeners', {n: this._fmtNum(space.listenerCount || 0)})}</div></div>`
-            : `<div class="tw-space-status-bar"><div class="tw-space-status-archived">${I18n.t('tw.space_archived', '📻 アーカイブ')}</div><div class="tw-space-listeners">${this._formatDate(space.endTime || space.startTime)}</div></div>`;
+            : `<div class="tw-space-status-bar"><div class="tw-space-status-archived">${this._svg.radio} ${I18n.t('tw.space_archived', 'アーカイブ')}</div><div class="tw-space-listeners">${this._formatDate(space.endTime || space.startTime)}</div></div>`;
 
         const npcs = AppState.data.broadcast.officialNpcs || [];
         const speakerChips = (space.speakerNpcIds || []).map(npcId => {
@@ -5911,7 +5921,7 @@ ELAPSED: [+HH:MM:SS]`;
     </div>
     <div class="tw-profile-services">
         <button class="tw-service-btn" onclick="Navigation.goTo('twitter-marshmallow')">${I18n.t('tw.title_marshmallow', '🍡 マシュマロ')}${t.marshmallows.filter(m => !m.isRead).length ? ` <span class="tw-service-badge">${t.marshmallows.filter(m => !m.isRead).length}</span>` : ''}</button>
-        <button class="tw-service-btn" onclick="Navigation.goTo('twitter-poipiku')">${I18n.t('tw.title_poipiku', '🎨 Poipiku')}</button>
+        <button class="tw-service-btn" onclick="Navigation.goTo('twitter-poipiku')">${this._svg.palette} ${I18n.t('tw.title_poipiku', 'Poipiku')}</button>
     </div>
 </div>
 <div class="tw-profile-tabs">
@@ -6446,7 +6456,7 @@ ${worldContext || '（未設定 — 具体的なキャラ名・CP・ストーリ
     <div class="tw-profile-handle">${esc(handle)}</div>
     <div class="tw-fan-type-badge" style="color:${color};border-color:${color}33;background:${color}11;">${esc(typeLabel)}</div>
     ${bioHtml}
-    <div class="tw-profile-meta">📅 ${I18n.t('tw.profile_using_x_since', {date: joinDate})}</div>
+    <div class="tw-profile-meta">${this._svg.calendar} ${I18n.t('tw.profile_using_x_since', {date: joinDate})}</div>
     <div class="tw-profile-counts">
         <span><strong>${this._fmtNumComma(followingCount)}</strong> ${I18n.t('tw.profile_following', 'フォロー中')}</span>
         <span><strong>${this._fmtNumComma(followerCount)}</strong> ${I18n.t('tw.profile_followers', 'フォロワー')}</span>
@@ -6546,7 +6556,7 @@ ${tabContent}`;
     <div class="tw-profile-name">${esc(name)}</div>
     <div class="tw-profile-handle">${esc(handle)}</div>
     <div class="tw-fan-type-badge" style="color:${color};border-color:${color}33;background:${color}11;">${esc(typeLabel)}</div>
-    <div class="tw-profile-meta">📅 ${I18n.t('tw.profile_using_x_since', {date: joinDate})}</div>
+    <div class="tw-profile-meta">${this._svg.calendar} ${I18n.t('tw.profile_using_x_since', {date: joinDate})}</div>
     <div class="tw-profile-counts">
         <span><strong>${this._fmtNumComma(followingCount)}</strong> ${I18n.t('tw.profile_following', 'フォロー中')}</span>
         <span><strong>${this._fmtNumComma(followerCount)}</strong> ${I18n.t('tw.profile_followers', 'フォロワー')}</span>
@@ -6868,7 +6878,7 @@ LIKES: [数字]`;
                 const isLive = s.status === 'live';
                 const badge = isLive
                     ? `<span class="tw-space-live-badge" style="margin-bottom:0;"><span class="tw-space-live-dot"></span>${I18n.t('tw.space_live_now', 'ライブ中')}</span>`
-                    : `<span class="tw-space-archived-badge" style="margin-bottom:0;">📻</span>`;
+                    : `<span class="tw-space-archived-badge" style="margin-bottom:0;">${this._svg.radio}</span>`;
                 const npc = this._getNpc(s.hostNpcId);
                 const hostName = npc ? (npc.name || npc.role) : I18n.t('tw.space_host_default', 'ホスト');
                 return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">
@@ -7134,7 +7144,7 @@ TRANSLATION: [QUESTIONの中国語（簡体字）翻訳、1行]
 
         content.innerHTML = posts.length === 0
             ? `<div style="text-align:center;padding:60px 20px;">
-                <div style="font-size:48px;margin-bottom:12px;">🎨</div>
+                <div style="margin-bottom:12px;">${this._svg.paletteLg}</div>
                 <div style="font-size:15px;color:var(--text-secondary);">${I18n.t('tw.empty_no_poipiku', 'まだ投稿がありません')}</div>
                 <div style="font-size:13px;color:#999;margin-top:6px;">${I18n.t('tw.empty_poipiku_hint', '「＋」から創作を投稿しましょう')}</div>
                </div>`
@@ -7195,7 +7205,7 @@ TRANSLATION: [QUESTIONの中国語（簡体字）翻訳、1行]
                         <input id="poipikuTags" type="text" placeholder="${I18n.t('tw.pp_tags_placeholder', 'タグ（スペース区切り）')}" style="width:100%;padding:10px;border:1px solid var(--border-medium);border-radius:8px;font-size:14px;margin-top:10px;">
                         <div style="display:flex;gap:8px;margin-top:12px;">
                             <button class="glass-btn primary" onclick="Twitter.savePoipikuPost()" style="flex:1;">${I18n.t('tw.pp_publish', '投稿')}</button>
-                            <button class="glass-btn" onclick="Twitter.generatePoipikuPost()" style="flex:1;">${I18n.t('tw.pp_ai_gen', '🤖 AI生成')}</button>
+                            <button class="glass-btn" onclick="Twitter.generatePoipikuPost()" style="flex:1;">${this._svg.sparkles} ${I18n.t('tw.pp_ai_gen', 'AI生成')}</button>
                         </div>
                     </div>
                 </div>

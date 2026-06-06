@@ -11,7 +11,7 @@
 .weibo-container {
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    height: 100%;
     background: #f5f5f5;
     overflow: hidden;
     position: relative;
@@ -23,10 +23,12 @@
     padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 8px;
     min-height: 44px;
 }
 .wb-top-title {
+    flex: 1;
+    text-align: center;
     font-size: 17px;
     font-weight: 600;
     color: #333;
@@ -35,12 +37,17 @@
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
 }
 .weibo-tab-screen {
     min-height: 100%;
 }
 .weibo-bottom-nav {
-    flex-shrink: 0;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 30;
     display: flex;
     background: #fff;
     border-top: 1px solid #e8e8e8;
@@ -66,12 +73,11 @@
     color: #ff8200;
 }
 .wb-back-home {
-    position: absolute;
-    top: calc(12px + env(safe-area-inset-top, 0px));
-    left: 14px;
-    z-index: 10;
+    flex-shrink: 0;
     width: 32px;
     height: 32px;
+    margin-left: -6px;
+    padding: 0;
     background: none;
     border: none;
     color: #333;
@@ -1145,10 +1151,7 @@
     position: relative;
 }
 .wb-top-actions {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 6px;

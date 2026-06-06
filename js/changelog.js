@@ -3,9 +3,35 @@
 // voiceFromKlaude 写自然一点，像我们平时聊天那样 — 让用户看到我们一起做这件事的痕迹
 
 const Changelog = {
-    CURRENT: '2.96.2',
+    CURRENT: '2.96.5',
 
     versions: [
+        {
+            version: '2.96.5',
+            date: '2026-06-07',
+            highlights: [
+                '【底部白条终于根治】前几版没修对——根因是所有 app 屏用的 position:absolute 在 iPhone 上够不到屏幕最底那条 home 区，底部一直露 body 的浅色背景（连桌面主屏都有、只是之前没注意；LINE 和 lofter 因为底栏是 fixed 才没事）。这次把 app 屏的定位从 absolute 换成 fixed，所有页面都铺到屏幕物理底，白条彻底消失',
+            ],
+            voiceFromKlaude: '',
+        },
+        {
+            version: '2.96.4',
+            date: '2026-06-07',
+            highlights: [
+                '【底部空白条彻底清除】上一版统一底栏后，没有底部导航栏的页面（主页列表、世界书、论坛、pixiv、杂志、melon、niconico、Music Lab 等）底部还露着一条浅色空白——根因是每个 app 屏的可视区默认只到「安全区内底」、屏幕最底那条 home 区露出了 body 的浅色背景（当年只有桌面主屏单独处理过）。这次把这个处理提升到所有 app 屏，底部空白条一次清干净',
+            ],
+            voiceFromKlaude: '',
+        },
+        {
+            version: '2.96.3',
+            date: '2026-06-07',
+            highlights: [
+                '【底部贴合大统一】这一轮把所有 app 的底部都按「贴住屏幕最底那条 home 安全区」统一梳理了一遍：微博、推特的底部导航栏改成 fixed 贴底（和 lofter、煤炉一样漂亮、不再浮在半空）；论坛、世界书、设置、帮助等一大批页面内容滚到底也补上了 home 安全区、最后一条不再被屏幕底部那条压住；pixiv 小说阅读栏的按钮也一并修好',
+                '【微博顶栏不再被灵动岛挡】微博顶部的返回、刷新、写新微博按钮改成了和 lofter 一样的三段式布局，整条顶栏让到灵动岛下方、三个按钮都点得到了（接上一版没修干净的尾巴）',
+                '【推特 emoji 线性化】推特里的 emoji 控件（书本、画板、电视、电台、耳机、日历等）换成了和系统统一的线性 SVG 图标，Space 直播 / 存档、poipiku 等文案也补齐了三语',
+            ],
+            voiceFromKlaude: '',
+        },
         {
             version: '2.96.2',
             date: '2026-06-06',
