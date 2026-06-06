@@ -67,7 +67,7 @@
 }
 .wb-back-home {
     position: absolute;
-    top: 12px;
+    top: calc(12px + env(safe-area-inset-top, 0px));
     left: 14px;
     z-index: 10;
     width: 32px;
