@@ -46,11 +46,18 @@
         </div>
     </div>
     <script>
+    // Pages 版走 Cloudflare Worker 认证门（私有 VPS 版用相对 /api/*；sync-public.sh 同步时自动换成下面这套）
+    const AUTH_ENDPOINT = 'https://perigee-auth.mitsuki1wang.workers.dev';
     async function checkAuth() {
         if (localStorage.getItem('perigee_auth') === 'granted') {
             try {
-                const res = await fetch('/api/check');
-                if (res.status === 403) {
+                const res = await fetch(AUTH_ENDPOINT, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({check: true})
+                });
+                const data = await res.json();
+                if (data.open === false) {
                     localStorage.removeItem('perigee_auth');
                     document.getElementById('auth-screen').style.display = 'flex';
                     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -73,7 +80,7 @@
         if (!user || !pass) { msg.textContent = 'Please enter both fields'; return; }
         btn.disabled = true; btn.textContent = '...';
         try {
-            const res = await fetch('/api/auth', {
+            const res = await fetch(AUTH_ENDPOINT, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({username: user, password: pass})
