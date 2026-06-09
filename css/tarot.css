@@ -1,0 +1,336 @@
+/* tarot 模块 — 塔罗占卜（タロット占い）样式（v2.105.0 从 style.css 拆出，纯重构） */
+
+/* ========== 塔罗占卜 ========== */
+
+.icon-tarot {
+    background: var(--app-icon-bg);
+}
+
+.icon-tarot svg {
+    stroke: var(--accent-color);
+}
+
+/* 牌阵选择网格 */
+.tarot-spread-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.tarot-spread-card {
+    background: var(--bg-card);
+    border: 2px solid var(--border-light);
+    border-radius: var(--radius-md);
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tarot-spread-card:hover {
+    border-color: #9B59B6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(107, 63, 160, 0.15);
+}
+
+.tarot-spread-card:active {
+    transform: scale(0.97);
+}
+
+.tarot-spread-card .spread-emoji {
+    font-size: 32px;
+    margin-bottom: 8px;
+}
+
+.tarot-spread-card .spread-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.tarot-spread-card .spread-count {
+    font-size: 12px;
+    color: #9B59B6;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.tarot-spread-card .spread-desc {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+/* 问题展示 */
+.tarot-question-display {
+    text-align: center;
+    font-size: 16px;
+    font-style: italic;
+    color: var(--text-secondary);
+    padding: 20px 16px 10px;
+    line-height: 1.6;
+}
+
+/* 牌行（1-3张） */
+.tarot-cards-row {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px 16px;
+    flex-wrap: wrap;
+}
+
+/* 单张牌槽 */
+.tarot-card-slot, .celtic-pos {
+    width: 100px;
+    cursor: pointer;
+    perspective: 600px;
+    text-align: center;
+}
+
+.tarot-card-inner {
+    width: 100px;
+    height: 150px;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.6s ease;
+    border-radius: var(--radius-md);
+}
+
+.tarot-card-slot.revealed .tarot-card-inner,
+.celtic-pos.revealed .tarot-card-inner {
+    transform: rotateY(180deg);
+}
+
+.tarot-card-slot.card-reversed .tarot-card-front,
+.celtic-pos.card-reversed .tarot-card-front {
+    transform: rotateY(180deg) rotate(180deg);
+}
+
+.tarot-card-back, .tarot-card-front {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.tarot-card-back {
+    background: linear-gradient(135deg, #2C1654, #6B3FA0);
+    border: 2px solid #9B59B6;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 28px;
+}
+
+.card-back-pattern {
+    animation: shimmer 3s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+}
+
+.tarot-card-front {
+    background: var(--bg-card);
+    border: 2px solid #9B59B6;
+    transform: rotateY(180deg);
+    padding: 8px;
+    gap: 4px;
+}
+
+.tarot-card-front .card-emoji {
+    font-size: 32px;
+}
+
+.tarot-card-front .card-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.card-reversed-label {
+    font-size: 10px;
+    color: #E74C3C;
+    font-weight: 600;
+    background: rgba(231, 76, 60, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.card-upright-label {
+    font-size: 10px;
+    color: #9B59B6;
+    font-weight: 600;
+    background: rgba(155, 89, 182, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.card-position-label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+/* 翻牌提示脉冲 */
+.hint-pulse .tarot-card-back {
+    animation: hintPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes hintPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(155, 89, 182, 0.4); }
+    50% { box-shadow: 0 0 20px 4px rgba(155, 89, 182, 0.3); }
+}
+
+/* 翻转动画 */
+.flip-animate .tarot-card-inner {
+    animation: cardFlip 0.6s ease;
+}
+
+@keyframes cardFlip {
+    0% { transform: rotateY(0deg) scale(1); }
+    50% { transform: rotateY(90deg) scale(1.1); }
+    100% { transform: rotateY(180deg) scale(1); }
+}
+
+/* 凯尔特十字布局 */
+.tarot-celtic-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 100px);
+    grid-template-rows: repeat(4, auto);
+    gap: 12px;
+    justify-content: center;
+    padding: 20px 10px;
+}
+
+.celtic-pos-0 { grid-column: 2; grid-row: 2; }  /* 現状 */
+.celtic-pos-1 { grid-column: 2; grid-row: 3; }  /* 障害 */
+.celtic-pos-2 { grid-column: 2; grid-row: 1; }  /* 目標 */
+.celtic-pos-3 { grid-column: 2; grid-row: 4; }  /* 基盤 */
+.celtic-pos-4 { grid-column: 1; grid-row: 2; }  /* 過去 */
+.celtic-pos-5 { grid-column: 3; grid-row: 2; }  /* 未来 */
+.celtic-pos-6 { grid-column: 4; grid-row: 4; }  /* 自分自身 */
+.celtic-pos-7 { grid-column: 4; grid-row: 3; }  /* 環境 */
+.celtic-pos-8 { grid-column: 4; grid-row: 2; }  /* 希望と恐れ */
+.celtic-pos-9 { grid-column: 4; grid-row: 1; }  /* 最終結果 */
+
+/* 解读按钮区域 */
+.tarot-interpret-section {
+    text-align: center;
+    padding: 20px;
+}
+
+.tarot-interpret-section.fade-in {
+    animation: fadeInUp 0.5s ease;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 解读结果 */
+.tarot-interpret-result {
+    display: none;
+    padding: 0 16px 20px;
+}
+
+.tarot-interpretation {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    line-height: 1.8;
+    font-size: 15px;
+    color: var(--text-primary);
+    border-left: 4px solid #9B59B6;
+}
+
+.tarot-interpretation h3, .tarot-interpretation h4 {
+    color: #9B59B6;
+    margin: 16px 0 8px;
+}
+
+.tarot-interpretation h3:first-child, .tarot-interpretation h4:first-child {
+    margin-top: 0;
+}
+
+/* 加载动画 */
+.tarot-loading {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 40px;
+}
+
+.tarot-loading-dot {
+    width: 10px;
+    height: 10px;
+    background: #9B59B6;
+    border-radius: 50%;
+    animation: tarotBounce 1.2s ease-in-out infinite;
+}
+
+.tarot-loading-dot:nth-child(2) { animation-delay: 0.15s; }
+.tarot-loading-dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes tarotBounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+}
+
+/* 历史记录 */
+.tarot-history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-left: 4px solid #9B59B6;
+}
+
+.tarot-history-item:hover {
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.tarot-history-cards {
+    font-size: 18px;
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.tarot-history-cards .reversed-mini {
+    display: inline-block;
+    transform: rotate(180deg);
+}
+
+.tarot-history-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.tarot-history-q {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tarot-history-meta {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}

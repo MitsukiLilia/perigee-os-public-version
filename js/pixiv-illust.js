@@ -608,7 +608,7 @@ Generate image tags:`;
                 <div style="display:flex; gap:8px; padding:10px 0 0; justify-content:center;">
                     <button onclick="PixivIllust._shareIllustToForum(${index})"
                         style="background:rgba(0,0,0,0.6); color:white; border:none; border-radius:20px; padding:6px 16px; font-size:13px; cursor:pointer;">
-                        ${I18n.t('pixiv_illust.btn_share_forum', '📤 分享到论坛')}
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:4px;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>${I18n.t('pixiv_illust.btn_share_forum', '分享到论坛')}
                     </button>
                 </div>
                 <button class="pixiv-illust-viewer-close" onclick="this.closest('.modal-overlay').remove()"

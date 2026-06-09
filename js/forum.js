@@ -4167,6 +4167,8 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
         } catch (e) {
             Utils.showToast(I18n.t('t.forum_gen_failed', '生成失败：') + e.message);
             console.error('[Summary Gen Error]', e);
+        } finally {
+            // 兜底恢复按钮：成功时 _renderSummaryModal 会重建按钮、这里操作旧引用无害；万一渲染抛异常也保证不卡死在「生成中」
             if (btn) { const _sumErrLbl = btn.querySelector('.fch-svg-label'); if (_sumErrLbl) _sumErrLbl.textContent = I18n.t('forum.summary_gen_default_btn', 'AI 生成总结'); else btn.textContent = I18n.t('forum.summary_gen_default_btn', 'AI 生成总结'); btn.disabled = false; }
         }
     },

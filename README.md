@@ -8,9 +8,9 @@ A simulated smartphone for fan-fiction creators — a pure front-end PWA. Build 
 
 ## ⚠️ Disclaimer / 免责声明
 
-**EN:** Perigee OS is a front-end tool only. It does **not** provide any AI service, model, or API key — users connect their own third-party API credentials. All content generated through this software is produced by the user's chosen AI provider at the user's direction, and the user is **solely responsible** for that content and for complying with all applicable laws and the terms of their AI provider. The authors provide this software "AS IS" under the MIT License and accept **no liability** for any use, content, or consequence arising from it.
+**EN:** Perigee OS is a front-end tool only. It does **not** provide any AI service, model, or API key — users connect their own third-party API credentials. All content generated through this software is produced by the user's chosen AI provider at the user's direction, and the user is **solely responsible** for that content and for complying with all applicable laws and the terms of their AI provider. The authors provide this software "AS IS" under the GNU Affero General Public License v3.0 (AGPL-3.0) and accept **no liability** for any use, content, or consequence arising from it.
 
-**中文：** Perigee OS 仅为前端工具，**不提供**任何 AI 服务、模型或 API 密钥，用户需自行接入第三方 API。经本软件生成的一切内容，均由用户自行选择的 AI 服务商按用户指令产生，内容及其合法性、是否遵守所在地法律与 AI 服务商条款，**由用户自行承担全部责任**。本软件依 MIT 许可证以"现状"提供，作者对任何使用、内容或由此产生的后果**不承担任何责任**。
+**中文：** Perigee OS 仅为前端工具，**不提供**任何 AI 服务、模型或 API 密钥，用户需自行接入第三方 API。经本软件生成的一切内容，均由用户自行选择的 AI 服务商按用户指令产生，内容及其合法性、是否遵守所在地法律与 AI 服务商条款，**由用户自行承担全部责任**。本软件依 GNU Affero 通用公共许可证 v3.0（AGPL-3.0）以"现状"提供，作者对任何使用、内容或由此产生的后果**不承担任何责任**。
 
 ---
 
@@ -75,4 +75,8 @@ Then open `http://localhost:8080`. Configure your API in Settings on first launc
 
 ## License
 
-[MIT](./LICENSE) © 2026 MitsukiLilia
+[AGPL-3.0](./LICENSE) © 2026 MitsukiLilia
+
+This project is licensed under the **GNU Affero General Public License v3.0**. You may use, modify, and self-host it, but any modified version you distribute **or run as a network service** must also be released under AGPL-3.0 with its complete source available.
+
+本项目采用 **GNU Affero 通用公共许可证 v3.0**。你可以使用、修改、自部署，但任何**分发、或作为网络服务运行**的修改版，都必须同样以 AGPL-3.0 开源并提供完整源码。

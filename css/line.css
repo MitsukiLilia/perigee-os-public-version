@@ -1,0 +1,1010 @@
+/* ============================================================
+   LINE 板块样式（第 9 刀 CSS 拆分 · 最后一刀）
+   从 style.css 拆出。core(style.css) 先加载，本文件后加载。
+
+   ★ 故意留在 core（共享/全局/变量，未移入本文件）：
+   - :root { --line-* } LINE 配色变量 —— 本文件引用它们，变量定义须留 core
+   - 聊天基础设施（6 板块共享，按铁律留 core）：
+     chat-list-container / chat-item / chat-avatar / chat-info / chat-name /
+     chat-preview / messages-container / message / message-bubble /
+     message-avatar / message-actions / msg-action-btn / chat-input-glass /
+     voice-* 全族（语音泡）—— 被 tutor / worldbook / writer / forum /
+     mail / twitter 共用（grep js/+index.html 实证）
+   - send-icon-btn 主定义（line+forum+tutor 共享）及其 line-green 覆盖
+   - .message-avatar.hidden-avatar / .message.system.summary-message（共享/全局）
+   - .modal-title-icon（通用 modal 标题图标，高复用潜力）
+   - @media(aspect-ratio:1/1) 内 .line-tab-* 响应式（跟全局壳一致留 core）
+
+   本文件收拢的是 LINE 独占的「装饰层」：导航(line-tab/lh-/#line-talk-*) +
+   LINE Pay(lp-) + LINE Voom(lv-) + 分享/送金卡(share-card/transfer-card) +
+   输入框独占件(attachment-btn/heart-fab/emoji-picker) + 对话菜单(conv-menu) +
+   揭示板leak卡(leak-permit) + 推特好友tag(lh-friend-tag-twitter) +
+   聊天页深度仿真独占类(line-status/line-header/line-date-sep/line-retry/
+   msg-meta/msg-read/msg-time/msg-body-wrap/sticker-*/typing-*/
+   chat-online-dot/chat-content/chat-time/chat-unread/chat-*-row/
+   chat-pin-separator/chat-avatar-wrap/chat-bg-dot/group-avatar 等) +
+   行内 SVG 图标尺寸(line-stat-icon/line-btn-icon/lh-service-icon svg 等)
+   ============================================================ */
+/* ========================================================
+   LINE 容器 & 底部标签栏
+   ======================================================== */
+#line-container {
+    flex-direction: column;
+    height: 100%;
+    position: relative;
+}
+#line-container.active { display: flex; }
+
+.line-tab-screen {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px)); /* 标签栏高度 + 安全区 */
+}
+
+.line-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 底部标签栏 */
+.line-tab-bar {
+    display: flex;
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--bg-elevated);
+    border-top: 1px solid var(--border-light);
+    z-index: 100;
+}
+
+.line-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    position: relative;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.line-tab svg {
+    width: 24px; height: 24px;
+    fill: none;
+    stroke: var(--text-tertiary);
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: all 0.15s ease;
+}
+
+.line-tab span {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    transition: color 0.15s ease;
+}
+
+.line-tab.active svg {
+    fill: #06c755;
+    stroke: #06c755;
+}
+
+.line-tab.active span {
+    color: #06c755;
+}
+
+.line-tab-badge {
+    position: absolute;
+    top: 4px;
+    right: 50%;
+    transform: translateX(18px);
+    background: #ff3b30;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+}
+
+/* LINE 内部的聊天列表和对话需要适配 */
+/* #line-talk 已通过 .line-tab-screen 获得 bottom:60px，无需重复 */
+
+#line-talk-list,
+#line-talk-conversation {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    bottom: 0; /* 父级 .line-tab-screen 已留出标签栏空间 */
+}
+
+#line-talk-conversation .app-header,
+#line-talk-conversation .messages-container,
+#line-talk-conversation .chat-input-glass,
+#line-talk-conversation .sticker-panel,
+#line-talk-conversation .conversation-menu {
+    /* 继承现有样式 */
+}
+
+/* ========================================================
+   LINE Home — ホームタブ
+   ======================================================== */
+
+/* 個人資料エリア */
+.lh-profile {
+    display: flex; align-items: center; gap: 14px;
+    padding: 20px 16px; cursor: pointer;
+    border-bottom: 1px solid var(--border-light);
+}
+.lh-profile:active { background: var(--bg-hover); }
+.lh-profile-avatar {
+    width: 60px; height: 60px; border-radius: 50%;
+    object-fit: cover; background: var(--border-medium);
+}
+.lh-profile-name { font-size: 17px; font-weight: 700; color: var(--text-primary); }
+.lh-profile-status { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.lh-profile-switch { font-size: 11px; color: #06c755; margin-top: 4px; font-weight: 500; }
+
+/* サービスグリッド */
+.lh-service-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 8px; padding: 16px;
+    border-bottom: 1px solid var(--border-light);
+}
+.lh-service-item {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: pointer;
+}
+.lh-service-item:active { opacity: 0.7; }
+.lh-service-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+}
+.lh-service-label { font-size: 10px; color: var(--text-secondary); }
+
+/* 友だちリスト */
+.lh-group-label {
+    font-size: 12px; font-weight: 600; color: var(--text-secondary);
+    padding: 14px 16px 6px; display: flex; align-items: center; gap: 6px;
+}
+.lh-friend-count {
+    font-size: 11px; color: var(--text-tertiary); font-weight: 400;
+}
+.lh-friend-list { padding: 0; }
+.lh-friend-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; cursor: pointer;
+}
+.lh-friend-item:active { background: var(--bg-hover); }
+.lh-friend-avatar-wrap {
+    position: relative; flex-shrink: 0; cursor: pointer;
+}
+.lh-friend-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    object-fit: cover; background: var(--border-medium);
+}
+.lh-online-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #06c755; border: 2px solid var(--bg-card);
+    position: absolute; bottom: 0; right: 0;
+}
+.lh-friend-info { flex: 1; min-width: 0; }
+.lh-friend-name { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+.lh-friend-status {
+    font-size: 12px; color: var(--text-tertiary); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* サブページヘッダー */
+.lh-sub-header {
+    display: flex; align-items: center; gap: 8px;
+    padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 14px;
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-elevated); position: sticky; top: 0; z-index: 10;
+}
+.lh-sub-header h2 {
+    flex: 1; font-size: 17px; font-weight: 700; color: var(--text-primary);
+}
+.lh-back-btn {
+    background: none; border: none; font-size: 24px;
+    color: var(--text-secondary); cursor: pointer; padding: 0 4px;
+}
+.lh-action-btn {
+    background: none; border: none; font-size: 20px;
+    color: #06c755; cursor: pointer; font-weight: 600;
+}
+
+/* 身份リスト */
+.lh-persona-list {
+    padding: 8px 16px; border-bottom: 1px solid var(--border-light);
+}
+.lh-persona-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; border-radius: 12px; cursor: pointer;
+    margin-bottom: 4px;
+}
+.lh-persona-item:active, .lh-persona-item.selected { background: var(--bg-hover); }
+.lh-persona-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    object-fit: cover; background: var(--border-medium);
+}
+.lh-persona-info { flex: 1; min-width: 0; }
+.lh-persona-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.lh-persona-desc {
+    font-size: 12px; color: var(--text-tertiary); margin-top: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lh-persona-badge {
+    font-size: 10px; color: #06c755; font-weight: 600;
+    border: 1px solid #06c755; border-radius: 4px;
+    padding: 2px 6px;
+}
+
+/* ========================================================
+   LINE Pay — ウォレットタブ
+   ======================================================== */
+
+/* 残高カード */
+.lp-balance-card {
+    background: linear-gradient(135deg, #06c755, #04a847);
+    margin: 16px; border-radius: 16px; padding: 24px; color: #fff;
+}
+.lp-balance-label { font-size: 12px; opacity: 0.8; }
+.lp-balance-amount { font-size: 32px; font-weight: 700; margin: 8px 0; }
+.lp-balance-actions { display: flex; gap: 10px; margin-top: 16px; }
+.lp-action-btn {
+    flex: 1; background: rgba(255,255,255,0.2); border: none;
+    border-radius: 10px; padding: 10px 4px; color: #fff;
+    font-size: 12px; text-align: center; cursor: pointer;
+}
+.lp-action-btn:active { background: rgba(255,255,255,0.35); }
+.lp-action-icon { font-size: 18px; display: block; margin-bottom: 2px; }
+
+/* セクションタイトル */
+.lp-section-title {
+    font-size: 13px; font-weight: 700; color: var(--text-primary);
+    padding: 16px 16px 8px;
+}
+
+/* 取引リスト */
+.lp-tx-list { padding: 0 16px; }
+.lp-tx-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 0; border-bottom: 1px solid var(--border-light);
+}
+.lp-tx-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0; color: #fff;
+}
+.lp-tx-avatar-img {
+    width: 36px; height: 36px; border-radius: 50%;
+    object-fit: cover; flex-shrink: 0; background: var(--border-medium);
+}
+.lp-tx-info { flex: 1; min-width: 0; }
+.lp-tx-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.lp-tx-desc { font-size: 11px; color: var(--text-tertiary); margin-top: 1px; }
+.lp-tx-amount { font-size: 14px; font-weight: 600; flex-shrink: 0; }
+.lp-tx-amount.minus { color: #ff3b30; }
+.lp-tx-amount.plus { color: #06c755; }
+
+/* 送金キャラ選択 */
+.lp-transfer-char {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+}
+.lp-transfer-char:active { background: var(--bg-hover); }
+.lp-transfer-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    object-fit: cover; background: var(--border-medium);
+}
+
+/* ========================================================
+   LINE VOOM
+   ======================================================== */
+.lv-feed { padding-bottom: 68px; }
+
+.lv-post {
+    padding: 16px; border-bottom: 8px solid var(--bg-base);
+    background: var(--bg-card);
+}
+.lv-post-user { border-left: 3px solid #06c755; }
+
+.lv-post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.lv-post-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    object-fit: cover; background: var(--border-medium); flex-shrink: 0;
+}
+.lv-post-author { flex: 1; }
+.lv-post-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.lv-you-badge {
+    font-size: 10px; color: #06c755; font-weight: 500;
+    border: 1px solid #06c755; border-radius: 4px; padding: 1px 4px;
+    margin-left: 4px;
+}
+.lv-post-time { font-size: 11px; color: var(--text-tertiary); }
+.lv-post-text { font-size: 14px; color: var(--text-primary); line-height: 1.6; margin-bottom: 10px; }
+.lv-post-image { margin-bottom: 10px; }
+.lv-post-image img { width: 100%; border-radius: 8px; }
+.lv-post-emoji { font-size: 48px; text-align: center; margin: 12px 0; }
+
+.lv-post-actions { display: flex; gap: 20px; }
+.lv-action {
+    font-size: 14px; color: var(--text-secondary); background: none; border: none;
+    cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 4px;
+}
+.lv-action.liked { color: #ff3b30; }
+.lv-action:active { opacity: 0.6; }
+
+/* FAB */
+.lv-fab {
+    position: fixed; bottom: calc(68px + env(safe-area-inset-bottom, 0px)); right: 20px;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: #06c755; color: #fff; border: none;
+    font-size: 24px; cursor: pointer; z-index: 50;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+.lv-fab:active { transform: scale(0.93); }
+
+.lv-refresh-btn {
+    display: block; margin: 16px auto 68px; padding: 10px 20px;
+    background: none; border: 1px solid var(--border-medium);
+    border-radius: 20px; color: var(--text-secondary); font-size: 13px;
+    cursor: pointer;
+}
+.lv-refresh-btn:active { background: var(--bg-hover); }
+
+/* コメント */
+.lv-comment-post {
+    padding: 16px; background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+}
+.lv-comments-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+.lv-comment {
+    display: flex; gap: 10px; padding: 8px 16px;
+}
+.lv-comment-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    object-fit: cover; background: var(--border-medium); flex-shrink: 0;
+}
+.lv-comment-body { flex: 1; }
+.lv-comment-name { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-right: 6px; }
+.lv-comment-text { font-size: 13px; color: var(--text-primary); }
+.lv-comment-time { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+
+.lv-comment-input {
+    display: flex; gap: 8px;
+    padding: 10px 16px env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--border-light);
+    background: var(--bg-card);
+}
+.lv-comment-input input {
+    flex: 1; border: 1px solid var(--border-medium);
+    border-radius: 20px; padding: 8px 14px; font-size: 14px;
+    background: var(--bg-base);
+}
+
+/* 共有カードバブル */
+.share-card {
+    border-radius: 12px; padding: 14px 18px; min-width: 140px;
+    border: 1px solid var(--border-light); background: var(--bg-card);
+}
+.share-card-label { font-size: 10px; color: var(--text-tertiary); font-weight: 600; margin-bottom: 6px; }
+.share-tweet .share-card-author { font-size: 12px; color: var(--accent-color); margin-bottom: 4px; }
+.share-tweet .share-card-text { font-size: 13px; color: var(--text-primary); line-height: 1.5; }
+.share-product { text-align: center; }
+.share-product .share-card-emoji { font-size: 36px; margin: 8px 0; }
+.share-product .share-card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.share-product .share-card-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+/* 送金カードバブル */
+.transfer-card {
+    background: linear-gradient(135deg, #06c755, #04a847);
+    color: #fff; border-radius: 12px; padding: 16px 20px;
+    min-width: 160px; text-align: center;
+}
+.transfer-card-title { font-size: 12px; opacity: 0.85; margin-bottom: 4px; }
+.transfer-card-amount { font-size: 22px; font-weight: 700; }
+.transfer-card-desc { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+
+.attachment-btn {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    padding: 0;
+    transition: transform 0.1s;
+}
+
+.attachment-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.attachment-btn:active {
+    transform: scale(0.9);
+}
+
+.heart-fab {
+    position: absolute;
+    right: 0;
+    top: -50px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent-color);
+    color: white;
+    border: 3px solid var(--bg-card);
+    box-shadow: 0 4px 12px var(--accent-shadow);
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transform: scale(0);
+    transition: transform 0.2s;
+}
+
+.heart-fab.visible {
+    transform: scale(1);
+}
+
+/* Emoji Picker */
+.emoji-picker {
+    position: absolute;
+    bottom: 55px;
+    left: 50px;
+    background: var(--bg-card);
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    display: none;
+    z-index: 100;
+    max-width: 280px;
+}
+
+.emoji-picker.active {
+    display: block;
+    animation: popIn 0.2s;
+}
+
+.emoji-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 8px;
+}
+
+.emoji-item {
+    font-size: 24px;
+    cursor: pointer;
+    padding: 4px;
+    text-align: center;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.emoji-item:hover {
+    background: var(--bg-secondary);
+}
+
+.emoji-item:active {
+    transform: scale(0.9);
+}
+
+/* 对话菜单下拉 */
+.conversation-menu {
+    display: none;
+    position: absolute;
+    top: calc(56px + env(safe-area-inset-top));
+    right: 12px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    overflow: hidden;
+    min-width: 160px;
+    animation: popIn 0.2s ease;
+}
+
+.conversation-menu.active {
+    display: block;
+}
+
+.conv-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+    cursor: pointer;
+    font-size: 15px;
+    color: var(--text-primary);
+    transition: background 0.15s;
+}
+
+.conv-menu-item:hover {
+    background: var(--bg-secondary);
+}
+
+.conv-menu-item:active {
+    background: var(--border-light);
+}
+
+
+/* Twitter friend tag in LINE */
+.lh-friend-tag-twitter { display: inline-block; font-size: 9px; padding: 1px 5px; border-radius: 6px; margin-left: 4px; vertical-align: middle; background: rgba(29, 155, 240, 0.08); color: #1d9bf0; border: 1px solid rgba(29, 155, 240, 0.2); }
+
+/* 舅舅党 leak permit card */
+.leak-permit-card { background: var(--bg-secondary); border-radius: 12px; padding: 12px 16px; margin: 8px auto; max-width: 260px; text-align: center; }
+.leak-permit-text { font-size: 13px; color: var(--text-primary); margin-bottom: 8px; }
+.leak-permit-actions { display: flex; gap: 8px; justify-content: center; }
+
+/* 头像 + 在线点 */
+.chat-avatar-wrap {
+    position: relative;
+    margin-right: 14px;
+    flex-shrink: 0;
+}
+
+/* グループアバター（2x2モザイク） */
+.chat-avatar-wrap.group-avatar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    overflow: hidden;
+    margin-right: 14px;
+    flex-shrink: 0;
+}
+.group-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+/* グループ送信者名 */
+.group-sender-name {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+.msg-body-wrap { display: flex; flex-direction: column; max-width: 65%; }
+
+.chat-online-dot {
+    position: absolute;
+    bottom: 1px;
+    right: 1px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--line-green);
+    border: 2px solid var(--bg-card);
+    display: none;
+}
+
+.chat-online-dot.visible { display: block; }
+
+/* 聊天信息区 */
+.chat-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+.chat-name-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.chat-pin-icon,
+.chat-mute-icon {
+    font-size: 12px;
+}
+
+.chat-time {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+
+.chat-bottom-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chat-unread {
+    background: var(--line-green);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    flex-shrink: 0;
+}
+
+.chat-pin-separator {
+    padding: 6px 16px;
+    background: var(--bg-secondary);
+    text-align: center;
+}
+
+.chat-pin-separator span {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    letter-spacing: 0.5px;
+}
+
+/* --- 对话界面顶栏 --- */
+#conversation .app-header {
+    gap: 10px;
+}
+
+#conversation .app-header .header-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+#conversation .app-header .header-info h1 {
+    font-size: 16px;
+    margin: 0;
+}
+
+.line-status {
+    font-size: 11px;
+    color: var(--line-green);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.line-status::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--line-green);
+}
+
+.line-header-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.line-header-icons {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.line-header-icons svg {
+    width: 22px;
+    height: 22px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+/* --- 日期分隔线 --- */
+.line-date-sep {
+    text-align: center;
+    margin: 12px 0 8px;
+}
+
+.line-date-sep span {
+    background: rgba(0,0,0,0.15);
+    color: #fff;
+    font-size: 11px;
+    padding: 3px 12px;
+    border-radius: 12px;
+}
+
+/* --- 时间戳 + 既読 --- */
+.msg-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 1px;
+    flex-shrink: 0;
+}
+
+.message:not(.user) .msg-meta {
+    align-items: flex-start;
+}
+
+.msg-read {
+    font-size: 10px;
+    color: var(--line-read-color);
+    font-weight: 500;
+}
+
+.msg-time {
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+}
+
+/* 主题色模式下时间颜色 */
+.messages-container.theme-color .msg-time {
+    color: var(--text-tertiary);
+}
+
+/* --- AI 回复失败重试条 --- */
+.line-retry-bar {
+    margin: 10px auto;
+    max-width: 78%;
+    padding: 12px 16px;
+    background: var(--bg-card, #fff);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.14);
+}
+.line-retry-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary, #333);
+}
+.line-retry-detail {
+    font-size: 11px;
+    color: var(--text-tertiary, #999);
+    text-align: center;
+    word-break: break-word;
+}
+.line-retry-btn {
+    margin-top: 2px;
+    padding: 7px 26px;
+    background: var(--line-green);
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.line-retry-btn:active { opacity: 0.8; }
+
+/* --- 贴纸消息 --- */
+.message .sticker-content {
+    width: 120px;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.message .sticker-content img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.message .sticker-content .sticker-emoji {
+    font-size: 80px;
+    line-height: 1;
+}
+
+/* --- 打字指示器 --- */
+.typing-indicator {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.typing-dots {
+    background: var(--line-bubble-ai);
+    border-radius: 18px 18px 18px 4px;
+    padding: 12px 18px;
+    display: flex;
+    gap: 4px;
+}
+
+.typing-dots span {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #aaa;
+    animation: line-typing-blink 1.4s infinite;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes line-typing-blink {
+    0%, 60%, 100% { opacity: 0.3; }
+    30% { opacity: 1; }
+}
+
+/* スタンプ按钮激活态 */
+#stickerBtn.active {
+    color: var(--line-green);
+}
+
+/* --- 贴纸面板 --- */
+.sticker-panel {
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-light);
+    flex-shrink: 0;
+    display: none;
+}
+
+.sticker-panel.active {
+    display: block;
+}
+
+.sticker-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-light);
+    padding: 0 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.sticker-tabs::-webkit-scrollbar { display: none; }
+
+.sticker-tab {
+    flex: 0 0 auto;
+    min-width: 60px;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+    white-space: nowrap;
+}
+
+.sticker-tab.active {
+    color: var(--line-green);
+    border-bottom-color: var(--line-green);
+    font-weight: 600;
+}
+
+.sticker-tab .tab-icon {
+    font-size: 20px;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.sticker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 12px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.sticker-cell {
+    aspect-ratio: 1;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    transition: background var(--transition-fast);
+    background: var(--bg-secondary);
+}
+
+.sticker-cell:hover { background: #e8f5e9; }
+.sticker-cell:active { transform: scale(0.9); }
+
+.sticker-cell img {
+    max-width: 90%;
+    max-height: 90%;
+    object-fit: contain;
+}
+
+.sticker-manage {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border-light);
+}
+
+.sticker-pack-name {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.sticker-manage-btn {
+    font-size: 12px;
+    color: var(--line-green);
+    background: none;
+    border: 1px solid var(--line-green);
+    border-radius: 14px;
+    padding: 4px 12px;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.sticker-manage-btn:hover {
+    background: var(--line-green);
+    color: #fff;
+}
+
+/* --- 聊天设置：背景色選択 --- */
+.chat-bg-dot {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: border-color var(--transition-fast), transform var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.chat-bg-dot:hover { transform: scale(1.05); }
+
+.chat-bg-dot.selected {
+    border-color: var(--line-green);
+    transform: scale(1.1);
+}
+
+/* ============ LINE インライン SVG アイコン（emoji→SVG 大扫除・currentColor 追従） ============ */
+/* 主页 4 大服务入口：浅色背景块上需要深色可读 → 用深灰 currentColor */
+.lh-service-icon svg { width: 24px; height: 24px; color: #555; }
+/* 钱包操作按钮（充值/送金/履历）— stacked、按钮文字色继承 */
+.lp-action-icon svg { width: 20px; height: 20px; }
+/* 交易记录头像内图标（彩色圆底 color:#fff → 白色 currentColor） */
+.lp-tx-icon { display: inline-flex; width: 18px; height: 18px; }
+.lp-tx-icon svg { width: 100%; height: 100%; }
+/* Voom 评论计数 / 转账卡标题等行内统计图标 */
+.line-stat-icon { display: inline-flex; width: 15px; height: 15px; vertical-align: -2px; }
+.line-stat-icon svg { width: 100%; height: 100%; }
+/* 按钮内图标（Voom 加载新 / 消息删除·重新生成） */
+.line-btn-icon { display: inline-flex; width: 16px; height: 16px; vertical-align: -3px; }
+.line-btn-icon svg { width: 100%; height: 100%; }
+.lv-refresh-btn .line-btn-icon { margin-right: 5px; }
+.msg-action-btn .line-btn-icon { width: 15px; height: 15px; vertical-align: 0; }
+/* 聊天列表角标（置顶/静音）+ 群组名前缀 */
+.chat-pin-icon, .chat-mute-icon { display: inline-flex; width: 13px; height: 13px; color: var(--text-tertiary); }
+.chat-pin-icon svg, .chat-mute-icon svg { width: 100%; height: 100%; }
+.chat-group-icon { display: inline-flex; width: 15px; height: 15px; vertical-align: -2px; margin-right: 4px; color: var(--text-secondary); }
+.chat-group-icon svg { width: 100%; height: 100%; }
+/* 分享卡来源标签内图标 + 封面占位 */
+.share-card-label-icon { display: inline-flex; width: 12px; height: 12px; vertical-align: -2px; margin-right: 4px; }
+.share-card-label-icon svg { width: 100%; height: 100%; }
+.share-product .share-card-emoji svg { width: 40px; height: 40px; color: var(--text-tertiary); }
+/* 会話メニュー項目アイコン */
+.conv-menu-icon { display: inline-flex; width: 18px; height: 18px; }
+.conv-menu-icon svg { width: 100%; height: 100%; }

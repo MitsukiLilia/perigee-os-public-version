@@ -19,8 +19,8 @@ const RainConfig = {
     TOP_SAFE: 64,                  // 顶部状态栏避让高度(px)：此区内不挂水珠、雨丝稀疏穿过（≈安全区 20 + 44）
 
     // —— 雨丝层 drops ——
-    DROP_MAX: 250,                 // 雨丝数量上限
-    DROP_AREA_DIVISOR: 8000,       // 数量 = min(DROP_MAX, round(W*H/此值))，手机 ~80-130 条
+    DROP_MAX: 320,                 // 雨丝数量上限（v2.115.0 加密雨丝）
+    DROP_AREA_DIVISOR: 6000,       // 数量 = min(DROP_MAX, round(W*H/此值))，手机更密
     DROP_LEN_MIN: 8,               // 雨丝长度下限(px)
     DROP_LEN_MAX: 22,              // 雨丝长度上限(px)
     DROP_SPEED_MIN: 11,            // 下落速度下限(px/帧 @60fps)
@@ -34,17 +34,17 @@ const RainConfig = {
     DROP_COLOR: '255, 255, 255',   // 雨丝 RGB
 
     // —— 水珠层 beads ——
-    BEAD_MAX: 90,                  // 水珠数量上限
-    BEAD_AREA_DIVISOR: 5200,       // 数量 = min(BEAD_MAX, round(W*H/此值))，手机 ~50-90 颗
+    BEAD_MAX: 130,                 // 水珠数量上限（v2.115.0 加多；性能吃紧时优先降这个）
+    BEAD_AREA_DIVISOR: 4200,       // 数量 = min(BEAD_MAX, round(W*H/此值))，手机更多水珠
     BEAD_R_MIN: 1.5,               // 普通水珠半径下限(px)
     BEAD_R_MAX: 5,                 // 普通水珠半径上限
-    BEAD_BIG_CHANCE: 0.18,         // 生成时成为大颗水珠的概率
+    BEAD_BIG_CHANCE: 0.22,         // 生成时成为大颗水珠的概率（v2.115.0 略增大颗）
     BEAD_BIG_R_MIN: 5,             // 大颗水珠半径下限
     BEAD_BIG_R_MAX: 9,             // 大颗水珠半径上限
 
     // —— 滑落 slide ——
-    SLIDE_MAX_CONCURRENT: 3,       // 同时滑落上限（避免过载/过于热闹）
-    SLIDE_START_CHANCE: 0.012,     // 每帧检查时单颗大水珠激活滑落的概率（很低频）
+    SLIDE_MAX_CONCURRENT: 4,       // 同时滑落上限（v2.115.0 滑落更活）
+    SLIDE_START_CHANCE: 0.016,     // 每帧检查时单颗大水珠激活滑落的概率（v2.115.0 略提）
     SLIDE_MIN_R: 4,                // 只有半径 ≥ 此值的水珠才可能滑落
     SLIDE_GRAVITY: 0.05,           // 滑落重力加速度(px/帧²)
     SLIDE_VY_START: 0.4,           // 滑落初速度(px/帧)
@@ -52,7 +52,7 @@ const RainConfig = {
     SLIDE_GROW: 0.012,             // 滑落每帧半径增长(吸收沿途水)
     SLIDE_GROW_MAX_R: 11,          // 滑落水珠半径增长上限
     SLIDE_EAT_RADIUS: 7,           // 滑落路径吃掉附近小水珠的横向判定半径(px)
-    TRAIL_LIFE: 520,              // 水痕一节的存活时间(ms)，到期淡尽
+    TRAIL_LIFE: 650,              // 水痕一节的存活时间(ms)，到期淡尽（v2.115.0 水痕更久更清）
     TRAIL_WIDTH_SCALE: 0.55,       // 水痕宽度 = 滑落水珠半径 × 此值
 
     // —— 节流 ——
@@ -135,6 +135,8 @@ const RainEngine = {
     // —— 判断该不该跑：任一闸条件成立则暂停 ——
     _shouldRun() {
         if (!this.canvas) return false;
+        // shader 主力：WebGL 玻璃引擎可用时，2D 让位（不同时跑两套雨）
+        if (window.GlassRainEngine && GlassRainEngine.available) return false;
         // 1. 主题
         if (document.documentElement.dataset.theme !== RainConfig.THEME_NAME) return false;
         // 2. 桌面可见
@@ -230,16 +232,20 @@ const RainEngine = {
     _newBead(initial) {
         const C = RainConfig;
         const big = Math.random() < C.BEAD_BIG_CHANCE;
-        const r = big ? this._rand(C.BEAD_BIG_R_MIN, C.BEAD_BIG_R_MAX)
-                      : this._rand(C.BEAD_R_MIN, C.BEAD_R_MAX);
-        // 不在状态栏区生成（y > TOP_SAFE + r 留出余量）
-        const yMin = C.TOP_SAFE + r + 2;
-        const yMax = this.H - r - 2;
+        const targetR = big ? this._rand(C.BEAD_BIG_R_MIN, C.BEAD_BIG_R_MAX)
+                            : this._rand(C.BEAD_R_MIN, C.BEAD_R_MAX);
+        // 首屏铺满(initial)直接成熟；后续补充/重生的水珠从小凝结淡入（更像真实雨水积聚）
+        const r = initial ? targetR : targetR * 0.3;
+        // 不在状态栏区生成（y > TOP_SAFE + targetR 留出余量）
+        const yMin = C.TOP_SAFE + targetR + 2;
+        const yMax = this.H - targetR - 2;
         return {
-            x: this._rand(r + 2, this.W - r - 2),
+            x: this._rand(targetR + 2, this.W - targetR - 2),
             y: this._rand(yMin, Math.max(yMin + 1, yMax)),
             r,
-            state: 'static',     // 'static' | 'sliding'
+            targetR,
+            alpha: initial ? 1 : 0,
+            state: initial ? 'static' : 'appearing',  // 'static' | 'appearing' | 'sliding'
             vy: 0,
             wobble: Math.random() * Math.PI * 2, // 静态微抖动相位（克制）
         };
@@ -356,6 +362,14 @@ const RainEngine = {
                     this.beads[i] = nb;
                     continue;
                 }
+            } else if (b.state === 'appearing') {
+                // 凝结：半径朝 targetR 逼近、alpha 淡入，到位转 static
+                b.r += (b.targetR - b.r) * 0.04 * dt;
+                b.alpha = Math.min(1, b.alpha + 0.03 * dt);
+                if (b.targetR - b.r < 0.3 && b.alpha >= 0.99) {
+                    b.r = b.targetR; b.alpha = 1; b.state = 'static';
+                }
+                b.wobble += 0.02 * dt;
             } else {
                 // 静态：极克制的微抖动相位推进（画时用、几乎不可见）
                 b.wobble += 0.02 * dt;
@@ -407,15 +421,16 @@ const RainEngine = {
         const r = b.r;
         const x = b.x;
         const y = b.y;
+        const a = (b.alpha == null) ? 1 : b.alpha;  // 凝结淡入透明度
 
         // 1. 主体 radialGradient（高光偏上一点）
         const grad = ctx.createRadialGradient(
             x - r * 0.3, y - r * 0.35, r * 0.1,  // 内圈（高光位置）
             x, y, r                                // 外圈
         );
-        grad.addColorStop(0,   'rgba(255, 255, 255, 0.60)');
-        grad.addColorStop(0.45,'rgba(225, 238, 247, 0.18)');
-        grad.addColorStop(1,   'rgba(255, 255, 255, 0.04)');
+        grad.addColorStop(0,   'rgba(255, 255, 255, ' + (0.60 * a).toFixed(3) + ')');
+        grad.addColorStop(0.45,'rgba(225, 238, 247, ' + (0.18 * a).toFixed(3) + ')');
+        grad.addColorStop(1,   'rgba(255, 255, 255, ' + (0.04 * a).toFixed(3) + ')');
 
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
@@ -425,7 +440,7 @@ const RainEngine = {
         // 2. 底部暗弧 / 微投影（让水珠"鼓起"挂壁）
         ctx.beginPath();
         ctx.arc(x, y + r * 0.18, r * 0.92, Math.PI * 0.15, Math.PI * 0.85);
-        ctx.strokeStyle = 'rgba(20, 40, 60, 0.18)';
+        ctx.strokeStyle = 'rgba(20, 40, 60, ' + (0.18 * a).toFixed(3) + ')';
         ctx.lineWidth = Math.max(0.6, r * 0.18);
         ctx.lineCap = 'round';
         ctx.stroke();
@@ -433,7 +448,7 @@ const RainEngine = {
         // 3. 左上小高光点（白、r 的 ~25%）
         ctx.beginPath();
         ctx.arc(x - r * 0.32, y - r * 0.38, Math.max(0.5, r * 0.25), 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + (0.85 * a).toFixed(3) + ')';
         ctx.fill();
     },
 };

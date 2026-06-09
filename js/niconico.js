@@ -575,7 +575,7 @@ const Niconico = {
         const forumData = AppState.data.forumData || {};
         const worldContext = (typeof Forum !== 'undefined' && Forum.getWorldContext) ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
         const channelList = (n.channels || []).map(c => `${c.name}（${c.avatarEmoji}）`).join('、');
-        const existingTitles = (n.videos || []).map(v => v.title).join('、');
+        const existingTitles = (n.videos || []).slice(-40).map(v => v.title).join('、');  // 只取最近40条去重、防 prompt 无上限膨胀
 
         const systemPrompt = `あなたはニコニコ動画のコンテンツをシミュレートするAIです。
 以下の作品世界に基づいて、リアルなニコニコ動画の投稿情報を生成してください。
@@ -802,7 +802,7 @@ SUBSCRIBERS: 登録者数（数値）
         Utils.showToast(I18n.t('t.nico_generating_comments', '⏳ コメント生成中...'));
         const forumData = AppState.data.forumData || {};
         const worldContext = (typeof Forum !== 'undefined' && Forum.getWorldContext) ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
-        const existingComments = (n.comments[videoId] || []).map(c => c.text).join('、');
+        const existingComments = (n.comments[videoId] || []).slice(-50).map(c => c.text).join('、');  // 只取最近50条去重、防 prompt 无上限膨胀
 
         const systemPrompt = `あなたはニコニコ動画のコメント欄をシミュレートするAIです。
 以下の動画に対するリアルなコメントを生成してください。

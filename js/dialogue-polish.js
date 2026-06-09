@@ -169,7 +169,7 @@ Transform it into Japanese dialogue that:
         if (!this._messages.length) { Utils.showToast(I18n.t('dp.toast_convert_first')); return; }
 
         const btn = document.getElementById('dpVariationBtn');
-        if (btn) { btn.textContent = I18n.t('dp.generating'); btn.disabled = true; }
+        if (btn) { const _s = btn.querySelector('span'); if (_s) _s.textContent = I18n.t('dp.generating'); else btn.textContent = I18n.t('dp.generating'); btn.disabled = true; }
 
         try {
             // 追加请求换版本的消息
@@ -195,7 +195,7 @@ Transform it into Japanese dialogue that:
         } catch (e) {
             Utils.showToast(I18n.t('t.dp_gen_failed', '生成失败：') + e.message);
         } finally {
-            if (btn) { btn.textContent = I18n.t('dp.variation_btn'); btn.disabled = false; }
+            if (btn) { const _s = btn.querySelector('span'); if (_s) _s.textContent = I18n.t('dp.variation_btn'); else btn.textContent = I18n.t('dp.variation_btn'); btn.disabled = false; }
         }
     },
 

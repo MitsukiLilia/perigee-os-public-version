@@ -421,6 +421,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         SystemConfig.init();
         if (typeof RainEngine !== 'undefined') RainEngine.init(); // 夏雨 canvas 真雨（自管生命周期）
+        if (typeof GlassRainEngine !== 'undefined') GlassRainEngine.init(); // 夏雨 WebGL 折射玻璃（主力，自管生命周期）
         if (typeof StarfieldEngine !== 'undefined') StarfieldEngine.init(); // 夜空 canvas 星空（自管生命周期）
         if (typeof IconCustomizer !== 'undefined') IconCustomizer.init();
         if (typeof Widgets !== 'undefined') Widgets.init();

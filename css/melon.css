@@ -1,0 +1,470 @@
+/* melon 模块 — メロンブックス（同人志/周边即卖会）样式（v2.104.0 从 style.css 拆出，纯重构） */
+/* ========================================================
+   メロンブックス (Melonbooks)
+   ======================================================== */
+.icon-melonbooks svg { stroke: var(--accent-color); }
+
+/* タブバー */
+.melon-tabs {
+    display: flex; border-bottom: 1px solid var(--border-light);
+    background: var(--bg-elevated);
+}
+.melon-tab {
+    flex: 1; padding: 10px 4px; text-align: center;
+    font-size: 13px; font-weight: 500; border: none; background: none;
+    color: var(--text-secondary); cursor: pointer;
+    border-bottom: 2px solid transparent; transition: all var(--transition-fast, 0.15s);
+}
+.melon-tab.active {
+    color: #e8530e; border-bottom-color: #e8530e; font-weight: 600;
+}
+
+/* 空状態 */
+.melon-empty {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 20px; text-align: center;
+}
+
+/* 商品グリッド */
+.melon-product-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.melon-product-card {
+    background: var(--bg-elevated); border-radius: var(--radius-md, 12px);
+    overflow: hidden; cursor: pointer;
+    transition: transform var(--transition-fast, 0.15s);
+    border: 1px solid var(--border-light);
+}
+.melon-product-card:active { transform: scale(0.97); }
+
+.melon-cover {
+    position: relative; background: #fbf8f2;
+    height: 116px; display: flex; align-items: center; justify-content: center;
+}
+/* 書影風封面占位（emoji 廃止 — 米白底 + 标题 + 橙细线 + 类型） */
+.melon-bookish {
+    width: 100%; height: 100%; box-sizing: border-box;
+    background: #fbf8f2;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 12px 11px;
+}
+.melon-bookish-title {
+    font-family: var(--font-serif, "Hiragino Mincho ProN", "Songti SC", serif);
+    font-size: 13px; font-weight: 600; line-height: 1.5; color: #2e2a24;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.melon-bookish-meta { display: flex; align-items: center; gap: 6px; }
+.melon-bookish-rule { width: 22px; height: 2px; background: #e8530e; flex-shrink: 0; display: block; }
+.melon-bookish-type { font-size: 9px; letter-spacing: 1px; color: #9a917f; }
+.melon-bookish.is-detail { padding: 22px 20px; min-height: 220px; }
+.melon-bookish.is-detail .melon-bookish-title { font-size: 18px; -webkit-line-clamp: 6; }
+.melon-bookish.is-detail .melon-bookish-rule { width: 32px; }
+.melon-bookish.is-detail .melon-bookish-type { font-size: 11px; }
+.melon-cover-generated { background: var(--bg-secondary); padding: 0; }
+.melon-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.melon-detail-cover-img { width: 100%; max-height: 300px; object-fit: contain; display: block; border-radius: 8px; }
+.melon-cover-generated.melon-detail-cover { cursor: zoom-in; background: transparent; }
+.melon-new-badge {
+    position: absolute; top: 6px; right: 6px;
+    background: #e8530e; color: #fff; font-size: 10px; font-weight: 700;
+    padding: 2px 6px; border-radius: var(--radius-xs, 4px);
+}
+.melon-r18-badge {
+    position: absolute; top: 6px; left: 6px;
+    background: #dc3545; color: #fff; font-size: 9px; font-weight: 700;
+    padding: 2px 5px; border-radius: var(--radius-xs, 4px);
+}
+
+.melon-product-info { padding: 8px 10px 10px; }
+.melon-product-title {
+    font-size: 13px; font-weight: 600; color: var(--text-primary);
+    line-height: 1.3; margin-bottom: 4px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.melon-product-circle { font-size: 11px; color: var(--text-secondary); margin-bottom: 6px; }
+.melon-product-meta { display: flex; align-items: center; justify-content: space-between; }
+.melon-price {
+    font-size: 13px; font-weight: 700; color: #e8530e;
+}
+.melon-type-tag {
+    font-size: 10px; color: var(--text-secondary);
+    background: var(--bg-secondary); padding: 2px 6px;
+    border-radius: var(--radius-xs, 4px);
+}
+
+/* 書影風 mini（ランキング / カート等の小サムネ用） */
+.melon-bookish.is-mini { padding: 5px 5px; justify-content: flex-start; }
+.melon-bookish.is-mini .melon-bookish-title { font-size: 8px; line-height: 1.35; -webkit-line-clamp: 4; }
+.melon-bookish.is-mini .melon-bookish-meta { display: none; }
+
+/* ランキング */
+.melon-ranking-header { padding: 12px 0 8px; }
+.melon-ranking-title {
+    font-size: 16px; font-weight: 700; color: var(--text-primary);
+    display: flex; align-items: center; gap: 6px;
+}
+.melon-ranking-title-icon { width: 18px; height: 18px; display: inline-flex; color: #e8530e; }
+.melon-ranking-title-icon svg { width: 100%; height: 100%; }
+.melon-ranking-date { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.melon-ranking-list { display: flex; flex-direction: column; gap: 8px; }
+.melon-ranking-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px; background: var(--bg-elevated);
+    border-radius: var(--radius-md, 12px); cursor: pointer;
+    border: 1px solid var(--border-light);
+}
+.melon-ranking-item:active { transform: scale(0.98); }
+.melon-rank-badge {
+    min-width: 22px; height: 22px; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; border-radius: 50%;
+    background: var(--bg-secondary); color: var(--text-secondary);
+}
+.melon-rank-badge.top-1 { background: #e8530e; color: #fff; }
+.melon-rank-badge.top-2 { background: #f0915f; color: #fff; }
+.melon-rank-badge.top-3 { background: #f4b896; color: #fff; }
+.melon-ranking-cover {
+    width: 38px; height: 50px; flex-shrink: 0;
+    border-radius: 3px; overflow: hidden;
+    border: 1px solid var(--border-light);
+}
+.melon-ranking-info { flex: 1; min-width: 0; }
+.melon-ranking-item-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.melon-ranking-item-circle { font-size: 12px; color: var(--text-secondary); }
+.melon-ranking-comment { font-size: 12px; color: #e8530e; margin-top: 2px; font-style: italic; }
+
+/* イベントカード */
+.melon-event-card {
+    background: var(--bg-elevated); border-radius: var(--radius-md, 12px);
+    overflow: hidden; margin-bottom: 10px; cursor: pointer;
+    border: 1px solid var(--border-light);
+    transition: transform var(--transition-fast, 0.15s);
+}
+.melon-event-card:active { transform: scale(0.98); }
+.melon-event-date-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px; background: #e8530e; color: #fff;
+}
+.melon-event-type-badge {
+    font-size: 11px; font-weight: 600; padding: 2px 8px;
+    background: rgba(255,255,255,0.25); border-radius: var(--radius-pill, 20px);
+}
+.melon-event-date { font-size: 12px; font-weight: 500; }
+.melon-event-info { padding: 10px 12px; }
+.melon-event-name { font-size: 15px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.melon-event-venue { font-size: 12px; color: var(--text-secondary); }
+.melon-event-circles { font-size: 12px; color: #e8530e; font-weight: 500; margin-top: 4px; }
+
+/* サークルリスト */
+.melon-circle-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; background: var(--bg-elevated);
+    border-radius: var(--radius-md, 12px); margin-bottom: 8px;
+    cursor: pointer; border: 1px solid var(--border-light);
+}
+.melon-circle-item:active { transform: scale(0.98); }
+.melon-circle-avatar {
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 18px; flex-shrink: 0;
+}
+.melon-circle-avatar-sm {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 600; font-size: 11px; flex-shrink: 0;
+}
+.melon-circle-avatar-lg {
+    width: 56px; height: 56px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 700; font-size: 24px; flex-shrink: 0;
+}
+.melon-circle-info { flex: 1; min-width: 0; }
+.melon-circle-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.melon-circle-author { font-size: 12px; color: var(--text-secondary); }
+.melon-circle-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.melon-circle-tag {
+    font-size: 10px; padding: 1px 6px; border-radius: var(--radius-xs, 4px);
+    background: rgba(232,83,14,0.1); color: #e8530e;
+}
+.melon-circle-count { font-size: 11px; color: var(--text-secondary); }
+
+/* フォローボタン */
+.melon-follow-btn {
+    margin-top: 6px; padding: 4px 12px; border: 1px solid #e8530e;
+    border-radius: var(--radius-pill, 20px); background: transparent;
+    color: #e8530e; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: all var(--transition-fast, 0.15s);
+}
+.melon-follow-btn.following {
+    background: #e8530e; color: #fff; border-color: #e8530e;
+}
+
+/* フィルターバー */
+.melon-filter-bar { margin-bottom: 10px; }
+.melon-filter-btn {
+    padding: 6px 14px; border: 1px solid var(--border-light);
+    border-radius: var(--radius-pill, 20px); background: var(--bg-elevated);
+    color: var(--text-secondary); font-size: 12px; cursor: pointer;
+    transition: all var(--transition-fast, 0.15s);
+}
+.melon-filter-btn.active {
+    background: #e8530e; color: #fff; border-color: #e8530e;
+}
+
+/* 商品詳細 */
+.melon-detail-cover {
+    position: relative; background: #fbf8f2;
+    display: flex; align-items: stretch; justify-content: stretch;
+    border-radius: var(--radius-md, 12px); margin-bottom: 12px; overflow: hidden;
+}
+.melon-detail-info-card {
+    background: var(--bg-elevated); border-radius: var(--radius-md, 12px);
+    padding: 16px; margin-bottom: 12px; border: 1px solid var(--border-light);
+}
+.melon-detail-product-title { font-size: 18px; font-weight: 700; margin: 0 0 8px; color: var(--text-primary); }
+.melon-detail-circle {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: #e8530e; cursor: pointer; margin-bottom: 12px;
+}
+.melon-detail-specs {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;
+}
+.melon-spec {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 8px; background: var(--bg-secondary); border-radius: var(--radius-sm, 8px);
+}
+.melon-spec-label { font-size: 10px; color: var(--text-secondary); text-transform: uppercase; }
+.melon-spec-value { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.melon-detail-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.melon-tag {
+    font-size: 12px; padding: 3px 10px; border-radius: var(--radius-pill, 20px);
+    background: rgba(232,83,14,0.1); color: #e8530e;
+}
+
+/* ステータスバッジ */
+.melon-status-badge {
+    font-size: 9px; font-weight: 600; padding: 2px 6px;
+    border-radius: var(--radius-xs, 4px); color: #fff;
+}
+.melon-status-badge-lg {
+    font-size: 12px; font-weight: 600; padding: 4px 10px;
+    border-radius: var(--radius-xs, 4px); color: #fff;
+}
+.melon-detail-status-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}
+.melon-status-hint {
+    font-size: 11px; color: var(--text-secondary); font-style: italic;
+}
+
+/* セクション */
+.melon-detail-section { margin-bottom: 16px; }
+.melon-section-title {
+    font-size: 14px; font-weight: 600; color: var(--text-primary);
+    margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border-light);
+}
+.melon-sample-text {
+    font-size: 14px; line-height: 1.7; color: var(--text-primary);
+    padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-sm, 8px);
+}
+
+/* サークルページヘッダー */
+.melon-circle-header-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 16px; background: var(--bg-elevated);
+    border-radius: var(--radius-md, 12px); margin-bottom: 12px;
+    border: 1px solid var(--border-light);
+}
+.melon-circle-header-name { font-size: 18px; font-weight: 700; margin: 0; color: var(--text-primary); }
+.melon-circle-header-author { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.melon-circle-header-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.melon-circle-desc {
+    font-size: 14px; line-height: 1.6; color: var(--text-primary);
+    padding: 12px; background: var(--bg-secondary);
+    border-radius: var(--radius-sm, 8px); margin-bottom: 12px;
+}
+
+/* イベントページヘッダー */
+.melon-event-header-card {
+    padding: 16px; background: var(--bg-elevated);
+    border-radius: var(--radius-md, 12px); margin-bottom: 16px;
+    border: 1px solid var(--border-light);
+}
+.melon-event-header-name { font-size: 18px; font-weight: 700; margin: 8px 0; color: var(--text-primary); }
+.melon-event-header-meta { font-size: 13px; color: var(--text-secondary); line-height: 1.8; }
+.melon-event-desc {
+    font-size: 14px; line-height: 1.6; color: var(--text-primary);
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light);
+}
+
+/* ボトムバー */
+.melon-detail-bar {
+    position: sticky; bottom: 0;
+    padding: 10px 16px env(safe-area-inset-bottom, 0px);
+    background: var(--bg-elevated); border-top: 1px solid var(--border-light);
+    display: flex; gap: 8px; justify-content: center;
+}
+
+/* 生成モーダル */
+.melon-modal-overlay {
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,0.5); display: flex;
+    align-items: center; justify-content: center;
+    animation: fadeIn 0.15s ease;
+}
+.melon-modal {
+    background: var(--bg-elevated); border-radius: var(--radius-lg, 16px);
+    padding: 20px; width: 90%; max-width: 320px;
+}
+.melon-modal-title {
+    font-size: 17px; font-weight: 700; text-align: center;
+    margin-bottom: 16px; color: var(--text-primary);
+}
+.melon-modal-buttons { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.melon-gen-btn {
+    display: flex; flex-direction: column; align-items: flex-start;
+    padding: 14px !important; text-align: left; gap: 2px;
+}
+.melon-gen-btn span { font-size: 16px; }
+.melon-gen-btn small { font-size: 11px; color: var(--text-secondary); font-weight: 400; }
+.melon-modal-close {
+    width: 100%; color: var(--text-secondary) !important;
+}
+
+/* 特集バナー */
+.melon-features-banner {
+    display: flex; gap: 8px; overflow-x: auto; margin-bottom: 12px;
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.melon-features-banner::-webkit-scrollbar { display: none; }
+.melon-feature-banner-card {
+    flex-shrink: 0; display: flex; align-items: center; gap: 6px;
+    padding: 8px 14px; background: #fbf3ee;
+    border-radius: var(--radius-md, 12px); cursor: pointer;
+    border: 1px solid rgba(232,83,14,0.2);
+}
+.melon-feature-banner-title { font-size: 12px; font-weight: 600; color: #e8530e; white-space: nowrap; }
+
+/* 特集ページ */
+.melon-feature-header {
+    text-align: center; padding: 20px 16px; margin-bottom: 16px;
+    background: #fbf3ee;
+    border-radius: var(--radius-md, 12px);
+}
+.melon-feature-title { font-size: 18px; font-weight: 700; margin: 8px 0 6px; color: var(--text-primary); }
+.melon-feature-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin: 0; }
+.melon-feature-meta { font-size: 11px; color: var(--text-secondary); margin-top: 8px; }
+
+.melon-feature-item {
+    display: flex; gap: 12px; padding: 12px;
+    background: var(--bg-elevated); border-radius: var(--radius-md, 12px);
+    margin-bottom: 8px; cursor: pointer; border: 1px solid var(--border-light);
+}
+.melon-feature-item:active { transform: scale(0.98); }
+.melon-feature-item-cover {
+    width: 40px; height: 53px; flex-shrink: 0;
+    border-radius: 3px; overflow: hidden; border: 1px solid var(--border-light);
+}
+.melon-feature-item-info { flex: 1; min-width: 0; }
+.melon-feature-item-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.melon-feature-item-circle { font-size: 12px; color: var(--text-secondary); }
+.melon-feature-item-price { font-size: 13px; font-weight: 600; color: #e8530e; margin-top: 2px; }
+.melon-feature-comment {
+    font-size: 12px; color: #e8530e; margin-top: 4px;
+    font-style: italic; line-height: 1.4;
+}
+
+/* カート */
+.melon-cart-badge {
+    position: absolute; top: -4px; right: -2px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #dc3545; color: #fff; font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+}
+.melon-cart-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; background: var(--bg-elevated);
+    border-radius: var(--radius-md, 12px); margin-bottom: 8px;
+    border: 1px solid var(--border-light);
+}
+.melon-cart-item-cover {
+    width: 40px; height: 53px; flex-shrink: 0;
+    border-radius: 3px; overflow: hidden; border: 1px solid var(--border-light);
+}
+.melon-cart-item-info { flex: 1; min-width: 0; }
+.melon-cart-item-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.melon-cart-item-circle { font-size: 12px; color: var(--text-secondary); }
+.melon-cart-item-price { font-size: 13px; font-weight: 600; color: #e8530e; margin-top: 2px; }
+.melon-cart-remove {
+    width: 28px; height: 28px; border: none; background: var(--bg-secondary);
+    border-radius: 50%; font-size: 12px; cursor: pointer; color: var(--text-secondary);
+    display: flex; align-items: center; justify-content: center;
+}
+.melon-cart-total {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 16px; margin-top: 8px; background: var(--bg-elevated);
+    border-radius: var(--radius-md, 12px); font-size: 16px; font-weight: 700;
+    border: 1px solid var(--border-light);
+}
+.melon-purchase-history-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 12px; background: var(--bg-elevated);
+    border-radius: var(--radius-sm, 8px); margin-bottom: 6px;
+    border: 1px solid var(--border-light);
+}
+.melon-purchase-date { font-size: 12px; color: var(--text-secondary); flex: 1; }
+.melon-purchase-items { font-size: 12px; color: var(--text-secondary); }
+.melon-purchase-total { font-size: 14px; font-weight: 600; color: #e8530e; }
+
+/* SVG アイコン共通（emoji 廃止） */
+.melon-gen-icon { display: inline-flex; width: 18px; height: 18px; color: #e8530e; flex-shrink: 0; }
+.melon-gen-icon svg { width: 100%; height: 100%; }
+.melon-nav-icon { display: inline-flex; width: 21px; height: 21px; color: var(--text-primary); }
+.melon-nav-icon svg { width: 100%; height: 100%; }
+.melon-feature-banner-icon { display: inline-flex; width: 16px; height: 16px; color: #e8530e; flex-shrink: 0; }
+.melon-feature-banner-icon svg { width: 100%; height: 100%; }
+.melon-feature-icon { display: inline-flex; width: 34px; height: 34px; color: #e8530e; }
+.melon-feature-icon svg { width: 100%; height: 100%; }
+
+/* 即売会 档期 UI */
+.melon-event-phase-badge {
+    font-size: 10px; font-weight: 600; color: #fff;
+    padding: 2px 8px; border-radius: var(--radius-pill, 20px);
+    flex-shrink: 0; white-space: nowrap;
+}
+.melon-event-info-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.melon-event-info-head .melon-event-name { margin-bottom: 0; }
+.melon-event-header-badges { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
+.melon-meta-k {
+    display: inline-block; min-width: 3em; margin-right: 8px;
+    font-size: 11px; color: var(--text-secondary);
+}
+.melon-event-phase-card {
+    background: var(--bg-elevated); border: 1px solid var(--border-light);
+    border-radius: var(--radius-md, 12px); padding: 14px; margin-bottom: 16px;
+}
+.melon-event-phase-track {
+    display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 12px;
+}
+.melon-phase-dot {
+    font-size: 11px; padding: 3px 9px; border-radius: var(--radius-pill, 20px);
+    background: var(--bg-secondary); color: var(--text-secondary);
+}
+.melon-phase-dot.done { background: rgba(232,83,14,0.12); color: #e8530e; }
+.melon-phase-dot.current { background: #e8530e; color: #fff; font-weight: 700; }
+.melon-event-phase-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.melon-event-phase-btn {
+    flex: 1; min-width: 120px; padding: 8px 12px;
+    border: 1px solid var(--border-light); border-radius: var(--radius-sm, 8px);
+    background: var(--bg-secondary); color: var(--text-primary);
+    font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.melon-event-phase-btn.primary { background: #e8530e; color: #fff; border-color: #e8530e; }
+.melon-event-phase-done,
+.melon-event-phase-pending {
+    font-size: 12px; color: var(--text-secondary); text-align: center; padding: 6px;
+}
+.melon-event-phase-hint {
+    font-size: 11px; color: var(--text-secondary); line-height: 1.5;
+    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-light);
+}

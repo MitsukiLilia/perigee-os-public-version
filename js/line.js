@@ -213,7 +213,7 @@ const LineHome = {
                     <div class="lh-service-icon" style="background:#fff3e0;">${LINE_SVG.bag}</div>
                     <div class="lh-service-label">${I18n.t('app.melonbooks', 'メロン')}</div>
                 </div>
-                <div class="lh-service-item" onclick="Line.switchTab('talk')">
+                <div class="lh-service-item" onclick="StickerManager.openManage()">
                     <div class="lh-service-icon" style="background:#e3f2fd;">${LINE_SVG.smile}</div>
                     <div class="lh-service-label">${I18n.t('line.service_stickers', 'スタンプ')}</div>
                 </div>

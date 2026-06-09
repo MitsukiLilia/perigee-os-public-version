@@ -10,6 +10,7 @@ const Melonbooks = {
     currentProductId: null,
     currentCircleId: null,
     currentEventId: null,
+    _isGenerating: false,   // 并发锁：AI 生成中、防双击重复触发导致数据双写
 
     // ===== 定数 =====
     // goods（グッズ）は旧データ表示用に残す。新規生成では使わない — 周边は将来の Mercari モジュールへ
@@ -615,6 +616,8 @@ ${c.descriptionTl ? `<details class="tw-tl-block" style="margin-top:6px;"><summa
 
     async _doGenerate(type) {
         this.closeGenerateModal();
+        if (this._isGenerating) return;  // 并发锁：生成中忽略重复触发、防数据双写
+        this._isGenerating = true;
         try {
             switch (type) {
                 case 'circles': await this._generateCircles(); break;
@@ -626,6 +629,8 @@ ${c.descriptionTl ? `<details class="tw-tl-block" style="margin-top:6px;"><summa
         } catch (e) {
             console.error('[Melonbooks] Generation error:', e);
             Utils.showToast(I18n.t('t.melon_gen_error', '生成エラー: ') + e.message, 4000);
+        } finally {
+            this._isGenerating = false;
         }
     },
 

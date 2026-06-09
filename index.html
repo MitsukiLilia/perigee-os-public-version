@@ -21,10 +21,20 @@
     <link rel="apple-touch-icon" sizes="180x180" href="icon-192-v4.png">
 
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="travel.css">
-    <link rel="stylesheet" href="mercari.css">
-    <link rel="stylesheet" href="weibo.css">
-    <link rel="stylesheet" href="lofter.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/travel.css">
+    <link rel="stylesheet" href="css/mercari.css">
+    <link rel="stylesheet" href="css/weibo.css">
+    <link rel="stylesheet" href="css/lofter.css">
+    <link rel="stylesheet" href="css/niconico.css">
+    <link rel="stylesheet" href="css/melon.css">
+    <link rel="stylesheet" href="css/tarot.css">
+    <link rel="stylesheet" href="css/fortune.css">
+    <link rel="stylesheet" href="css/magazine.css">
+    <link rel="stylesheet" href="css/forum.css">
+    <link rel="stylesheet" href="css/pixiv.css">
+    <link rel="stylesheet" href="css/twitter.css">
+    <link rel="stylesheet" href="css/line.css">
     <meta name="theme-color" content="#007AFF">
 </head>
 
@@ -46,7 +56,7 @@
         </div>
     </div>
     <script>
-    // Pages 版走 Cloudflare Worker 认证门（私有 VPS 版用相对 /api/*；sync-public.sh 同步时自动换成下面这套）
+    // Pages 版走 Cloudflare Worker 认证门（私有 VPS 版用相对 /api/*）
     const AUTH_ENDPOINT = 'https://perigee-auth.mitsuki1wang.workers.dev';
     async function checkAuth() {
         if (localStorage.getItem('perigee_auth') === 'granted') {
@@ -157,7 +167,7 @@
             <div class="line-header-icons">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                <button class="nav-btn menu-btn" style="padding:0;">
+                <button class="nav-btn menu-btn" style="padding:0;" onclick="ConversationMenu.toggle()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:22px;height:22px;"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
                 </button>
             </div>
@@ -447,7 +457,7 @@
                             d="M12 1v6m0 6v6M5.636 5.636l4.243 4.243m4.242 4.242l4.243 4.243M1 12h6m6 0h6M5.636 18.364l4.243-4.243m4.242-4.242l4.243-4.243" />
                     </svg>
                 </button>
-                <button class="nav-btn" id="forumPersistentBtn" onclick="Forum.showCreatePersistentThreadModal()" data-i18n-title="forum.title_create_persistent" title="创建常驻串" style="font-size:16px;">📌</button>
+                <button class="nav-btn" id="forumPersistentBtn" onclick="Forum.showCreatePersistentThreadModal()" data-i18n-title="forum.title_create_persistent" title="创建常驻串"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></button>
                 <button class="nav-btn" id="forumNewThreadBtn" style="color:var(--accent-color);" data-i18n-title="forum.title_new_thread" title="发新帖">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                         style="width:20px;height:20px;">
@@ -1581,7 +1591,7 @@
                 <div class="card-header" data-i18n="appr.css_header">自定义 CSS / Custom CSS</div>
                 <p class="appearance-section-hint" data-i18n="appr.css_hint">优先级最高，会覆盖以上主题、字体、背景的所有设定。点「复制模板」拿到完整变量列表，改两个变量就能做出自己的主题。</p>
                 <div class="css-template-actions">
-                    <button type="button" id="copyCssTemplateBtn" class="glass-btn" data-i18n="appr.css_copy">📋 复制模板</button>
+                    <button type="button" id="copyCssTemplateBtn" class="glass-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:5px;"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg><span data-i18n="appr.css_copy">复制模板</span></button>
                     <button type="button" id="applyCustomCssBtn" class="glass-btn primary" data-i18n="appr.css_apply">应用</button>
                     <button type="button" id="resetCustomCssBtn" class="glass-btn small" data-i18n="appr.css_reset">清空</button>
                 </div>
@@ -2677,9 +2687,8 @@
                 <div id="dpResultContent"
                     style="padding:12px 16px;font-size:14px;line-height:1.8;white-space:pre-wrap;"></div>
                 <div style="display:flex;gap:10px;padding:0 16px 14px;">
-                    <button id="dpCopyBtn" class="glass-btn" style="flex:1;" data-i18n="dp.copy_btn">📋 复制台词</button>
-                    <button id="dpVariationBtn" class="glass-btn" style="flex:1;" data-i18n="dp.variation_btn">🔄
-                        换个版本</button>
+                    <button id="dpCopyBtn" class="glass-btn" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:5px;"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg><span data-i18n="dp.copy_btn">复制台词</span></button>
+                    <button id="dpVariationBtn" class="glass-btn" style="flex:1;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:5px;"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg><span data-i18n="dp.variation_btn">换个版本</span></button>
                 </div>
             </div>
 
@@ -2703,7 +2712,7 @@
         <div class="app-header glass">
             <button class="nav-btn back-btn" data-back="payment-tracker">‹</button>
             <h1 id="paymentDetailTitle">Payment</h1>
-            <button class="nav-btn" id="deletePaymentBtn" style="color:#ff3b30;">🗑️</button>
+            <button class="nav-btn" id="deletePaymentBtn" style="color:#ff3b30;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg></button>
         </div>
         <div class="settings-scroll">
             <div class="settings-card">
@@ -3084,7 +3093,7 @@
     <div id="tarot" class="screen app-screen">
         <div class="app-header glass">
             <button class="nav-btn back-btn" data-back="desktop">Done</button>
-            <h1>🔮 塔罗占卜</h1>
+            <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.12em;margin-right:8px;"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>塔罗占卜</h1>
         </div>
         <div class="settings-scroll">
             <div id="tarotMainContent"></div>
@@ -3504,9 +3513,9 @@
         <div class="magazine-reader-bar">
             <button class="glass-btn danger-text"
                 onclick="Magazine.deleteArticle(Magazine.currentArticleId)" data-i18n="mag.delete_btn">削除</button>
-            <button class="glass-btn" onclick="Magazine.showShareSheet(Magazine.currentArticleId)" data-i18n="mag.share_open">📤 分享</button>
+            <button class="glass-btn" onclick="Magazine.showShareSheet(Magazine.currentArticleId)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:6px;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg><span data-i18n="mag.share_open">分享</span></button>
             <button class="glass-btn" id="magazineGenAudioBtn" style="display:none;"
-                onclick="Magazine.openAudioDramaPreview(Magazine.currentArticleId)" data-i18n="mag.dramatize_btn">🎙️ ドラマ化</button>
+                onclick="Magazine.openAudioDramaPreview(Magazine.currentArticleId)"><svg class="mag-audio-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:4px;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span class="mag-audio-label" data-i18n="mag.dramatize_btn">ドラマ化</span></button>
             <button class="glass-btn primary" id="magazineSaveForumBtn"
                 onclick="Magazine.saveToForum(Magazine.currentArticleId)" data-i18n="magazine.save_to_broadcast">放送局に保存</button>
         </div>
@@ -3515,7 +3524,7 @@
     <!-- オーディオドラマ生成预览/进度弹窗 -->
     <div id="audioDramaModal" class="modal-overlay" onclick="if(event.target===this)Magazine.closeAudioDramaModal()">
         <div class="modal-window" style="max-width:380px;max-height:80vh;overflow-y:auto;">
-            <h3 style="margin:0 0 12px;font-size:17px;" data-i18n="mag.ad_modal_title">🎙️ オーディオドラマ生成</h3>
+            <h3 style="margin:0 0 12px;font-size:17px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.12em;margin-right:6px;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg><span data-i18n="mag.ad_modal_title">オーディオドラマ生成</span></h3>
             <div id="audioDramaModalBody"></div>
             <div class="modal-actions" id="audioDramaModalActions">
                 <button class="glass-btn" onclick="Magazine.closeAudioDramaModal()" data-i18n="btn.cancel">キャンセル</button>
@@ -3529,12 +3538,12 @@
         <div class="modal-window" style="max-width:320px;">
             <h3 style="margin:0 0 16px; font-size:16px;" data-i18n="mag.share_title">分享 / 导出</h3>
             <button class="glass-btn" style="width:100%;margin-bottom:10px;font-size:14px;padding:14px;"
-                onclick="Magazine.exportImage(document.getElementById('magazineShareModal').dataset.articleId)" data-i18n="mag.share_save_image">
-                🖼️ 保存长图（PNG）
+                onclick="Magazine.exportImage(document.getElementById('magazineShareModal').dataset.articleId)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:6px;"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span data-i18n="mag.share_save_image">保存长图（PNG）</span>
             </button>
             <button class="glass-btn" style="width:100%;font-size:14px;padding:14px;"
-                onclick="Magazine.exportTxt(document.getElementById('magazineShareModal').dataset.articleId)" data-i18n="mag.share_save_text">
-                📄 保存文本（TXT）
+                onclick="Magazine.exportTxt(document.getElementById('magazineShareModal').dataset.articleId)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span data-i18n="mag.share_save_text">保存文本（TXT）</span>
             </button>
             <button class="glass-btn" style="width:100%;margin-top:10px;font-size:13px;color:var(--text-secondary);"
                 onclick="Magazine.closeShareSheet()" data-i18n="btn.cancel">取消</button>
@@ -3544,14 +3553,14 @@
     <!-- 杂志全导出面板 -->
     <div id="magazineExportModal" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('active')">
         <div class="modal-window" style="max-width:340px;">
-            <h3 style="margin:0 0 16px; font-size:16px;" data-i18n="mag.export_all_title">📚 全記事エクスポート</h3>
+            <h3 style="margin:0 0 16px; font-size:16px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.12em;margin-right:6px;"><path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/></svg><span data-i18n="mag.export_all_title">全記事エクスポート</span></h3>
             <button class="glass-btn" style="width:100%;margin-bottom:10px;font-size:14px;padding:14px;"
-                onclick="Magazine.exportAllTxt()" data-i18n="mag.export_all_text">
-                📄 全文テキスト（TXT）
+                onclick="Magazine.exportAllTxt()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:6px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span data-i18n="mag.export_all_text">全文テキスト（TXT）</span>
             </button>
             <button class="glass-btn" style="width:100%;margin-bottom:10px;font-size:14px;padding:14px;"
-                onclick="Magazine.exportAllHtml()" data-i18n="mag.export_all_html">
-                🖨️ 印刷用レイアウト（HTML / A5）
+                onclick="Magazine.exportAllHtml()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:6px;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span data-i18n="mag.export_all_html">印刷用レイアウト（HTML / A5）</span>
             </button>
             <button class="glass-btn" style="width:100%;font-size:13px;color:var(--text-secondary);"
                 onclick="document.getElementById('magazineExportModal').classList.remove('active')" data-i18n="btn.cancel">キャンセル</button>
@@ -3963,7 +3972,7 @@
     <!-- 雑誌 — 取材生成弹窗 -->
     <div id="magazineGenerateModal" class="modal-overlay">
         <div class="modal-window" style="max-width:500px; max-height:85vh; overflow-y:auto;">
-            <h3 data-i18n="mag.new_article">📰 新規記事生成</h3>
+            <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.12em;margin-right:6px;"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8z"/></svg><span data-i18n="mag.new_article">新規記事生成</span></h3>
 
             <div style="margin-bottom:12px;">
                 <label
@@ -4106,7 +4115,7 @@
             <!-- 图片上传区 -->
             <div class="forum-image-upload">
                 <div style="display: flex; gap: 8px; align-items: center;">
-                    <button type="button" id="newThreadImageBtn" class="glass-btn" style="flex-shrink: 0;">
+                    <button type="button" id="newThreadImageBtn" class="glass-btn" style="flex-shrink: 0; width: auto;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                             stroke-linecap="round" stroke-linejoin="round"
                             style="width:16px;height:16px;margin-right:4px;vertical-align:middle;">
@@ -4480,6 +4489,7 @@
     <script src="js/widgets.js"></script>
     <script src="js/decorations.js"></script>
     <script src="js/rain.js"></script>
+    <script src="js/rain-glass.js"></script>
     <script src="js/constellation-icons.js"></script>
     <script src="js/journal-icons.js"></script>
     <script src="js/starfield.js"></script>

@@ -1,0 +1,870 @@
+/* magazine 模块 — 杂志/雑誌（角色对谈·投票·企划·相関図·导出封面）样式（v2.107.0 从 style.css 拆出，纯重构） */
+
+/* ========================================================
+   雑誌モジュール（Magazine）
+   ======================================================== */
+
+.icon-magazine svg { stroke: var(--accent-color); }
+
+.magazine-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+/* 文章卡片 */
+.magazine-card {
+    background: #faf6f0;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    border: 1px solid rgba(0,0,0,0.06);
+    transition: transform 0.15s;
+}
+.magazine-card:active { transform: scale(0.98); }
+.magazine-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.magazine-card-type {
+    font-size: 10px;
+    color: #fff;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.magazine-card-saved { font-size: 11px; color: #5856d6; }
+.magazine-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+.magazine-card-npc { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.magazine-card-meta { font-size: 11px; color: var(--text-secondary); opacity: 0.6; }
+
+/* NPC 多选 */
+.magazine-npc-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 2px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.magazine-npc-option input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+
+/* 阅读器（settings-scroll 提供 flex:1 + overflow-y:auto，这里只补充视觉样式） */
+.magazine-reader-body {
+    padding: 20px 16px 120px;
+    background: #faf6f0;
+}
+.magazine-article-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 6px;
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 10px;
+}
+.magazine-article-npc {
+    font-size: 13px;
+    color: var(--accent-color);
+    margin-bottom: 20px;
+    font-weight: 600;
+}
+.magazine-qa-body {
+    font-size: 15px;
+    line-height: 1.85;
+    color: var(--text-primary);
+}
+.magazine-qa-question {
+    color: #555;
+    font-size: 13.5px;
+    font-style: italic;
+    margin: 18px 0 4px;
+    padding-left: 8px;
+    border-left: 3px solid var(--accent-color);
+}
+.magazine-qa-answer { margin: 0 0 4px 12px; }
+.magazine-qa-name { font-weight: 700; color: var(--text-primary); }
+.magazine-qa-gap { height: 10px; }
+
+/* 底部操作栏 */
+.magazine-reader-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--glass-panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 10px 16px;
+    z-index: 100;
+}
+
+/* 类型选择器行 */
+.magazine-type-row {
+    margin: 8px 0 12px;
+}
+.magazine-type-select {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+/* 杂志全文翻译折叠块 */
+.magazine-tl-block {
+    margin-top: 24px;
+    border-top: 1px dashed var(--border-light);
+    padding-top: 16px;
+}
+.magazine-tl-btn {
+    font-size: 13px;
+    color: var(--accent-color);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    padding: 4px 0;
+}
+.magazine-tl-btn::-webkit-details-marker { display: none; }
+.magazine-tl-content {
+    margin-top: 12px;
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+}
+
+/* ========================================================
+   人気投票（Poll）
+   ======================================================== */
+.magazine-poll-body {
+    padding: 4px 0 20px;
+}
+.magazine-poll-card {
+    background: #faf6f0;
+    border: 1.5px solid #e8dcc8;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+.magazine-poll-header {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+.magazine-poll-rank-num {
+    font-size: 22px;
+    font-weight: 800;
+    color: #8b6914;
+    min-width: 44px;
+}
+/* 投票前三名强调 */
+.magazine-poll-card.poll-top3 {
+    border-width: 2px;
+    border-color: #c9942a;
+}
+.magazine-poll-medal {
+    font-size: 24px;
+    line-height: 1;
+}
+.magazine-poll-rank-num.poll-rank-large {
+    font-size: 28px;
+    color: #c9942a;
+}
+.magazine-poll-card:first-child .magazine-poll-rank-num { color: #c9942a; font-size: 26px; }
+.magazine-poll-char-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex: 1;
+}
+.magazine-poll-pct {
+    font-size: 15px;
+    font-weight: 600;
+    color: #8b6914;
+}
+.magazine-poll-bar-wrap {
+    background: #e8dcc8;
+    border-radius: 4px;
+    height: 6px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+.magazine-poll-bar {
+    background: linear-gradient(90deg, #c9942a, #8b6914);
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+.magazine-poll-comments {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.magazine-poll-comment {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    font-style: italic;
+}
+
+/* ========================================================
+   キャラクター企画（Feature）
+   ======================================================== */
+.magazine-feature-body {
+    padding: 4px 0 20px;
+}
+.magazine-feature-char-header {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1d9bf0;
+    border-left: 3px solid #1d9bf0;
+    padding-left: 10px;
+    margin: 18px 0 6px;
+    line-height: 1.4;
+}
+.magazine-feature-line {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    padding-left: 13px;
+}
+/* 角色企划卡片样式 */
+.magazine-feature-card {
+    background: rgba(29, 155, 240, 0.04);
+    border: 1px solid rgba(29, 155, 240, 0.15);
+    border-radius: 12px;
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+.magazine-feature-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid rgba(29, 155, 240, 0.1);
+}
+.magazine-feature-card-emoji {
+    font-size: 20px;
+    line-height: 1;
+}
+.magazine-feature-card-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1d9bf0;
+}
+.magazine-feature-card-body {
+    padding: 8px 16px 12px;
+}
+.magazine-feature-card-body .magazine-feature-line {
+    padding-left: 0;
+}
+
+/* ========================================================
+   読者コーナー
+   ======================================================== */
+.magazine-reader-corner { padding: 4px 0 20px; }
+.magazine-reader-letter-header {
+    font-size: 14px; font-weight: 700; color: #f59e0b;
+    margin: 16px 0 4px; padding: 6px 10px;
+    background: rgba(245, 158, 11, 0.08); border-radius: 6px;
+}
+.magazine-reader-letter {
+    font-size: 14px; line-height: 1.8; color: var(--text-primary);
+    padding: 2px 10px 2px 16px; margin-bottom: 2px;
+}
+.magazine-reader-reply-header {
+    font-size: 13px; font-weight: 700; color: var(--accent-color, #738CB8);
+    margin: 8px 0 2px; padding-left: 10px;
+}
+.magazine-reader-reply {
+    font-size: 14px; line-height: 1.8; color: var(--text-secondary);
+    padding: 2px 10px 2px 16px; margin-bottom: 2px;
+    border-left: 2px solid var(--accent-color, #738CB8);
+}
+
+/* ========================================================
+   キャラ対談
+   ======================================================== */
+.magazine-charatalk-body { padding: 4px 0 20px; }
+.magazine-charatalk-line {
+    font-size: 14px; line-height: 1.8; color: var(--text-primary);
+    margin-bottom: 4px; padding: 2px 0;
+}
+.magazine-charatalk-name {
+    font-weight: 700; color: #ec4899; margin-right: 2px;
+}
+.magazine-charatalk-narration {
+    font-size: 13px; line-height: 1.7; color: var(--text-secondary);
+    font-style: italic; margin: 8px 0; padding: 4px 10px;
+    border-left: 2px solid var(--border-light);
+}
+
+/* ========================================================
+   相関図
+   ======================================================== */
+.magazine-chart-body { padding: 4px 0 20px; }
+.magazine-chart-entry {
+    background: var(--bg-secondary); border-radius: 8px;
+    padding: 10px 14px; margin: 8px 0;
+    border: 1px solid var(--border-light);
+}
+.magazine-chart-pair {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 4px; flex-wrap: wrap;
+}
+.magazine-chart-char {
+    font-size: 15px; font-weight: 700; color: var(--text-primary);
+}
+.magazine-chart-arrow {
+    font-size: 16px; color: #06b6d4; flex-shrink: 0;
+}
+.magazine-chart-desc {
+    font-size: 14px; line-height: 1.7; color: var(--text-secondary);
+}
+.magazine-chart-note {
+    font-size: 13px; color: var(--text-secondary);
+    margin: 12px 0 4px; padding: 6px 10px;
+    background: var(--bg-secondary); border-radius: 6px;
+    font-style: italic;
+}
+
+/* 杂志奶油纸底（#faf6f0）在浅色主题下保持纸感；深色主题下换协调深色纸底，
+   文字本就走 var(--text-*) 会自动适配，只需补背景 + 奶油描边。
+   注意：magazine.js 的长图导出固定 #faf6f0 是另一回事、不在此处。 */
+[data-theme="night-sky"] .magazine-card,
+[data-theme="night-sky"] .magazine-poll-card,
+[data-theme="zelda"] .magazine-card,
+[data-theme="zelda"] .magazine-poll-card {
+    background: var(--bg-card);
+    border-color: var(--border-medium);
+}
+[data-theme="night-sky"] .magazine-reader-body,
+[data-theme="zelda"] .magazine-reader-body {
+    background: var(--bg-elevated);
+}
+
+/* ========================================================
+   Magazine — 相関図ビジュアルカード
+   ======================================================== */
+.mag-chart-pair {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    margin: 8px 0;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    border: 1px solid var(--border-light);
+}
+.mag-chart-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 56px;
+    flex-shrink: 0;
+}
+.mag-chart-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--node-color, var(--accent-color));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+}
+.mag-chart-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mag-chart-edge {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    position: relative;
+    min-width: 0;
+}
+.mag-chart-edge::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0; right: 0;
+    height: 1px;
+    border-top: 2px dashed var(--border-medium);
+    z-index: 0;
+}
+.mag-chart-arrow {
+    font-size: 18px;
+    color: #06b6d4;
+    font-weight: 700;
+    position: relative;
+    z-index: 1;
+    background: var(--bg-secondary);
+    padding: 0 6px;
+}
+.mag-chart-desc {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    text-align: center;
+    position: relative;
+    z-index: 1;
+    background: var(--bg-secondary);
+    padding: 0 4px;
+    word-break: break-word;
+}
+.mag-chart-editorial {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 12px 0 4px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    font-style: italic;
+    border-left: 3px solid var(--accent-color);
+}
+/* SVG Relationship Chart */
+.mag-chart-svg {
+    width: 100%;
+    max-height: 360px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    background: var(--bg-secondary);
+}
+.mag-chart-svg-label {
+    pointer-events: none;
+}
+.mag-chart-detail-list {
+    border-top: 1px dashed var(--border-medium);
+    padding-top: 12px;
+}
+
+/* ========================================================
+   Magazine — Cover Visual (Animage/Newtype 風)
+   ======================================================== */
+.magazine-cover {
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0 0 20px;
+    aspect-ratio: 148 / 210;
+    max-height: 340px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    padding: 20px;
+    background-image: url(../assets/textures/magazine-cover-bg.webp);
+    background-size: cover;
+    background-position: center;
+    background-color: #14121c;
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25), inset 0 0 60px rgba(0,0,0,0.15);
+}
+/* corner deco lines */
+.magazine-cover::before,
+.magazine-cover::after {
+    content: '';
+    position: absolute;
+    border: 1px solid rgba(255,215,0,0.45);
+    pointer-events: none;
+    z-index: 1;
+}
+.magazine-cover::before {
+    top: 12px; left: 12px;
+    width: 40px; height: 40px;
+    border-right: none; border-bottom: none;
+}
+.magazine-cover::after {
+    bottom: 12px; right: 12px;
+    width: 40px; height: 40px;
+    border-left: none; border-top: none;
+}
+.magazine-cover-header {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    padding: 14px 20px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 1px solid rgba(255,215,0,0.3);
+    z-index: 2;
+}
+.magazine-cover-magname {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: #ffd700;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    text-transform: uppercase;
+    font-style: italic;
+}
+.magazine-cover-vol {
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.8);
+    font-weight: 600;
+}
+.magazine-cover-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 10px;
+    border-radius: 3px;
+    background: rgba(255,215,0,0.25);
+    border: 1px solid rgba(255,215,0,0.5);
+    color: #ffd700;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    backdrop-filter: blur(4px);
+}
+.magazine-cover-title {
+    font-size: 19px;
+    font-weight: 800;
+    line-height: 1.35;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+    z-index: 2;
+    position: relative;
+}
+.magazine-cover-subtitle {
+    font-size: 12px;
+    color: rgba(255,255,255,0.85);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    z-index: 2;
+    position: relative;
+}
+.magazine-cover-date {
+    position: absolute;
+    bottom: 16px; right: 20px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 1px;
+    z-index: 2;
+}
+/* bottom decorative line */
+.magazine-cover-line {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, rgba(255,215,0,0.6), transparent);
+}
+/* type-specific gradient backgrounds */
+.magazine-cover[data-type="seiyuu"]   { background-image: linear-gradient(145deg, rgba(26,10,62,0.76) 0%, rgba(45,27,105,0.70) 40%, rgba(74,44,138,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="staff"]    { background-image: linear-gradient(145deg, rgba(26,42,10,0.76) 0%, rgba(43,74,21,0.70) 40%, rgba(61,107,34,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="roundtable"]{ background-image: linear-gradient(145deg, rgba(10,26,46,0.76) 0%, rgba(21,53,90,0.70) 40%, rgba(30,79,122,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="poll"]     { background-image: linear-gradient(145deg, rgba(58,10,26,0.76) 0%, rgba(107,21,48,0.70) 40%, rgba(138,32,64,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="feature"]  { background-image: linear-gradient(145deg, rgba(10,26,62,0.76) 0%, rgba(21,43,105,0.70) 40%, rgba(30,60,138,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="column"]   { background-image: linear-gradient(145deg, rgba(26,42,26,0.76) 0%, rgba(43,74,43,0.70) 40%, rgba(61,107,61,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="reader"]   { background-image: linear-gradient(145deg, rgba(42,26,10,0.76) 0%, rgba(74,48,21,0.70) 40%, rgba(107,69,32,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="charatalk"]{ background-image: linear-gradient(145deg, rgba(42,10,42,0.76) 0%, rgba(74,21,74,0.70) 40%, rgba(107,32,107,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="chart"]    { background-image: linear-gradient(145deg, rgba(10,42,42,0.76) 0%, rgba(21,74,74,0.70) 40%, rgba(32,107,107,0.58) 100%), url(../assets/textures/magazine-cover-bg.webp); }
+.magazine-cover[data-type="roundup"]  { background: #3a4a5c; }
+
+/* ========================================================
+   Magazine — List card left color stripe
+   ======================================================== */
+.magazine-card {
+    position: relative;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: 14px 14px 14px 18px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    cursor: pointer;
+    transition: transform var(--transition-base), box-shadow var(--transition-base);
+    overflow: hidden;
+}
+.magazine-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--mag-stripe-color, var(--accent-color));
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+.magazine-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.magazine-card:active {
+    transform: scale(0.98);
+}
+.magazine-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.magazine-card-type {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #fff;
+}
+.magazine-card-saved {
+    font-size: 10px;
+    color: var(--text-secondary);
+}
+.magazine-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.4;
+    margin-bottom: 4px;
+}
+.magazine-card-npc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.magazine-card-meta {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+/* ========================================================
+   Magazine — Reader body & Q&A styles
+   ======================================================== */
+.magazine-reader-body {
+    padding: 16px 16px 120px !important;
+}
+.magazine-reader-bar {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-light);
+    background: var(--glass-panel);
+    backdrop-filter: blur(20px);
+}
+.magazine-reader-bar .glass-btn {
+    flex: 1;
+    margin: 0;
+    padding: 10px;
+    font-size: 13px;
+}
+.magazine-article-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    line-height: 1.35;
+}
+.magazine-article-npc {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+.magazine-type-row {
+    margin-bottom: 12px;
+}
+.magazine-type-select {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-family: inherit;
+}
+.magazine-qa-body {
+    line-height: 1.7;
+}
+.magazine-qa-gap {
+    height: 10px;
+}
+.magazine-qa-question {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin: 12px 0 4px;
+}
+.magazine-qa-answer {
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+.magazine-qa-name {
+    font-weight: 700;
+    color: var(--accent-color);
+}
+.magazine-empty {
+    text-align: center;
+    padding: 60px 20px;
+}
+.magazine-tl-block {
+    margin-top: 16px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.magazine-tl-btn {
+    padding: 10px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--accent-color);
+    background: var(--bg-secondary);
+}
+.magazine-tl-content {
+    padding: 12px 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+}
+/* poll cards */
+.magazine-poll-body {
+    padding: 4px 0;
+}
+.magazine-poll-card {
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 10px;
+    border: 1px solid var(--border-light);
+}
+.magazine-poll-header {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+.magazine-poll-rank-num {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent-color);
+    min-width: 40px;
+}
+.magazine-poll-char-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+.magazine-poll-pct {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-left: auto;
+}
+.magazine-poll-bar-wrap {
+    height: 6px;
+    background: var(--border-light);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+.magazine-poll-bar {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 3px;
+    transition: width 0.5s;
+}
+.magazine-poll-comment {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 3px;
+    line-height: 1.5;
+}
+/* feature cards */
+.magazine-feature-section {
+    margin-bottom: 14px;
+}
+.magazine-feature-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-color);
+    margin-bottom: 4px;
+}
+.magazine-feature-text {
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+}
+/* feature card (themed variant) */
+.magazine-feature-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+.magazine-feature-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px 8px;
+    border-bottom: 1px solid var(--border-light);
+}
+.magazine-feature-card-emoji { font-size: 20px; line-height: 1; }
+.magazine-feature-card-name { font-size: 16px; font-weight: 700; color: var(--accent-color); }
+.magazine-feature-card-body { padding: 8px 16px 12px; }
+.magazine-feature-card-body .magazine-feature-line { padding-left: 0; }
+/* poll top3 (themed variant) */
+.magazine-poll-card.poll-top3 { border-width: 2px; border-color: var(--accent-color); }
+.magazine-poll-medal { font-size: 24px; line-height: 1; }
+.magazine-poll-rank-num.poll-rank-large { font-size: 28px; }
+/* reader corner — mail icons */
+.magazine-reader-mail {
+    font-size: 14px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+.magazine-reader-mail:last-child {
+    border-bottom: none;
+}
+/* chara talk */
+.magazine-chara-line {
+    font-size: 14px;
+    margin-bottom: 4px;
+    line-height: 1.7;
+}
+.magazine-chara-narrator {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-bottom: 6px;
+}
+.magazine-npc-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 0;
+    font-size: 14px;
+    cursor: pointer;
+}

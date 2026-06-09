@@ -1,0 +1,813 @@
+/* niconico 模块 — ニコニコ動画站样式（v2.103.0 从 style.css 拆出，纯重构） */
+/* ========================================================
+   ニコニコ動画
+   ======================================================== */
+
+/* アイコン */
+.icon-niconico { background: var(--app-icon-bg); color: var(--accent-color); }
+.icon-niconico svg { stroke: var(--accent-color); }
+
+/* タブバー */
+.nico-tabs {
+    display: flex;
+    background: #1a1a1a;
+    border-bottom: 2px solid #333;
+    flex-shrink: 0;
+}
+.nico-tab {
+    flex: 1;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -2px;
+}
+.nico-tab.active {
+    color: #fff;
+    border-bottom-color: #e0e0e0;
+}
+
+/* メインコンテンツ — ニコニコは暗背景 */
+#niconico .settings-scroll,
+#niconico-detail .settings-scroll,
+#niconico-channel .settings-scroll,
+#niconico-search .settings-scroll {
+    background: #1a1a1a;
+}
+#niconico .app-header.glass,
+#niconico-detail .app-header.glass,
+#niconico-channel .app-header.glass,
+#niconico-search .app-header.glass {
+    background: rgba(26, 26, 26, 0.95);
+    border-bottom-color: #333;
+    color: #e0e0e0;
+}
+#niconico .app-header h1,
+#niconico-detail .app-header h1,
+#niconico-channel .app-header h1,
+#niconico-search .app-header h1 {
+    color: #e0e0e0;
+}
+#niconico .nav-btn,
+#niconico-detail .nav-btn,
+#niconico-channel .nav-btn,
+#niconico-search .nav-btn {
+    color: #e0e0e0;
+}
+
+/* 動画カードグリッド */
+.nico-video-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+.nico-video-card {
+    cursor: pointer;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #252525;
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+.nico-video-card:active { transform: scale(0.97); }
+
+/* サムネイル */
+.nico-thumbnail {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #333;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    overflow: hidden;
+}
+.nico-duration {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+/* 動画情報 */
+.nico-video-info {
+    padding: 8px 10px 10px;
+}
+.nico-video-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e0e0e0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.nico-video-uploader {
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 4px;
+}
+.nico-video-stats {
+    display: flex;
+    gap: 8px;
+    font-size: 11px;
+    color: #666;
+}
+
+/* ランキング */
+.nico-ranking-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid #333;
+    cursor: pointer;
+}
+.nico-rank-num {
+    font-size: 18px;
+    font-weight: 700;
+    color: #666;
+    width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+}
+.nico-rank-num.gold { color: #ffd700; }
+.nico-rank-num.silver { color: #c0c0c0; }
+.nico-rank-num.bronze { color: #cd7f32; }
+.nico-ranking-thumb {
+    width: 100px;
+    aspect-ratio: 16/9;
+    background: #333;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+.nico-ranking-info { flex: 1; min-width: 0; }
+.nico-ranking-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e0e0e0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.nico-ranking-meta {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+}
+
+/* チャンネルカード */
+.nico-channel-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: #252525;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    margin-bottom: 8px;
+}
+.nico-channel-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+.nico-channel-info { flex: 1; min-width: 0; }
+.nico-channel-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e0e0e0;
+}
+.nico-channel-subs {
+    font-size: 12px;
+    color: #888;
+}
+
+/* プレイヤーエリア */
+.nico-player-area {
+    position: relative;
+}
+.nico-player-emoji {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px;
+    opacity: 0.3;
+    z-index: 0;
+    pointer-events: none;
+}
+.nico-player-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    cursor: pointer;
+}
+.nico-danmaku-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #aaa;
+    font-size: 14px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* ───── オーディオドラマ プレイヤー ───── */
+.nico-audio-player-area {
+    background: linear-gradient(135deg, #2c2440 0%, #1a1430 100%);
+    color: #fff;
+    padding: 24px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}
+.nico-audio-cover {
+    font-size: 56px;
+    width: 84px;
+    height: 84px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.nico-audio-now {
+    text-align: center;
+    width: 100%;
+    min-height: 64px;
+}
+.nico-audio-now-speaker {
+    font-size: 13px;
+    font-weight: 600;
+    color: #f5d4a8;
+    margin-bottom: 6px;
+    letter-spacing: 1px;
+}
+.nico-audio-now-text {
+    font-size: 15px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.92);
+}
+.nico-audio-progress {
+    width: 100%;
+}
+.nico-audio-progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
+}
+.nico-audio-progress-inner {
+    height: 100%;
+    background: #f5d4a8;
+    transition: width 0.3s;
+}
+.nico-audio-progress-meta {
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 4px;
+}
+.nico-audio-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.nico-audio-controls .glass-btn {
+    width: auto;
+    min-width: 48px;
+    padding: 8px 14px;
+    font-size: 14px;
+}
+.nico-audio-controls .glass-btn.primary {
+    min-width: 110px;
+}
+.nico-audio-segments {
+    padding: 14px 16px;
+}
+.nico-audio-seg-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.nico-audio-seg {
+    display: grid;
+    grid-template-columns: 30px 80px 1fr;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 12px;
+    border: 1px solid transparent;
+    align-items: start;
+}
+.nico-audio-seg:hover {
+    background: var(--bg-secondary);
+}
+.nico-audio-seg.is-current {
+    background: var(--accent-shadow);
+    border-color: var(--accent-color);
+}
+.nico-audio-seg-idx {
+    color: var(--text-tertiary);
+    font-family: Menlo, Consolas, monospace;
+    font-size: 11px;
+}
+.nico-audio-seg-speaker {
+    color: var(--accent-color);
+    font-weight: 600;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.nico-audio-seg-text {
+    color: var(--text-primary);
+    line-height: 1.5;
+    overflow: hidden;
+}
+
+/* ───── オーディオドラマ生成 modal（在 magazine 里弹出）───── */
+.ad-preview { padding: 4px 0 8px; }
+.ad-info {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+.ad-summary {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+.ad-summary li {
+    padding: 8px 10px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ad-check {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+}
+.ad-check.ad-ok { background: rgba(38, 162, 105, 0.15); color: #26a269; }
+.ad-check.ad-miss { background: rgba(208, 74, 94, 0.15); color: #d04a5e; }
+.ad-cv { color: var(--text-secondary); font-size: 12px; }
+.ad-meta { color: var(--text-tertiary); font-size: 11px; margin-left: auto; }
+.ad-miss-text { color: #d04a5e; }
+.ad-warn {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: rgba(208, 74, 94, 0.08);
+    border-left: 3px solid #d04a5e;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #d04a5e;
+    line-height: 1.5;
+}
+.ad-progress {
+    padding: 16px 0;
+    text-align: center;
+}
+.ad-progress-text {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+.ad-progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.ad-progress-bar-inner {
+    height: 100%;
+    background: var(--accent-color);
+    transition: width 0.3s;
+}
+
+/* 弾幕エリア */
+.nico-danmaku-track {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    background: #0d0d0d;
+    overflow: hidden;
+    border-bottom: 1px solid #333;
+}
+.nico-danmaku-track .nico-danmaku-emoji {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px;
+    opacity: 0.3;
+    z-index: 0;
+}
+.nico-danmaku {
+    position: absolute;
+    white-space: nowrap;
+    font-size: 16px;
+    font-weight: 600;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    z-index: 1;
+    animation: nico-scroll linear forwards;
+    pointer-events: none;
+}
+@keyframes nico-scroll {
+    from { transform: translateX(100vw); }
+    to { transform: translateX(-100%); }
+}
+
+/* 動画詳細ページ */
+.nico-detail-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid #333;
+}
+.nico-detail-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e0e0;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+.nico-detail-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 8px;
+}
+.nico-detail-meta span { display: flex; align-items: center; gap: 4px; }
+.nico-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.nico-tag {
+    padding: 3px 8px;
+    background: #333;
+    color: #aaa;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+}
+.nico-tag:hover { background: #444; }
+.nico-detail-desc {
+    font-size: 13px;
+    color: #aaa;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+/* アクションボタン */
+.nico-actions {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #333;
+}
+.nico-action-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    background: #333;
+    border: none;
+    border-radius: 6px;
+    color: #ccc;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.nico-action-btn:hover { background: #444; }
+.nico-action-btn.active { background: #e0245e; color: #fff; }
+
+/* コメント */
+.nico-comments-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-bottom: 1px solid #333;
+}
+.nico-comments-header h3 {
+    font-size: 14px;
+    color: #e0e0e0;
+    margin: 0;
+}
+.nico-comment-item {
+    padding: 8px 16px;
+    border-bottom: 1px solid #2a2a2a;
+}
+.nico-comment-author {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 2px;
+}
+.nico-comment-text {
+    font-size: 14px;
+    color: #ddd;
+    line-height: 1.5;
+}
+.nico-comment-time {
+    font-size: 11px;
+    color: #555;
+    margin-top: 2px;
+}
+
+/* コメント入力 */
+.nico-comment-input {
+    display: flex;
+    gap: 8px;
+    padding: 10px 16px env(safe-area-inset-bottom, 0px);
+    background: #1a1a1a;
+    border-top: 1px solid #333;
+}
+.nico-comment-input input {
+    flex: 1;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 14px;
+    color: #e0e0e0;
+    outline: none;
+}
+.nico-comment-input input:focus { border-color: #666; }
+.nico-comment-input button {
+    background: #666;
+    border: none;
+    color: #fff;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* 関連動画 */
+.nico-related-section { padding: 12px 16px; }
+.nico-related-section h3 {
+    font-size: 14px;
+    color: #e0e0e0;
+    margin: 0 0 10px;
+}
+.nico-related-item {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    cursor: pointer;
+}
+.nico-related-thumb {
+    width: 120px;
+    aspect-ratio: 16/9;
+    background: #333;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+.nico-related-info { flex: 1; min-width: 0; }
+.nico-related-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #e0e0e0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.nico-related-meta {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+}
+
+/* ───── インライン SVG アイコン（emoji 廃止・currentColor 追従） ───── */
+/* 動画リストアイテム（マイリスト / 関連動画 — class 名は JS と一致） */
+.nico-video-list { display: flex; flex-direction: column; }
+.nico-video-list-item {
+    display: flex;
+    gap: 10px;
+    padding: 8px 0;
+    cursor: pointer;
+    align-items: center;
+}
+.nico-list-thumb {
+    width: 110px;
+    aspect-ratio: 16/9;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+.nico-list-info { flex: 1; min-width: 0; }
+.nico-list-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #e0e0e0;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.nico-list-meta { font-size: 11px; color: #888; margin-top: 3px; }
+
+/* サムネ占位アイコン（hash 色背景に白っぽく重ねる） */
+.nico-thumb-icon {
+    display: inline-flex;
+    width: 30%;
+    max-width: 40px;
+    color: rgba(255, 255, 255, 0.82);
+}
+.nico-thumb-icon svg { width: 100%; height: 100%; }
+.nico-list-thumb .nico-thumb-icon { width: 34px; max-width: none; }
+
+/* 計数アイコン（再生 / コメント / マイリスト） */
+.nico-stat { display: inline-flex; align-items: center; gap: 3px; }
+.nico-stat-icon { display: inline-flex; width: 14px; height: 14px; flex-shrink: 0; }
+.nico-stat-icon svg { width: 100%; height: 100%; }
+.nico-detail-stats .nico-stat-icon { width: 15px; height: 15px; }
+.nico-ranking-item-stats { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ボタン内アイコン（コメント生成 / 削除） */
+.nico-btn-icon { display: inline-flex; width: 16px; height: 16px; vertical-align: -2px; margin-right: 5px; }
+.nico-btn-icon svg { width: 100%; height: 100%; }
+
+/* 生成メニューのアイコン */
+.nico-gen-icon { display: inline-flex; width: 18px; height: 18px; vertical-align: -3px; }
+.nico-gen-icon svg { width: 100%; height: 100%; }
+
+/* ランキングメダル（金/銀/銅 — 語義色） */
+.nico-rank { display: flex; align-items: center; justify-content: center; width: 28px; flex-shrink: 0; }
+.nico-rank-medal { display: inline-flex; width: 26px; height: 26px; }
+.nico-rank-medal svg { width: 100%; height: 100%; }
+
+/* ランキングタイトルのチャートアイコン */
+.nico-ranking-title { display: flex; align-items: center; gap: 6px; }
+.nico-ranking-title-icon { display: inline-flex; width: 18px; height: 18px; flex-shrink: 0; }
+.nico-ranking-title-icon svg { width: 100%; height: 100%; }
+
+/* プレイヤー中央の占位アイコン */
+.nico-player-emoji svg { width: 64px; height: 64px; }
+
+/* オーディオドラマのカバー（マイク） */
+.nico-audio-cover svg { width: 44px; height: 44px; color: #f5d4a8; }
+
+/* 生成モーダル */
+.nico-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.nico-modal {
+    background: #2a2a2a;
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    width: 90%;
+    max-width: 360px;
+    color: #e0e0e0;
+}
+.nico-modal-title {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    text-align: center;
+}
+.nico-modal-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.nico-gen-btn {
+    background: #333 !important;
+    color: #e0e0e0 !important;
+    border: 1px solid #444 !important;
+    padding: 12px !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+}
+.nico-gen-btn:hover { background: #444 !important; }
+.nico-gen-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* 空状態 */
+.nico-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+}
+.nico-empty .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+/* SVG 占位（ニコニコは固定暗背景なので明色固定・テーマ変数に依存しない） */
+.nico-empty .empty-state-icon svg { width: 48px; height: 48px; color: #888; opacity: 1; }
+.nico-empty .empty-state-text { font-size: 15px; color: #888; }
+.nico-empty .empty-state-hint { font-size: 13px; color: #666; margin-top: 4px; }
+
+/* チャンネル詳細 */
+.nico-channel-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: #252525;
+    border-bottom: 1px solid #333;
+}
+.nico-channel-header-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    flex-shrink: 0;
+}
+.nico-channel-header-info { flex: 1; }
+.nico-channel-header-name { font-size: 18px; font-weight: 700; color: #e0e0e0; }
+.nico-channel-header-subs { font-size: 13px; color: #888; margin-top: 2px; }
+.nico-channel-header-desc { font-size: 13px; color: #aaa; margin-top: 6px; line-height: 1.5; }
+.nico-follow-btn {
+    background: #e0245e;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+}
+.nico-follow-btn.following { background: #333; color: #888; }
+
+/* セクション見出し */
+.nico-section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #e0e0e0;
+    padding: 12px 0 8px;
+}

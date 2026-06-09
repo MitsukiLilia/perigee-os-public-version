@@ -792,6 +792,7 @@ const SystemConfig = {
     applyRainEffect(enabled) {
         document.body.classList.toggle('rain-off', !enabled);
         if (window.RainEngine) RainEngine.setEnabled(enabled);
+        if (window.GlassRainEngine) GlassRainEngine.setEnabled(enabled);
     },
 
     // 星空动态开关（仅夜空主题；关闭只去动画，背景图 + 玻璃质感 + 星座图标保留）

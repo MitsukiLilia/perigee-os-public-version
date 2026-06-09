@@ -1,0 +1,625 @@
+/* forum 模块 — 论坛/5ch風掲示板（板块栏·标签·搜索·帖子列表·帖子详情·翻译标签·分页·删除·TTS·图片·骨架屏·Part导航）样式（v2.108.0 从 style.css 拆出，纯重构）
+   留 core 的论坛相关：主题系统区的 [data-theme] 深色覆盖（靠特异性赢，不随本文件走）、
+   .official-cat-badge / .plot-entry / .summary-list-preview（无前缀、官方情报/剧情/总结区，可能共享）、
+   .image-modal + @keyframes fadeIn（全屏图片查看，跨板块共用）、details.tl（通用翻译标签）、
+   #pixiv-novel .forum-tabs 覆盖（pixiv 视图定制）。 */
+
+/* ========== 论坛 5ch 风格 ========== */
+
+/* 板块选择栏 */
+.forum-slot-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.forum-slot-bar select {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 600;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 4px 8px;
+    color: var(--text-primary);
+    min-width: 0;
+}
+
+.forum-slot-btn {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+/* 论坛标签栏 */
+.forum-tabs {
+    display: flex;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+    /* position: sticky;  Removed to fix overlap issues */
+    /* top: 56px; */
+    /* z-index: 10; */
+}
+
+.forum-tab {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.forum-tab.active {
+    color: var(--accent-color);
+    border-bottom-color: var(--accent-color);
+}
+
+/* 论坛搜索栏 */
+.forum-search-bar {
+    padding: 8px 12px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+}
+.forum-search-bar input {
+    width: 100%;
+    padding: 7px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    outline: none;
+    box-sizing: border-box;
+}
+.forum-search-bar input:focus {
+    border-color: var(--accent-color);
+}
+
+/* 帖子列表项 */
+.fch-thread-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.fch-thread-item:hover {
+    background: var(--bg-secondary);
+}
+
+.fch-thread-item:active {
+    background: var(--border-light);
+}
+
+.fch-thread-title {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+    color: #0000EE;
+    margin-right: 12px;
+    line-height: 1.4;
+}
+
+.fch-thread-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.fch-reply-count {
+    background: #789922;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.fch-thread-time {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+
+.fch-new-badge {
+    background: #ff3b30;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+    animation: fch-new-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes fch-new-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+.fch-fav-mark {
+    display: flex;
+    align-items: center;
+}
+
+/* 5ch 帖子详情 */
+.fch-thread-body {
+    background: #efefef;
+}
+
+.fch-post {
+    position: relative;
+    padding: 10px 14px;
+    border-bottom: 1px solid #ddd;
+    background: #efefef;
+}
+
+.fch-post-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px;
+    margin-bottom: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.fch-post-num {
+    font-weight: 700;
+    color: #000;
+    margin-right: 2px;
+}
+
+.fch-post-label {
+    color: #666;
+}
+
+.fch-post-author {
+    color: #008000;
+    font-weight: 700;
+}
+
+.fch-op-badge {
+    background: #c0392b;
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.fch-user-badge {
+    background: var(--accent-color, #6c63ff);
+    color: #fff;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 4px;
+    font-weight: 700;
+    vertical-align: middle;
+}
+
+.fch-legend-mark {
+    font-size: 14px;
+    cursor: pointer;
+    color: #9b59b6;
+    margin-left: 4px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+    user-select: none;
+}
+
+.fch-legend-mark:hover {
+    opacity: 1;
+}
+
+/* Part 制度 CSS */
+.fch-thread-ended {
+    text-align: center;
+    padding: 16px 8px;
+    color: #999;
+    font-size: 12px;
+    line-height: 2;
+    border-top: 1px dashed #ccc;
+    border-bottom: 1px dashed #ccc;
+    margin: 8px 0;
+}
+
+.fch-thread-limit-warn {
+    text-align: center;
+    padding: 6px 12px;
+    color: #e67e22;
+    font-size: 12px;
+    background: rgba(230, 126, 34, 0.08);
+    border-radius: 6px;
+    margin: 4px 8px 8px;
+}
+
+.fch-part-badge {
+    background: #6c5ce7;
+    color: #fff;
+    font-size: 9px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    margin-left: 2px;
+    vertical-align: middle;
+}
+
+.fch-full-badge {
+    font-size: 11px;
+    opacity: 0.55;
+    margin-left: 2px;
+}
+
+.fch-post-date {
+    color: #666;
+    margin-left: 4px;
+}
+
+.fch-post-id {
+    color: #999;
+    margin-left: 4px;
+}
+
+.fch-post-content {
+    font-size: var(--fch-font-size, 15px);
+    line-height: 1.7;
+    color: #333;
+    padding-left: 8px;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.fch-tl-block {
+    margin-top: 8px;
+    border-top: 1px solid #ddd;
+    padding-top: 4px;
+}
+
+.fch-tl-btn {
+    display: inline-block;
+    font-size: calc(var(--fch-font-size, 15px) - 2px);
+    color: #0070c9;
+    cursor: pointer;
+    list-style: none;
+    padding: 2px 0;
+}
+
+.fch-tl-btn::-webkit-details-marker {
+    display: none;
+}
+
+.fch-tl-content {
+    font-size: var(--fch-font-size, 15px);
+    line-height: 1.65;
+    color: #555;
+    margin-top: 6px;
+    padding: 6px 8px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* 论坛编辑模式操作栏 */
+.forum-edit-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 16px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+}
+
+/* 多选复选框 */
+.fch-select-box {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--border-dark);
+    margin-right: 12px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+}
+
+.fch-select-box.checked {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    position: relative;
+}
+
+.fch-select-box.checked::after {
+    content: '✓';
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.fch-thread-item.selected {
+    background: var(--bg-secondary);
+}
+
+/* 论坛帖子翻译标签 */
+.fch-post-content details {
+    display: inline;
+}
+
+.fch-post-content details summary {
+    display: inline;
+    list-style: none;
+    cursor: pointer;
+}
+
+.fch-post-content details summary::-webkit-details-marker {
+    display: none;
+}
+
+.fch-thread-title details {
+    display: inline;
+}
+
+.fch-thread-title details summary {
+    display: inline;
+    list-style: none;
+    cursor: pointer;
+}
+
+.fch-thread-title details summary::-webkit-details-marker {
+    display: none;
+}
+
+/* 论坛分页控制 */
+.forum-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 16px;
+    margin-top: 8px;
+}
+
+.forum-page-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--app-icon-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.forum-page-btn:not([disabled]):hover {
+    background: var(--accent-color);
+    color: white;
+    transform: translateY(-1px);
+}
+
+.forum-page-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.forum-page-info {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    min-width: 60px;
+    text-align: center;
+}
+
+/* 回复删除按钮 */
+.fch-reply-delete {
+    position: absolute;
+    right: 8px;
+    top: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(255, 59, 48, 0.1);
+    color: #ff3b30;
+    font-size: 18px;
+    line-height: 24px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.fch-reply-delete:hover {
+    opacity: 1;
+    background: rgba(255, 59, 48, 0.2);
+    transform: scale(1.1);
+}
+
+/* TTS 喇叭按钮 */
+.fch-tts-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    padding: 2px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 3px;
+    opacity: 0.6;
+    transition: opacity 0.15s, color 0.15s;
+    vertical-align: middle;
+    user-select: none;
+}
+
+.fch-tts-btn:hover {
+    opacity: 1;
+}
+
+/* 论坛图片上传和显示 */
+.forum-image-upload {
+    margin-top: 12px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 8px;
+    border: 1px dashed var(--glass-border);
+}
+
+.forum-image-preview {
+    margin-top: 8px;
+}
+
+.forum-image-preview img {
+    max-width: 100%;
+    max-height: 150px;
+    border-radius: 8px;
+    display: block;
+}
+
+.fch-post-images {
+    margin-top: 12px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.fch-post-image {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border: 1px solid var(--glass-border);
+}
+
+.fch-post-image:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* 论坛板块管理栏（平板/重定义版，排在基础 .forum-slot-bar 之后保持覆盖） */
+.forum-slot-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.forum-slot-bar select {
+    flex: 1;
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.forum-slot-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.forum-slot-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--accent-color);
+}
+
+/* Forum 骨架屏（兼容旧类名） */
+.forum-skeleton-reply {
+    padding: 14px 16px;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+.forum-skeleton-reply .skel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.forum-skeleton-reply .skel-circle {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--border-light);
+}
+.forum-skeleton-reply .skel-line {
+    height: 14px;
+    background: var(--border-light);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+/* Forum — Part ナビゲーション */
+.forum-part-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-light);
+    background: var(--bg-secondary);
+}
+.forum-part-link {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    transition: background 0.15s;
+}
+.forum-part-link:active {
+    background: color-mix(in srgb, var(--accent-color) 12%, transparent);
+}
+.forum-part-label {
+    font-weight: 700;
+    color: var(--text-primary);
+    font-size: 13px;
+}

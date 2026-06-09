@@ -790,9 +790,9 @@ const Twitter = {
             ? `<div class="tw-image-card tw-image-generated" data-tweet-id="${tweet.id}" data-is-npc="${isNpcStr}" onclick="event.stopPropagation();Twitter._viewFullImage('${tweet.image.generatedImageId}')">
                 <img src="" data-illust-id="${tweet.image.generatedImageId}" class="tw-generated-img" alt="${this._esc(tweet.image.description || '')}">
                </div>`
-            : `<div class="tw-image-card${tweet.image.type === 'art' && this._hasImageApi() ? ' tw-image-generating' : ''}" data-tweet-id="${tweet.id}" data-is-npc="${isNpcStr}" style="background:${tweet.image.gradient || 'linear-gradient(135deg,#667eea,#764ba2)'};">
-                <span class="tw-image-emoji">${tweet.image.emoji || '🖼️'}</span>
-                <span class="tw-image-desc">${this._esc(tweet.image.description || '')}</span>
+            : `<div class="tw-image-card tw-image-placeholder${tweet.image.type === 'art' && this._hasImageApi() ? ' tw-image-generating' : ''}" data-tweet-id="${tweet.id}" data-is-npc="${isNpcStr}" style="background:${tweet.image.gradient || 'linear-gradient(135deg,#667eea,#764ba2)'};">
+                <img src="${this._imgPlaceholder(tweet.id)}" class="tw-placeholder-img" alt="" loading="lazy">
+                ${tweet.image.description ? `<span class="tw-image-desc tw-image-desc-overlay">${this._esc(tweet.image.description)}</span>` : ''}
                </div>`) : ''}
         ${this._renderQuotedTweetHtml(tweet)}
         ${tweet.poll ? this._renderPoll(tweet) : ''}
@@ -1515,7 +1515,7 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 
         let html = `<div class="tw-thread-op">
     <div class="tw-thread-op-header">
-        <div class="${opAvatarCls}" style="background:${avatarColor};"${opProfileOnclick}>${this._esc(avatarLetter)}</div>
+        ${this._renderAvatar({ image: identity.avatarImage, letter: avatarLetter, color: avatarColor, classes: opAvatarCls, onclick: opProfileOnclick })}
         <div>
             <div class="${opNameCls}"${opProfileOnclick}>${this._esc(name)}${verifiedMark}</div>
             <div class="tw-handle">${this._esc(handle)}</div>
@@ -1526,9 +1526,9 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
     ${this._renderUserAudio(tweet, isNpcStr)}
     ${tweet.image ? (tweet.image.generatedImageId
         ? `<div class="tw-image-card tw-image-generated" onclick="event.stopPropagation();Twitter._viewFullImage('${tweet.image.generatedImageId}')"><img src="" data-illust-id="${tweet.image.generatedImageId}" class="tw-generated-img" alt="${this._esc(tweet.image.description || '')}"></div>`
-        : `<div class="tw-image-card" style="background:${tweet.image.gradient || 'linear-gradient(135deg,#667eea,#764ba2)'};">
-            <span class="tw-image-emoji">${tweet.image.emoji || '🖼️'}</span>
-            <span class="tw-image-desc">${this._esc(tweet.image.description || '')}</span>
+        : `<div class="tw-image-card tw-image-placeholder" style="background:${tweet.image.gradient || 'linear-gradient(135deg,#667eea,#764ba2)'};">
+            <img src="${this._imgPlaceholder(tweet.id)}" class="tw-placeholder-img" alt="" loading="lazy">
+            ${tweet.image.description ? `<span class="tw-image-desc tw-image-desc-overlay">${this._esc(tweet.image.description)}</span>` : ''}
            </div>`) : ''}
     ${this._renderQuotedTweetHtml(tweet)}
     ${opTl}
@@ -3582,7 +3582,8 @@ ${formHtml}`;
             const author = (block.match(/^AUTHOR:\s*(.+)$/m) || [])[1]?.trim() || 'ファン';
             const handle = (block.match(/^HANDLE:\s*(.+)$/m) || [])[1]?.trim() || '@user';
             const role = (block.match(/^ROLE:\s*(.+)$/m) || [])[1]?.trim() || 'fan';
-            const contentMatch = block.match(/^CONTENT:[ \t]*(.+)$/m);
+            // CONTENT 可能多行（AI 回复换行）→ 捕获到下一个字段标记或块尾，不再被 (.+) 截到第一行
+            const contentMatch = block.match(/(?:^|\n)CONTENT:[ \t]*([\s\S]*?)(?=\n[ \t]*(?:TRANSLATION|AUTHOR|HANDLE|ROLE)[ \t]*:|$)/);
             const content = contentMatch ? contentMatch[1].trim() : '';
             const translation = (block.match(/^TRANSLATION:[ \t]*(.+)$/m) || [])[1]?.trim() || null;
             return { author, handle, role, content, translation };
@@ -4383,21 +4384,28 @@ CONTENT: [DMテキスト、自然な日本語で2〜4文]
     // ===== いいね =====
     toggleLike(tweetId, isNpc, btn) {
         const t = this._ensureData();
+        const tweet = [...(t.npcTweets || []), ...(t.tweets || [])].find(tw => tw.id === tweetId);
         const idx = (t.likedTweetIds || []).findIndex(l => l.id === tweetId);
-        if (idx >= 0) {
+        const liking = idx < 0;
+        if (!liking) {
             t.likedTweetIds.splice(idx, 1);
-            if (btn) {
-                btn.classList.remove('tw-liked');
-                btn.querySelector('svg')?.replaceWith(Object.assign(document.createElement('span'), { innerHTML: this._svg.heart }).firstChild);
-            }
+            if (tweet) tweet.likes = Math.max(0, (tweet.likes || 0) - 1);
         } else {
             if (!t.likedTweetIds) t.likedTweetIds = [];
             t.likedTweetIds.push({ id: tweetId, isNpc, timestamp: Date.now() });
             // 上限 200
             if (t.likedTweetIds.length > 200) t.likedTweetIds = t.likedTweetIds.slice(-200);
-            if (btn) {
-                btn.classList.add('tw-liked');
-                btn.querySelector('svg')?.replaceWith(Object.assign(document.createElement('span'), { innerHTML: this._svg.heartFilled }).firstChild);
+            if (tweet) tweet.likes = (tweet.likes || 0) + 1;
+        }
+        if (btn) {
+            btn.classList.toggle('tw-liked', liking);
+            const icon = liking ? this._svg.heartFilled : this._svg.heart;
+            if (tweet) {
+                // 找到推文：同步更新点赞数显示（修复「图标变红但数字不变」）
+                btn.innerHTML = `${icon}<span>${tweet.likes > 0 ? this._fmtNum(tweet.likes) : ''}</span>`;
+            } else {
+                // 边界：找不到推文对象时退回原行为（只换图标、保留原计数）
+                btn.querySelector('svg')?.replaceWith(Object.assign(document.createElement('span'), { innerHTML: icon }).firstChild);
             }
         }
         Utils.saveData();
@@ -4758,6 +4766,22 @@ TRANSLATION: [中国語（簡体字）翻訳、1行]
         return list[Math.floor(Math.random() * list.length)];
     },
 
+    // 画像プレースホルダー：AI画像未生成時、汎用webp×5を tweet.id で安定ローテーション（同じ投稿は常に同じ絵柄）
+    _imgPlaceholders: [
+        './assets/textures/tw-placeholder/1.webp',
+        './assets/textures/tw-placeholder/2.webp',
+        './assets/textures/tw-placeholder/3.webp',
+        './assets/textures/tw-placeholder/4.webp',
+        './assets/textures/tw-placeholder/5.webp',
+    ],
+    _imgPlaceholder(seed) {
+        const list = this._imgPlaceholders;
+        const s = String(seed || '');
+        let h = 0;
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+        return list[h % list.length];
+    },
+
     // ===== 画像生成API連携 =====
 
     _hasImageApi() {
@@ -4930,9 +4954,9 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
                 } else {
                     const card = img.closest('.tw-image-card');
                     if (card) {
-                        card.className = 'tw-image-card';
+                        card.className = 'tw-image-card tw-image-placeholder';
                         card.style.background = this._imageGradient('art');
-                        card.innerHTML = '<span class="tw-image-emoji">🎨</span>';
+                        card.innerHTML = `<img src="${this._imgPlaceholder(id)}" class="tw-placeholder-img" alt="">`;
                     }
                 }
             } catch (e) {

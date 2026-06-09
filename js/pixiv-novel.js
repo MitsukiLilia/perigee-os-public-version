@@ -9,6 +9,7 @@ const PixivNovel = {
     filterTag: '',
     _pendingNextChapterNovelId: null,  // deprecated, kept for compat
     _pendingChapterAction: null,       // { type:'next'|'reroll', novelId, chapterIdx? }
+    _isGeneratingChapter: false,       // 并发锁：续章/重写生成中、防双击重复生成
 
     // ===== 初始化 =====
     init() {
@@ -1238,7 +1239,7 @@ ${count}人分繰り返してください。`;
             const content = document.getElementById('pixivChapterBody');
             if (content) {
                 const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-                const synopsisText = novel.synopsis ? `<div class="melon-sample-text" style="margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:8px;font-size:13px;color:var(--text-secondary);line-height:1.6;">📋 ${I18n.t('pixiv.synopsis_label', 'あらすじ')}：${_esc(novel.synopsis).replace(/\n/g, '<br>')}</div>` : '';
+                const synopsisText = novel.synopsis ? `<div class="melon-sample-text" style="margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:8px;font-size:13px;color:var(--text-secondary);line-height:1.6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>${I18n.t('pixiv.synopsis_label', 'あらすじ')}：${_esc(novel.synopsis).replace(/\n/g, '<br>')}</div>` : '';
                 content.innerHTML = `
                     <div style="text-align:center;padding:40px 20px;">
                         ${synopsisText}
@@ -1274,7 +1275,7 @@ ${count}人分繰り返してください。`;
             : '';
         // 完結ボタン（連載の最終話 & 未完結時のみ）
         const completeBtn = (isLastChapter && !isCompleted && novel.isSerial && novel.chapters.length >= 2)
-            ? `<button class="glass-btn" onclick="PixivNovel.completeNovel('${novel.id}')" style="border-color:var(--success-color);color:var(--success-color);">${I18n.t('pixiv.btn_complete', '🏁 完結する')}</button>`
+            ? `<button class="glass-btn" onclick="PixivNovel.completeNovel('${novel.id}')" style="border-color:var(--success-color);color:var(--success-color);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:4px;"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>${I18n.t('pixiv.btn_complete', '完結する')}</button>`
             : '';
         // 完結取り消しボタン（誤操作からの復帰用・完結済みの連載で表示）
         const reopenBtn = (isCompleted && novel.isSerial)
@@ -1406,6 +1407,8 @@ ${count}人分繰り返してください。`;
         const data = AppState.data.pixivData;
         const novel = (data.novels || []).find(n => n.id === novelId);
         if (!novel || !novel.isSerial) return;
+        if (this._isGeneratingChapter) return;  // 并发锁：生成中直接忽略重复触发
+        this._isGeneratingChapter = true;
 
         const btn = document.getElementById('pixivNextChapterBtn');
         if (btn) { btn.textContent = I18n.t('pixiv.btn_generating', '...生成中...'); btn.disabled = true; }
@@ -1590,6 +1593,7 @@ Full chapter text. Do NOT repeat the title. Start immediately.
             Utils.showToast(I18n.t('t.pixiv_gen_failed', '生成失败: ') + e.message);
             console.error('[PixivNovel] generateNextSerialChapter error:', e);
         } finally {
+            this._isGeneratingChapter = false;
             const b = document.getElementById('pixivNextChapterBtn');
             if (b) { b.textContent = I18n.t('pixiv.btn_generate_next', '✦ 続きを生成'); b.disabled = false; }
         }

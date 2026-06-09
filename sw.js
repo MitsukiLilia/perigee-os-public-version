@@ -1,6 +1,6 @@
 // Service Worker for Perigee OS
 // 版本号：每次更新代码时修改此版本号以强制更新缓存
-const VERSION = '2.96.5';
+const VERSION = '2.116.0';
 const CACHE_NAME = `perigee-os-v${VERSION}`;
 
 // 核心本地资源（必须全部成功，否则 SW 安装失败）
@@ -8,6 +8,7 @@ const coreUrls = [
   './',
   './index.html',
   './style.css',
+  './css/themes.css',
   './app.js',
   './manifest.json',
   './icon-192-v4.png',
@@ -45,6 +46,7 @@ const coreUrls = [
   './js/widgets.js',
   './js/decorations.js',
   './js/rain.js',
+  './js/rain-glass.js',
   './js/constellation-icons.js',
   './js/starfield.js',
   './js/journal-icons.js',
@@ -57,10 +59,19 @@ const coreUrls = [
   './js/changelog-ui.js',
   './js/data-export.js',
   './js/github-backup.js',
-  './travel.css',
-  './mercari.css',
-  './weibo.css',
-  './lofter.css',
+  './css/travel.css',
+  './css/mercari.css',
+  './css/weibo.css',
+  './css/lofter.css',
+  './css/niconico.css',
+  './css/melon.css',
+  './css/tarot.css',
+  './css/fortune.css',
+  './css/magazine.css',
+  './css/forum.css',
+  './css/pixiv.css',
+  './css/twitter.css',
+  './css/line.css',
   './assets/textures/washi.svg',
   './assets/textures/watercolor.svg',
   './assets/textures/flowers.svg',
@@ -71,6 +82,7 @@ const coreUrls = [
   './assets/textures/summer-rain-bg.webp',
   './assets/textures/night-sky-bg.webp',
   './assets/textures/journal-bg.webp',
+  './assets/textures/magazine-cover-bg.webp',
   './assets/icons/journal/envelope-wax.webp',
   './assets/icons/journal/notebook-bookmark.webp',
   './assets/icons/journal/globe.webp',
@@ -90,7 +102,12 @@ const coreUrls = [
   './assets/icons/journal/scroll-bow.webp',
   './assets/icons/journal/tag-fortune.webp',
   './assets/icons/journal/notebook-tag.webp',
-  './assets/icons/journal/notebook-plain.webp'
+  './assets/icons/journal/notebook-plain.webp',
+  './assets/textures/tw-placeholder/1.webp',
+  './assets/textures/tw-placeholder/2.webp',
+  './assets/textures/tw-placeholder/3.webp',
+  './assets/textures/tw-placeholder/4.webp',
+  './assets/textures/tw-placeholder/5.webp'
 ];
 
 // 可选外部 CDN（失败不影响 SW 安装）

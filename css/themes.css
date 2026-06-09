@@ -1,0 +1,810 @@
+/* ============================================================
+   themes.css — 主题皮肤层（外观系统）
+   从 style.css 剪出（v2.114.0、CSS 拆分收尾）。本文件 = 用户在设置里
+   可切换的「外观」全部覆盖，按「改 CSS 变量 / 桌面装饰」组织：
+   · 8 个主题变量覆盖：夏雨 / 柔粉 / 夜空 / 手帐 / 极简 / 希卡 / 动森
+     （default 冬夜在 style.css 的 :root{} 里、不在这）
+   · 字体系统 [data-font]（独立于主题、同属外观层一起管）
+   · 桌面沉浸装饰：手帐贴纸卡 / 夜空磨砂星空 / 希卡荧光 / 动森 3D /
+     夏雨玻璃 / 各自壁纸 / 页码点
+   · 深色可读性适配：[data-theme] .fch-post / .tw-screen / inline 色修正 /
+     论坛 5ch 色（靠特异性赢、覆盖 forum.css/twitter.css 基础样式、与加载顺序无关）
+
+   留在 core(style.css)：
+   · :root{} 默认变量（冬夜主题 + 默认字体 --font-*）= 变量定义源头、必须最先加载
+   · 散落在组件旁的少数深色微调（body.dark-mode .widget-* 死代码 +
+     [data-theme="night-sky"] .voice-text-expanded、跟组件就近维护）
+
+   壁纸 url 已补 ../assets（本文件在 css/ 子目录、相对路径比根目录多一层）。
+   ============================================================ */
+
+/* 夏雨主题 */
+[data-theme="summer-rain"] {
+    --bg-base: #f4f7f9;
+    --bg-secondary: #f0f5f7;
+    --bg-elevated: #f6f9fb;
+    --bg-hover: rgba(137, 163, 186, 0.08);
+    --bg-card: #ffffff;
+    --glass-panel: rgba(255, 255, 255, 0.78);
+    --glass-border: rgba(255, 255, 255, 0.55);
+    --accent-color: #89A3BA;
+    --accent-soft: #92C7CC;
+    --accent-shadow: rgba(137, 163, 186, 0.3);
+    --text-primary: #3d4e5e;
+    --text-secondary: #7a8d9c;
+    --text-tertiary: #a3b3c2;
+    --border-light: #e6edf1;
+    --border-medium: #d9e4ea;
+    --border-dark: #cbd9e0;
+    --bubble-me: #89A3BA;
+    --bubble-me-text: #ffffff;
+    --bubble-ai: #f0f5f7;
+    --bubble-ai-text: #3d4e5e;
+    --summary-bg: #95DE86;
+    --summary-text: #3d4e5e;
+    --icon-bg: var(--accent-color);
+    /* —— 桌面浮层走「雨天玻璃」沉浸配色（仅 #desktop chrome、app 内部底色 --bg-base 等保持上方浅色不动）—— */
+    /* 图标/widget 玻璃面板：更透明的冷白，让深蓝雨天背景隐约透出才有玻璃感 */
+    --app-icon-bg: rgba(225, 238, 247, 0.26);
+    --app-icon-color: rgba(255, 255, 255, 0.88);
+    /* 注意：--glass-panel 被 app 内部 chrome（app-header / chat-input / kb-drawer 等）复用，
+       这里不改它（保持上方浅色不动），桌面 widget 的玻璃在下方 override 段单独针对
+       .widget-card / .widget-clock / .widget-vinyl 处理，避免污染 app 内部。 */
+    /* 壁纸：内嵌雨天玻璃照片（照片是本主题灵魂、唯一的非纯色例外；用户填 URL 时 applyWallpaper 的 inline backgroundImage 优先级更高自动覆盖）*/
+    --wallpaper-gradient: url('../assets/textures/summer-rain-bg.webp') center / cover no-repeat;
+    /* 图标渐变色 */
+    --icon-gradient-1: linear-gradient(135deg, #89A3BA 0%, #a8c0d3 100%);
+    --icon-gradient-2: linear-gradient(135deg, #92C7CC 0%, #b8dce0 100%);
+    /* 状态栏和桌面文字：深蓝背景上转浅色 */
+    --desktop-text: #f0f6fb;
+    /* 语义色 */
+    --danger-color: #ff3b30;
+    --success-color: #34c759;
+    --warning-color: #ff9500;
+}
+
+/* 柔粉主题 — 暖粉色系 */
+[data-theme="sakura"] {
+    --bg-base: #faf5f5;
+    --bg-secondary: #fdf8f8;
+    --bg-elevated: #fefafa;
+    --bg-hover: rgba(196, 153, 157, 0.08);
+    --bg-card: #ffffff;
+    --glass-panel: rgba(255, 255, 255, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --accent-color: #C4999D;
+    --accent-soft: #E8C8CB;
+    --accent-shadow: rgba(196, 153, 157, 0.3);
+    --text-primary: #5a4245;
+    --text-secondary: #9a7e82;
+    --text-tertiary: #bfa5a8;
+    --border-light: #f0e4e5;
+    --border-medium: #e8d8da;
+    --border-dark: #dccacd;
+    --bubble-me: #C4999D;
+    --bubble-me-text: #ffffff;
+    --bubble-ai: #fdf8f8;
+    --bubble-ai-text: #5a4245;
+    --summary-bg: #F0D5D8;
+    --summary-text: #5a4245;
+    --icon-bg: var(--accent-color);
+    --app-icon-bg: rgba(255, 255, 255, 0.90);
+    --app-icon-color: rgba(90, 66, 69, 0.7);
+    --wallpaper-gradient: linear-gradient(135deg, #e4cfd2 0%, #f0dde0 50%, #f8ecee 100%);
+    --icon-gradient-1: linear-gradient(135deg, #C4999D 0%, #dbb5b8 100%);
+    --icon-gradient-2: linear-gradient(135deg, #E8C8CB 0%, #f2dfe1 100%);
+    --desktop-text: #5a4245;
+    --danger-color: #e85d5d;
+    --success-color: #6db87a;
+    --warning-color: #e8a44c;
+}
+
+/* 夜空主题 — 深色 */
+[data-theme="night-sky"] {
+    --bg-base: #1a1a2e;
+    --bg-secondary: #1e1e34;
+    --bg-elevated: #24243c;
+    --bg-hover: rgba(140, 150, 200, 0.1);
+    --bg-card: #22223a;
+    --glass-panel: rgba(30, 30, 50, 0.85);
+    --glass-border: rgba(100, 110, 160, 0.2);
+    --accent-color: #8C96C8;
+    --accent-soft: #6B74A8;
+    --accent-shadow: rgba(140, 150, 200, 0.25);
+    --text-primary: #d4d4e8;
+    --text-secondary: #9494b8;
+    --text-tertiary: #6a6a8e;
+    --border-light: #2e2e48;
+    --border-medium: #3a3a56;
+    --border-dark: #46465e;
+    --bubble-me: #5c66a0;
+    --bubble-me-text: #e8e8f4;
+    --bubble-ai: #24243c;
+    --bubble-ai-text: #d4d4e8;
+    --summary-bg: #2e2e50;
+    --summary-text: #d4d4e8;
+    --icon-bg: var(--accent-color);
+    --app-icon-bg: rgba(40, 44, 78, 0.40);
+    --app-icon-color: rgba(232, 236, 250, 0.92);
+    /* 夜空沉浸：内嵌星空银河照片当壁纸（用户上传壁纸时 applyWallpaper 的 inline backgroundImage 优先级更高、自动覆盖） */
+    --wallpaper-gradient: url('../assets/textures/night-sky-bg.webp') center / cover no-repeat;
+    --icon-gradient-1: linear-gradient(135deg, #5c66a0 0%, #7a84b8 100%);
+    --icon-gradient-2: linear-gradient(135deg, #6B74A8 0%, #8890c0 100%);
+    --desktop-text: #e6e8f6;
+    --danger-color: #ff6b6b;
+    --success-color: #6bcf7f;
+    --warning-color: #ffb347;
+}
+
+/* ジャーナル主题 — 手帐拼贴沉浸式 v2.93.0 */
+[data-theme="journal"] {
+    --bg-base: #fbf9f4;
+    --bg-secondary: #f7f3eb;
+    --bg-elevated: #fefcf6;
+    --bg-card: #ffffff;
+    --glass-panel: rgba(255, 255, 255, 0.82);
+    --glass-border: rgba(255, 255, 255, 0.55);
+    --bg-hover: rgba(107, 140, 156, 0.08);
+    --accent-color: #7a9e8a;
+    --accent-soft: #b8c8d4;
+    --accent-shadow: rgba(107, 140, 156, 0.22);
+    --text-primary: #3a4248;
+    --text-secondary: #788088;
+    --text-tertiary: #a8b0b8;
+    --border-light: #e8e2d6;
+    --border-medium: #d4ccbc;
+    --border-dark: #c0b8a8;
+    --bubble-me: #7a9e8a;
+    --bubble-me-text: #ffffff;
+    --bubble-ai: #f7f3eb;
+    --bubble-ai-text: #3a4248;
+    --summary-bg: #d8d0c0;
+    --summary-text: #3a4248;
+    --icon-bg: var(--accent-color);
+    --app-icon-bg: rgba(255, 253, 248, 0.88);
+    --app-icon-color: rgba(58, 66, 72, 0.7);
+    --wallpaper-gradient: url('../assets/textures/journal-bg.webp');
+    --icon-gradient-1: linear-gradient(135deg, #7a9e8a 0%, #9ab8a8 100%);
+    --icon-gradient-2: linear-gradient(135deg, #b8c8d4 0%, #d0dce4 100%);
+    --desktop-text: #5c4a32;
+    --danger-color: #d14b4b;
+    --success-color: #5da26b;
+    --warning-color: #c8943c;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+}
+
+/* 手帐主题 — 桌面专属 override（只动 #desktop，仿真 app 内部不碰） */
+[data-theme="journal"] #desktop {
+    background-size: cover;
+    background-position: center top;
+}
+
+/* 图标贴纸卡：米白底 + 细棕边 + 手帐投影 */
+[data-theme="journal"] .app-icon {
+    background: rgba(255, 253, 248, 0.90);
+    border: 1.5px solid rgba(160, 140, 110, 0.32);
+    box-shadow:
+        0 3px 10px rgba(120, 90, 50, 0.12),
+        0 1px 3px rgba(120, 90, 50, 0.08);
+    border-radius: 20px;
+}
+
+/* 图标贴纸图片填满容器 */
+[data-theme="journal"] .app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    padding: 4px;
+    pointer-events: none;
+}
+
+/* 标签：胶带纸条风格 */
+[data-theme="journal"] .app-label {
+    background: rgba(200, 185, 155, 0.55);
+    color: #5c4a32;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+}
+
+/* widget 暖玻璃效果 */
+[data-theme="journal"] .widget-card {
+    background: rgba(255, 253, 248, 0.85);
+    border: 1.5px solid rgba(160, 140, 110, 0.28);
+    box-shadow: 0 2px 12px rgba(120, 90, 50, 0.10);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="journal"] .widget-clock,
+[data-theme="journal"] .widget-music {
+    background: rgba(255, 253, 248, 0.85);
+    border: 1.5px solid rgba(160, 140, 110, 0.28);
+}
+
+/* 页码点：棕色手帐风 */
+[data-theme="journal"] .page-dot {
+    background: rgba(160, 140, 110, 0.35);
+}
+[data-theme="journal"] .page-dot.active {
+    background: #8a6a44;
+}
+
+/* ミニマル主题 — 纯白干净 */
+[data-theme="minimal"] {
+    --bg-base: #ffffff;
+    --bg-secondary: #f7f7f7;
+    --bg-elevated: #fafafa;
+    --bg-card: #ffffff;
+    --glass-panel: rgba(255, 255, 255, 0.92);
+    --glass-border: rgba(255, 255, 255, 0.7);
+    --bg-hover: rgba(0, 0, 0, 0.04);
+    --accent-color: #2a2a2a;
+    --accent-soft: #888888;
+    --accent-shadow: rgba(0, 0, 0, 0.10);
+    --text-primary: #1a1a1a;
+    --text-secondary: #6a6a6a;
+    --text-tertiary: #9a9a9a;
+    --border-light: #ececec;
+    --border-medium: #d8d8d8;
+    --border-dark: #c0c0c0;
+    --bubble-me: #2a2a2a;
+    --bubble-me-text: #ffffff;
+    --bubble-ai: #f3f3f3;
+    --bubble-ai-text: #1a1a1a;
+    --summary-bg: #ececec;
+    --summary-text: #1a1a1a;
+    --icon-bg: #2a2a2a;
+    --app-icon-bg: rgba(255, 255, 255, 0.96);
+    --app-icon-color: rgba(26, 26, 26, 0.75);
+    --wallpaper-gradient: linear-gradient(135deg, #ffffff 0%, #f3f3f3 100%);
+    --icon-gradient-1: linear-gradient(135deg, #2a2a2a 0%, #555555 100%);
+    --icon-gradient-2: linear-gradient(135deg, #888888 0%, #aaaaaa 100%);
+    --desktop-text: #1a1a1a;
+    --danger-color: #d04545;
+    --success-color: #4ca866;
+    --warning-color: #cc8a30;
+    --radius-sm: 4px;
+    --radius-md: 6px;
+    --radius-lg: 8px;
+}
+
+/* ゼルダ主题 — 希卡之石 Sheikah Slate / 深黑蓝 + 青蓝荧光 + 金橙（暗色） */
+[data-theme="zelda"] {
+    --bg-base: #0e1726;
+    --bg-secondary: #132033;
+    --bg-elevated: #1a2a3e;
+    --bg-hover: rgba(60, 211, 252, 0.10);
+    --bg-card: #16243a;
+    --glass-panel: rgba(16, 26, 42, 0.88);
+    --glass-border: rgba(60, 211, 252, 0.22);
+    --accent-color: #3CD3FC;          /* 希卡青蓝 — 描边 / 焦点 / 灵魂色 */
+    --accent-soft: #8fe6ff;
+    --accent-shadow: rgba(60, 211, 252, 0.30);
+    --text-primary: #e9e1d1;          /* 暖米白 */
+    --text-secondary: #a9b6c4;
+    --text-tertiary: #6f8094;
+    --border-light: #213750;
+    --border-medium: #2d4a68;
+    --border-dark: #3a5d80;
+    --bubble-me: #2b7fa8;
+    --bubble-me-text: #eaf6fc;
+    --bubble-ai: #1a2a3e;
+    --bubble-ai-text: #e9e1d1;
+    --summary-bg: #213750;
+    --summary-text: #e9e1d1;
+    --icon-bg: var(--accent-color);
+    --app-icon-bg: rgba(22, 36, 58, 0.92);
+    --app-icon-color: rgba(233, 225, 209, 0.82);
+    /* 壁纸用纯色（守无渐变铁律）；Sheikah 眼符号纹理走 .wallpaper 层 */
+    --wallpaper-gradient: #0e1726;
+    --icon-gradient-1: #3CD3FC;
+    --icon-gradient-2: #FCC413;
+    --desktop-text: #e9e1d1;
+    --danger-color: #ff6b6b;
+    --success-color: #6bdca0;
+    --warning-color: #FCC413;         /* 金橙 — 激活 / 确认强调 */
+}
+
+/* 动物森友会 / Cozy Island —— 暖羊皮纸 + 薄荷青 + 草绿主页 + 深棕字。
+   亮色主题、跟希卡冷暗调冷暖+明暗对照。参考 guokaigdg/animal-island-ui 设计 token。 */
+[data-theme="animal"] {
+    --bg-base: #f8f8f0;               /* 暖羊皮纸 */
+    --bg-secondary: #f0e8d8;
+    --bg-elevated: #f7f3df;
+    --bg-hover: #e6f9f6;              /* 薄荷淡底 */
+    --bg-card: #f7f3df;
+    --glass-panel: rgba(248, 248, 240, 0.92);
+    --glass-border: rgba(159, 146, 125, 0.35);
+    --accent-color: #19c8b9;          /* 薄荷青 — 强调 / 灵魂色 */
+    --accent-soft: #3dd4c6;
+    --accent-shadow: rgba(25, 200, 185, 0.28);
+    --text-primary: #794f27;          /* 深棕 */
+    --text-secondary: #725d42;
+    --text-tertiary: #9f927d;
+    --border-light: #e0d6c0;
+    --border-medium: #c4b89e;
+    --border-dark: #9f927d;
+    --bubble-me: #19c8b9;
+    --bubble-me-text: #ffffff;
+    --bubble-ai: #f7f3df;
+    --bubble-ai-text: #725d42;
+    --summary-bg: #f0e8d8;
+    --summary-text: #725d42;
+    --icon-bg: var(--accent-color);
+    --app-icon-bg: rgba(248, 248, 240, 0.95);
+    --app-icon-color: #794f27;
+    /* 壁纸用草绿纯色（守无渐变铁律）；叶子 motif 走 .wallpaper 层 */
+    --wallpaper-gradient: #7DC395;
+    --icon-gradient-1: #19c8b9;
+    --icon-gradient-2: #f5c31c;
+    --desktop-text: #5c3d1c;          /* 草绿上的深棕、配白描边 */
+    --danger-color: #e05a5a;
+    --success-color: #6fba2c;
+    --warning-color: #f5c31c;         /* 黄 — 激活强调 */
+}
+
+/* ============ 字体系统（独立于主题） ============ */
+/* :root 默认 = cjk-serif（无 data-font 时） */
+
+[data-font="jp-mincho"] {
+    --font-serif: 'Hiragino Mincho ProN', 'Hiragino Mincho Pro', 'Yu Mincho', 'YuMincho', '游明朝', 'MS PMincho', 'Songti SC', serif;
+    --font-sans: 'Hiragino Sans', 'Yu Gothic', '游ゴシック', 'Meiryo', 'PingFang SC', sans-serif;
+    --font-display: 'Hiragino Mincho ProN', 'Yu Mincho', 'Didot', 'Bodoni 72', serif;
+}
+
+/* 清爽黑体（推荐默认）：PingFang SC 打头 = iOS 上中文原生、笔画均匀；
+   再退到 ヒラギノ角ゴ 给日文。PingFang 自带假名、两种语言都干净均匀。 */
+[data-font="sans"] {
+    --font-serif: 'PingFang SC', 'PingFang TC', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans GB', 'Yu Gothic', '游ゴシック', 'Microsoft YaHei', '微软雅黑', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-sans: 'PingFang SC', 'PingFang TC', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans GB', 'Yu Gothic', '游ゴシック', 'Microsoft YaHei', '微软雅黑', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-display: 'PingFang SC', 'PingFang TC', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', system-ui, sans-serif;
+}
+
+[data-font="mono"] {
+    --font-serif: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, 'Courier New', monospace;
+    --font-sans: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+    --font-display: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, monospace;
+}
+
+[data-font="system"] {
+    --font-serif: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    --font-sans: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', 'Helvetica Neue', sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', sans-serif;
+}
+
+/* 夜空主题 — 特殊覆盖 */
+/* —— 夜空沉浸（仅桌面 chrome）：星空动态由全屏 canvas（StarfieldEngine / js/starfield.js）画。
+   .wallpaper 闲置，放一道很淡的暗罩压亮银河区让图标/文字更跳。
+   #desktop > * { position:relative } 这条 ID 规则会把 .wallpaper 压成 relative+0 高，
+   提高 selector 特异性（class 2 > ID 0）恢复 absolute，无需 !important（夏雨同款坑）。 */
+[data-theme="night-sky"] #desktop > .wallpaper {
+    position: absolute;
+    inset: 0;
+    background: rgba(8, 10, 26, 0.22);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    pointer-events: none;
+}
+
+/* 磨砂玻璃图标（冷蓝紫调，跟白色星座线 + 星空背景搭；--app-icon-bg 已转半透） */
+[data-theme="night-sky"] .app-icon {
+    backdrop-filter: blur(10px) saturate(1.1);
+    -webkit-backdrop-filter: blur(10px) saturate(1.1);
+    border: 1px solid rgba(150, 160, 210, 0.24);
+    box-shadow:
+        0 4px 18px rgba(0, 0, 0, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.10);
+}
+
+/* 星座图标填满方块：全局把 .app-icon svg 钉死 24-28px，星座这种「连线 + 散点」内容在小尺寸下显得小、四周留白多；
+   填满后星座占比跟设计稿一致（svg = 图标尺寸、星座主体恒占约 67%），饱满不空。仅夜空、不影响其他主题。 */
+[data-theme="night-sky"] .app-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* 星空背景偏暗、亮银河区需描影让浅字清楚 */
+[data-theme="night-sky"] .app-label {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+}
+[data-theme="night-sky"] .status-bar {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+/* widget 玻璃质感（时钟/音乐卡默认 --bg-card 实色；单独做磨砂玻璃、内文字转浅，
+   不动 --glass-panel 变量避免污染 app 内部） */
+[data-theme="night-sky"] .widget-card {
+    backdrop-filter: blur(16px) saturate(1.1);
+    -webkit-backdrop-filter: blur(16px) saturate(1.1);
+    border: 1px solid rgba(150, 160, 210, 0.22);
+    box-shadow:
+        0 6px 20px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+[data-theme="night-sky"] .widget-clock,
+[data-theme="night-sky"] .widget-vinyl {
+    background: rgba(40, 44, 78, 0.30);
+    color: rgba(240, 242, 252, 0.92);
+}
+[data-theme="night-sky"] .widget-clock .clock-time {
+    color: rgba(245, 246, 255, 0.96);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+[data-theme="night-sky"] .widget-clock .clock-weekday,
+[data-theme="night-sky"] .widget-clock .clock-date {
+    color: rgba(220, 224, 245, 0.80);
+}
+[data-theme="night-sky"] .vinyl-wide .vinyl-title,
+[data-theme="night-sky"] .vinyl-title {
+    color: rgba(245, 246, 255, 0.95);
+}
+[data-theme="night-sky"] .vinyl-wide .vinyl-artist,
+[data-theme="night-sky"] .vinyl-artist {
+    color: rgba(220, 224, 245, 0.82);
+}
+
+/* 论坛分页按钮：--app-icon-bg 被它复用、夜空下变透 → 补可读底（仅此一处 app 内防护，不动色系） */
+[data-theme="night-sky"] .forum-page-btn {
+    background: var(--bg-elevated);
+}
+
+[data-theme="night-sky"] .settings-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="night-sky"] .page-dots .dot {
+    background: rgba(200, 200, 224, 0.3);
+}
+
+[data-theme="night-sky"] .page-dots .dot.active {
+    background: rgba(200, 200, 224, 0.8);
+}
+
+[data-theme="night-sky"] input,
+[data-theme="night-sky"] textarea,
+[data-theme="night-sky"] select {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--border-medium);
+}
+
+/* 夜空主題 — インラインスタイル色修正（settings/utility画面） */
+[data-theme="night-sky"] .settings-card p[style*="color"],
+[data-theme="night-sky"] .setting-row p[style*="color"],
+[data-theme="night-sky"] .setting-row small[style*="color"],
+[data-theme="night-sky"] .modal-window label[style*="color"],
+[data-theme="night-sky"] .modal-window div[style*="color:#666"],
+[data-theme="night-sky"] .modal-window div[style*="color: #666"] {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="night-sky"] .settings-card p[style*="background:#f9f9f9"],
+[data-theme="night-sky"] .settings-card p[style*="background: #f9f9f9"],
+[data-theme="night-sky"] .settings-card div[style*="background:#f9f9f9"],
+[data-theme="night-sky"] .settings-card div[style*="background: #f9f9f9"],
+[data-theme="night-sky"] .modal-window div[style*="background:#f9f9f9"],
+[data-theme="night-sky"] .modal-window div[style*="background: #f9f9f9"],
+[data-theme="night-sky"] div[style*="background: #fff;"],
+[data-theme="night-sky"] div[style*="background:#fff;"] {
+    background: var(--bg-secondary) !important;
+}
+
+[data-theme="night-sky"] textarea[style*="border: 1px solid #e5e5ea"],
+[data-theme="night-sky"] textarea[style*="border:1px solid #e5e5ea"],
+[data-theme="night-sky"] select[style*="border: 1px solid #e5e5ea"],
+[data-theme="night-sky"] select[style*="border:1px solid #e5e5ea"] {
+    border-color: var(--border-medium) !important;
+    background: var(--bg-elevated) !important;
+    color: var(--text-primary) !important;
+}
+
+/* 夜空主題 — 論壇5ch表示色修正 */
+[data-theme="night-sky"] .fch-post-num { color: var(--text-primary); }
+[data-theme="night-sky"] .fch-post-label { color: var(--text-secondary); }
+[data-theme="night-sky"] .fch-post-author { color: #5cb85c; }
+[data-theme="night-sky"] .fch-post-date { color: var(--text-secondary); }
+[data-theme="night-sky"] .fch-post-content { color: var(--text-primary); }
+[data-theme="night-sky"] .fch-tl-content { color: var(--text-secondary); background: var(--bg-elevated); }
+[data-theme="night-sky"] .fch-tl-block { border-top-color: var(--border-light); }
+/* 5ch 串标题/链接：浅色保留经典 #0000EE 链接蓝，深色底上不可读 → 换可读亮蓝 */
+[data-theme="night-sky"] .fch-thread-title { color: #6fa8ff; }
+
+/* ============ 深色主题（夜空/希卡）— 论坛帖子底色 + 推特内容区 统一适配 ============
+   两处同一类病：「文字跟着主题变浅，但背景没跟着变深 → 浅底浅字看不清」。
+   · 论坛 .fch-post / .fch-thread-body 底色写死 #efefef（浅灰），之前只覆盖了文字色 → 补深色底
+   · 推特 .tw-screen 等底色写死 #ffffff（白），原 body.dark-mode 那套覆盖是死代码（无 JS 加 dark-mode class）
+     → 改用主题选择器接通（方案B：内容区跟随深色，与深色顶/底栏、论坛保持统一） */
+[data-theme="night-sky"] .fch-thread-body,
+[data-theme="night-sky"] .fch-post,
+[data-theme="zelda"] .fch-thread-body,
+[data-theme="zelda"] .fch-post {
+    background: var(--bg-secondary);
+    border-bottom-color: var(--border-light);
+}
+[data-theme="night-sky"] .tw-screen,
+[data-theme="zelda"] .tw-screen,
+[data-theme="night-sky"] .tw-search-bar-wrap,
+[data-theme="zelda"] .tw-search-bar-wrap,
+[data-theme="night-sky"] .tw-profile-avatar-wrap,
+[data-theme="zelda"] .tw-profile-avatar-wrap {
+    background: var(--bg-base);
+}
+[data-theme="night-sky"] .tw-search-input,
+[data-theme="zelda"] .tw-search-input,
+[data-theme="night-sky"] .tw-search-input:focus,
+[data-theme="zelda"] .tw-search-input:focus {
+    background: var(--bg-secondary);
+}
+
+/* ============ ゼルダ主题 — 专属覆盖（希卡之石质感 + 暗色可读性） ============ */
+/* 沉浸版：仅作用于桌面 chrome / 设置 / 论坛可读性，仿真 app 内部色系不动。
+   暗色可读性修正独立复制自夜空，夜空规则一字不改，方便随时回滚。 */
+
+/* 壁纸：纯深色底 + Sheikah 眼符号纹理（利用闲置的 .wallpaper 磨砂层）。
+   注意：#desktop > * { position: relative } 这个 ID 规则会把 .wallpaper 压成
+   relative + 0 高（inset 失效，符号没显示空间）。提高 selector 特异性
+   （class 数 2 > ID 规则的 0）恢复 absolute 撑满，无需 !important。 */
+[data-theme="zelda"] #desktop > .wallpaper {
+    position: absolute;
+    inset: 0;
+    background-color: transparent;
+    background-image: url('../assets/textures/sheikah.svg');
+    background-repeat: repeat;
+    background-size: 240px 240px;
+    background-position: center;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    opacity: 0.9;
+}
+
+/* app 图标青蓝荧光描边 */
+[data-theme="zelda"] .app-icon {
+    border: 1px solid rgba(60, 211, 252, 0.35);
+    box-shadow:
+        0 4px 16px rgba(0, 0, 0, 0.35),
+        0 0 14px rgba(60, 211, 252, 0.12),
+        inset 0 1px 0 rgba(60, 211, 252, 0.10);
+}
+[data-theme="zelda"] .app-label {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 8px rgba(60, 211, 252, 0.15);
+}
+
+/* 状态栏文字淡青光 */
+[data-theme="zelda"] .status-bar {
+    text-shadow: 0 0 6px rgba(60, 211, 252, 0.25);
+}
+
+/* 希卡页码点：菱形几何 + 金橙激活 */
+[data-theme="zelda"] .page-dots .dot {
+    background: rgba(60, 211, 252, 0.30);
+    border-radius: 2px;
+    transform: rotate(45deg);
+}
+[data-theme="zelda"] .page-dots .dot.active {
+    background: #FCC413;
+    box-shadow: 0 0 8px rgba(252, 196, 19, 0.6);
+    transform: rotate(45deg) scale(1.2);
+}
+
+/* 设置卡阴影 + 主题卡激活金橙边 */
+[data-theme="zelda"] .settings-card {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+[data-theme="zelda"] .theme-card.is-active {
+    border-color: #FCC413;
+    box-shadow: 0 0 0 1px #FCC413, 0 0 12px rgba(252, 196, 19, 0.25);
+}
+
+/* —— 暗色可读性修正（独立复制自夜空，selector 换 zelda） —— */
+[data-theme="zelda"] input,
+[data-theme="zelda"] textarea,
+[data-theme="zelda"] select {
+    background: var(--bg-elevated);
+    color: var(--text-primary);
+    border-color: var(--border-medium);
+}
+[data-theme="zelda"] .settings-card p[style*="color"],
+[data-theme="zelda"] .setting-row p[style*="color"],
+[data-theme="zelda"] .setting-row small[style*="color"],
+[data-theme="zelda"] .modal-window label[style*="color"],
+[data-theme="zelda"] .modal-window div[style*="color:#666"],
+[data-theme="zelda"] .modal-window div[style*="color: #666"] {
+    color: var(--text-secondary) !important;
+}
+[data-theme="zelda"] .settings-card p[style*="background:#f9f9f9"],
+[data-theme="zelda"] .settings-card p[style*="background: #f9f9f9"],
+[data-theme="zelda"] .settings-card div[style*="background:#f9f9f9"],
+[data-theme="zelda"] .settings-card div[style*="background: #f9f9f9"],
+[data-theme="zelda"] .modal-window div[style*="background:#f9f9f9"],
+[data-theme="zelda"] .modal-window div[style*="background: #f9f9f9"],
+[data-theme="zelda"] div[style*="background: #fff;"],
+[data-theme="zelda"] div[style*="background:#fff;"] {
+    background: var(--bg-secondary) !important;
+}
+[data-theme="zelda"] textarea[style*="border: 1px solid #e5e5ea"],
+[data-theme="zelda"] textarea[style*="border:1px solid #e5e5ea"],
+[data-theme="zelda"] select[style*="border: 1px solid #e5e5ea"],
+[data-theme="zelda"] select[style*="border:1px solid #e5e5ea"] {
+    border-color: var(--border-medium) !important;
+    background: var(--bg-elevated) !important;
+    color: var(--text-primary) !important;
+}
+/* 論壇 5ch 表示色修正 */
+[data-theme="zelda"] .fch-post-num { color: var(--text-primary); }
+[data-theme="zelda"] .fch-post-label { color: var(--text-secondary); }
+[data-theme="zelda"] .fch-post-author { color: #5cb85c; }
+[data-theme="zelda"] .fch-post-date { color: var(--text-secondary); }
+[data-theme="zelda"] .fch-post-content { color: var(--text-primary); }
+[data-theme="zelda"] .fch-tl-content { color: var(--text-secondary); background: var(--bg-elevated); }
+[data-theme="zelda"] .fch-tl-block { border-top-color: var(--border-light); }
+/* 5ch 串标题/链接：深色底上 #0000EE 不可读 → 换可读亮蓝 */
+[data-theme="zelda"] .fch-thread-title { color: #6fa8ff; }
+
+/* ============ 动物森友会 / Cozy Island 沉浸细节 ============
+   亮色主题、暖底深字本就可读 —— 不需要夜空那套暗色可读性修正（input/#fff/#666/论坛 5ch 色）。
+   只加桌面 chrome 的动森质感：叶子壁纸 / 图标 3D 按压 / 圆润页码 / 暖阴影卡片。 */
+
+/* 壁纸：草绿纯底 + 散落叶子/草点 motif（同希卡那条 #desktop>* ID 规则的坑、提高特异性恢复 absolute） */
+[data-theme="animal"] #desktop > .wallpaper {
+    position: absolute;
+    inset: 0;
+    background-color: transparent;
+    background-image: url('../assets/textures/leaf.svg');
+    background-repeat: repeat;
+    background-size: 200px 200px;
+    background-position: center;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    opacity: 1;
+}
+
+/* app 图标圆润暖白 + 动森招牌 3D 按压阴影（底部实色块浮起感） */
+[data-theme="animal"] .app-icon {
+    border: 2px solid rgba(159, 146, 125, 0.40);
+    border-radius: 20px;
+    box-shadow:
+        0 4px 0 0 rgba(189, 174, 160, 0.55),
+        0 6px 12px rgba(107, 92, 67, 0.20);
+}
+/* 草绿底上深棕标签 + 白光晕描边、清楚又可爱 */
+[data-theme="animal"] .app-label {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.75), 0 0 2px rgba(255, 255, 255, 0.9);
+}
+[data-theme="animal"] .status-bar {
+    text-shadow: 0 1px 2px rgba(255, 255, 255, 0.6);
+}
+
+/* 动森页码点：圆润 + 黄色激活带白圈 */
+[data-theme="animal"] .page-dots .dot {
+    background: rgba(255, 255, 255, 0.55);
+    border-radius: 50%;
+}
+[data-theme="animal"] .page-dots .dot.active {
+    background: #f5c31c;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.55);
+    transform: scale(1.25);
+}
+
+/* 设置卡有机圆角 + 暖阴影 + 主题卡激活薄荷边 */
+[data-theme="animal"] .settings-card {
+    border-radius: 18px;
+    box-shadow: 0 3px 10px rgba(107, 92, 67, 0.12);
+}
+[data-theme="animal"] .theme-card.is-active {
+    border-color: #19c8b9;
+    box-shadow: 0 0 0 1px #19c8b9, 0 4px 12px rgba(25, 200, 185, 0.18);
+}
+
+/* ============ 夏雨 / Summer Rain — 雨天玻璃沉浸（仅桌面 chrome） ============
+   背景=内嵌雨天玻璃照片（--wallpaper-gradient 已指向 webp）。这里只升级 #desktop
+   浮层：玻璃图标/widget + 浅色浮层文字 + 全屏雨幕 + 图标水珠。
+   仿真 app 内部色系（--bg-base 等仍是浅色）一律不碰、浅字不泄漏进 app。 */
+
+/* —— 真实雨天玻璃窗：透亮薄雾厚玻璃图标（v2.115.0）——
+   小 blur 提亮保透（能隐约见雨景）+ 多层 inset 骗玻璃厚度折射边 + 淡蓝细 symbol。
+   背景直接覆盖（不动 --app-icon-bg 变量，避免污染 forum-page-btn 等复用方）。 */
+[data-theme="summer-rain"] .app-icon {
+    background: linear-gradient(160deg, rgba(225, 238, 248, 0.15), rgba(178, 208, 230, 0.07));
+    backdrop-filter: blur(5px) saturate(1.5) brightness(1.13);
+    -webkit-backdrop-filter: blur(5px) saturate(1.5) brightness(1.13);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+        inset 0 2px 2px rgba(255, 255, 255, 0.95),     /* 顶部亮高光 */
+        inset 0 -3px 7px rgba(108, 152, 192, 0.42),     /* 底部折射暗边 */
+        inset 2px 0 5px rgba(255, 255, 255, 0.22),       /* 左厚度 */
+        inset -2px 0 5px rgba(138, 178, 210, 0.3),       /* 右厚度 */
+        0 10px 22px rgba(12, 30, 50, 0.4),               /* 外投影悬浮 */
+        0 2px 5px rgba(12, 30, 50, 0.28);
+    color: #d4e7f6;   /* symbol 淡蓝玻璃色（svg 走 currentColor 继承）*/
+}
+/* symbol 调细更精致（覆盖 style.css 全局 stroke-width:1.8、仅夏雨）+ 圆角线头 + 高光描边 */
+[data-theme="summer-rain"] .app-icon svg {
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    filter: drop-shadow(0 1px 1px rgba(255, 255, 255, 0.6))
+            drop-shadow(0 -0.5px 0.5px rgba(70, 110, 150, 0.4));
+}
+/* 深蓝背景上浅字描影才清楚 */
+[data-theme="summer-rain"] .app-label {
+    text-shadow: 0 1px 3px rgba(20, 40, 60, 0.5);
+}
+[data-theme="summer-rain"] .status-bar {
+    text-shadow: 0 1px 3px rgba(20, 40, 60, 0.5);
+}
+
+/* widget 玻璃质感（时钟/音乐卡默认是 --bg-card 实色白、不是 --glass-panel；
+   这里单独把它们做成透亮薄雾厚玻璃、内文字转浅、不动 --glass-panel 变量避免污染 app） */
+[data-theme="summer-rain"] .widget-card {
+    background: linear-gradient(160deg, rgba(225, 238, 248, 0.16), rgba(178, 208, 230, 0.08));
+    backdrop-filter: blur(6px) saturate(1.5) brightness(1.1);
+    -webkit-backdrop-filter: blur(6px) saturate(1.5) brightness(1.1);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow:
+        inset 0 2px 2px rgba(255, 255, 255, 0.92),
+        inset 0 -3px 8px rgba(108, 152, 192, 0.4),
+        inset 2px 0 5px rgba(255, 255, 255, 0.2),
+        inset -2px 0 5px rgba(138, 178, 210, 0.28),
+        0 10px 24px rgba(12, 30, 50, 0.38),
+        0 2px 5px rgba(12, 30, 50, 0.26);
+}
+[data-theme="summer-rain"] .widget-clock,
+[data-theme="summer-rain"] .widget-vinyl {
+    background: rgba(220, 236, 247, 0.12);
+    color: rgba(255, 255, 255, 0.92);
+}
+[data-theme="summer-rain"] .widget-clock .clock-time {
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 4px rgba(20, 40, 60, 0.4);
+}
+[data-theme="summer-rain"] .widget-clock .clock-weekday,
+[data-theme="summer-rain"] .widget-clock .clock-date {
+    color: rgba(240, 246, 251, 0.78);
+}
+[data-theme="summer-rain"] .vinyl-wide .vinyl-title,
+[data-theme="summer-rain"] .vinyl-title {
+    color: rgba(255, 255, 255, 0.95);
+}
+[data-theme="summer-rain"] .vinyl-wide .vinyl-artist,
+[data-theme="summer-rain"] .vinyl-artist {
+    color: rgba(240, 246, 251, 0.85);
+}
+
+/* 页码点：浅色玻璃点 + 激活态明显 */
+[data-theme="summer-rain"] .page-dots .dot {
+    background: rgba(255, 255, 255, 0.4);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+[data-theme="summer-rain"] .page-dots .dot.active {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    transform: scale(1.3);
+}
+
+/* 论坛分页按钮：--app-icon-bg 被它复用、夏雨下变得很透、补一道可读底（仅此一处 app 内防护、不动色系） */
+[data-theme="summer-rain"] .forum-page-btn {
+    background: var(--bg-elevated);
+}
+
+/* —— 夏雨下关 .wallpaper 磨砂、让内嵌雨天背景图清晰 ——
+   v2.91.0 起雨由全屏 canvas（RainEngine / js/rain.js）画、.wallpaper 闲置不放雨。
+   #desktop > * { position: relative } 这条 ID 规则会把 .wallpaper 压成 relative + 0 高
+   （inset 失效）。提高 selector 特异性（class 数 2 > ID 规则的 0）恢复 absolute，无需 !important。 */
+[data-theme="summer-rain"] #desktop > .wallpaper {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    pointer-events: none;
+}
+
+/* 图标在玻璃上：position:relative 保留无害（水珠改由 canvas 盖在最上层、不再用伪元素，
+   故无需 overflow:hidden 裁剪）。 */
+[data-theme="summer-rain"] .app-icon {
+    position: relative;
+}
