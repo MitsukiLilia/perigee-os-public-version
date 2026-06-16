@@ -1128,24 +1128,6 @@
     font-size: 13px;
 }
 
-/* ========== Weibo API 设置 ========== */
-
-#weiboApiCard .wb-model-pick-btn {
-    background: #f5f5f5;
-    color: #333;
-    border: 1px solid #ddd;
-    padding: 8px 12px;
-    border-radius: 6px;
-    margin: 4px;
-    cursor: pointer;
-    font-size: 13px;
-    display: inline-block;
-}
-#weiboApiCard .wb-model-pick-btn:active {
-    background: #ff8200;
-    color: #fff;
-}
-
 /* ========== 顶部 refresh 按钮（home tab）========== */
 .weibo-top-bar {
     position: relative;

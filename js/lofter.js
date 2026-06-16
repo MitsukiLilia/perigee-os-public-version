@@ -326,7 +326,8 @@ const Lofter = {
     // systemPrompt（v2.94.2 新增、可选）：短文路径把作者人设/世界观/规则放 system role
     //   （DS 对 system 的指令遵循显著强于 user message）；其他路径（tag/长篇/合集）不传 = null、
     //   行为完全不变（整段仍走 user message）。
-    // temperature: 1 — lofter 创作统一温度（作者定、保险值）。只作用于 lofter 自身的 4 条生成路径、
+    // temperature（v2.120.0 起用户可调）：读 apiOverride.temperature（中文圈 API 设置卡的滑块、
+    //   与微博共用）；用户没设过则沿用保险值 1。只作用于 lofter 自身的生成路径、
     //   不影响其他板块（Weibo._callLLM 是另一个独立同名方法、各管各的）。
     async _callLLM(prompt, systemPrompt = null) {
         const override = AppState.data.weiboData?.apiOverride;
@@ -338,11 +339,14 @@ const Lofter = {
                 model: override.model
             }
             : null;
+        // 中文圈用户温度（设置卡可调、与微博共用 apiOverride.temperature）；未设则沿用保险值 1。
+        const userTemp = override?.temperature;
+        const temp = (typeof userTemp === 'number') ? userTemp : 1;
         return await Utils.callChatAPI(
             [{ role: 'user', content: prompt }],
             systemPrompt,
             overrideConfig,
-            { temperature: 1 }
+            { temperature: temp }
         );
     },
 

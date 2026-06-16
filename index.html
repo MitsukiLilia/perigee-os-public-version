@@ -34,6 +34,7 @@
     <link rel="stylesheet" href="css/forum.css">
     <link rel="stylesheet" href="css/pixiv.css">
     <link rel="stylesheet" href="css/twitter.css">
+    <link rel="stylesheet" href="css/wandoro.css">
     <link rel="stylesheet" href="css/line.css">
     <meta name="theme-color" content="#007AFF">
 </head>
@@ -153,7 +154,7 @@
                     <button class="nav-btn" onclick="GroupChat.showCreateModal()" title="グループ作成" data-i18n-title="line.create_group"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6a3 3 0 0 1 0 6"/><path d="M17 13.5a5.5 5.5 0 0 1 4 5.5"/></svg></button>
                     <button class="nav-btn add-character-btn">＋</button>
                 </div>
-                <div class="chat-list-container" id="chatList"></div>
+                <div class="line-chat-list-container" id="chatList"></div>
             </div>
             <!-- 对话视图 -->
             <div id="line-talk-conversation" style="display:none;flex-direction:column;flex:1;min-height:0;">
@@ -192,9 +193,9 @@
             </div>
         </div>
 
-        <div class="messages-container" id="messagesContainer"></div>
+        <div class="line-messages-container" id="messagesContainer"></div>
 
-        <div class="chat-input-glass">
+        <div class="line-chat-input-glass">
             <button id="triggerAIBtn" class="heart-fab">
                 <svg viewBox="0 0 24 24" fill="currentColor" style="width: 20px; height: 20px;">
                     <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
@@ -210,7 +211,7 @@
             <button id="stickerBtn" class="attachment-btn" title="スタンプ" data-i18n-title="line.stickers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:20px;height:20px;"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4 4 0 0 0 7 0"/><circle cx="9" cy="9.5" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="9.5" r="1" fill="currentColor" stroke="none"/></svg></button>
             <button class="attachment-btn" title="送金" data-i18n-title="line.send_money" onclick="LineTalk.showTransferPanel()" style="font-weight:700;font-size:15px;">¥</button>
             <input type="text" id="messageInput" placeholder="メッセージを入力..." data-i18n-placeholder="line.msg_input_placeholder" autocomplete="off" />
-            <button id="sendBtn" class="send-icon-btn">↑</button>
+            <button id="sendBtn" class="line-send-btn">↑</button>
             <input type="file" id="imageInput" accept="image/*" style="display: none;">
         </div>
 
@@ -1695,11 +1696,16 @@
                         <option value="openai">OpenAI</option>
                         <option value="google">Google (Gemini)</option>
                         <option value="claude">Claude</option>
+                        <option value="custom" data-i18n="settings.weibo_api_provider_custom">自定义（OpenAI 兼容）</option>
                     </select>
                 </div>
                 <div class="setting-row">
                     <label>Base URL</label>
-                    <input type="text" id="wbApiUrl" style="flex:1;">
+                    <div style="display:flex; gap:5px;">
+                        <input type="text" id="wbApiUrl" style="flex:1;">
+                        <button id="wbApiFetchModels" class="glass-btn small" style="width:auto; margin:0;">Fetch</button>
+                    </div>
+                    <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="settings.weibo_api_fetch_note">* 填好 Key 后点 Fetch 自动拉取模型列表</p>
                 </div>
                 <div class="setting-row">
                     <label>API Key</label>
@@ -1707,13 +1713,20 @@
                 </div>
                 <div class="setting-row">
                     <label>Model</label>
-                    <input type="text" id="wbApiModel" data-i18n-placeholder="settings.weibo_api_model_placeholder" placeholder="点击下方「获取模型」自动拉取" style="flex:1;">
+                    <div style="position:relative;">
+                        <input type="text" id="wbApiModel" data-i18n-placeholder="settings.weibo_api_model_placeholder" placeholder="点击 Fetch 自动拉取，或手动输入" style="width:100%; padding-right:30px;">
+                        <select id="wbApiModelSelect" style="position:absolute; right:0; top:0; height:100%; width:30px; opacity:0; cursor:pointer;"></select>
+                        <span style="position:absolute; right:10px; top:10px; pointer-events:none; color:#999;">▼</span>
+                    </div>
                 </div>
-                <div class="setting-row" style="gap:8px;">
-                    <button id="wbApiFetchModels" class="glass-btn" data-i18n="settings.weibo_api_fetch_models">获取模型</button>
+                <div class="setting-row">
+                    <label>Temperature: <span id="wbApiTempValue">1.0</span></label>
+                    <input type="range" id="wbApiTemperature" min="0" max="2" step="0.1" value="1.0">
+                    <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="settings.weibo_api_temp_note">* 中文圈创作温度，微博 / lofter 共用。越高越发散，DeepSeek 创作场景可调高</p>
+                </div>
+                <div class="setting-row">
                     <button id="wbApiSave" class="glass-btn primary" data-i18n="settings.weibo_api_save">保存</button>
                 </div>
-                <div id="wbApiModelsList" style="padding:0 16px 12px;"></div>
             </div>
 
             <!-- Image Generation API -->
@@ -4361,21 +4374,13 @@
         <div class="modal-window" style="max-width:340px;">
             <h3 data-i18n="forum.npc_h3">NPC 信息</h3>
             <label style="font-size:12px; color:#888; display:block; margin-bottom:5px;" data-i18n="forum.npc_role_label">角色 / 职位（必填）</label>
-            <div style="position:relative;">
-                <input type="text" id="npcRole" list="npcRolePresets" placeholder="如：监督 / 脚本 / 声优 / 官方推特 / 画师" data-i18n-placeholder="forum.npc_role_placeholder" style="width:100%;box-sizing:border-box;padding-right:34px;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="position:absolute;right:11px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:#999;pointer-events:none;"><path d="M6 9l6 6 6-6"/></svg>
+            <div class="npc-role-field">
+                <input type="text" id="npcRole" placeholder="如：监督 / 脚本 / 声优 / 官方推特 / 画师" data-i18n-placeholder="forum.npc_role_placeholder" autocomplete="off" style="width:100%;box-sizing:border-box;padding-right:38px;margin-bottom:0;">
+                <button type="button" class="npc-role-dd-toggle" onclick="Forum._toggleRoleDropdown(event)" aria-label="预置身份">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div id="npcRoleDropdown" class="npc-role-dropdown" style="display:none;"></div>
             </div>
-            <datalist id="npcRolePresets">
-                <option value="制作人"></option>
-                <option value="系列構成"></option>
-                <option value="監督"></option>
-                <option value="脚本"></option>
-                <option value="声優"></option>
-                <option value="作画監督"></option>
-                <option value="演出"></option>
-                <option value="公式Twitter"></option>
-                <option value="画師"></option>
-            </datalist>
             <label style="font-size:12px; color:#888; display:block; margin-top:10px; margin-bottom:5px;" data-i18n="forum.npc_name_label">姓名（可选）</label>
             <input type="text" id="npcName" placeholder="如：田中一郎" data-i18n-placeholder="forum.npc_name_placeholder">
             <label style="font-size:12px; color:#888; display:block; margin-top:10px; margin-bottom:5px;" data-i18n="forum.npc_handle_label">账号（可选）</label>
@@ -4477,6 +4482,7 @@
     <script src="js/pixiv-novel.js"></script>
     <script src="js/illust-gallery.js"></script>
     <script src="js/twitter.js"></script>
+    <script src="js/wandoro.js"></script>
     <script src="js/weibo.js"></script>
     <script src="js/lofter.js"></script>
     <script src="js/tts-engine.js"></script>

@@ -129,19 +129,19 @@ const LineVoice = {
     renderBubble(msg, isUser) {
         const preview = this._esc(this.cleanForTts(msg.content).slice(0, 80));
         const duration = msg.duration ? `${Math.ceil(msg.duration)}″` : '—';
-        return `<div class="voice-bubble ${isUser ? 'voice-user' : 'voice-ai'}" data-msg-id="${msg.id}" onclick="LineVoice.togglePlay('${msg.id}')">
-            <div class="voice-play">
+        return `<div class="line-voice-bubble ${isUser ? 'voice-user' : 'voice-ai'}" data-msg-id="${msg.id}" onclick="LineVoice.togglePlay('${msg.id}')">
+            <div class="line-voice-play">
                 <svg class="voice-play-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
                 <svg class="voice-pause-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="display:none"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
                 <svg class="voice-loading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="display:none"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
             </div>
-            <div class="voice-wave">
+            <div class="line-voice-wave">
                 ${Array.from({length:14}).map((_,i)=>`<span style="animation-delay:${i*0.08}s"></span>`).join('')}
             </div>
-            <div class="voice-duration">${duration}</div>
-            <button class="voice-expand" onclick="event.stopPropagation();LineVoice.toggleExpand('${msg.id}')" title="${I18n.t('line.voice_toggle_text_title', '显示/隐藏文字')}">${I18n.t('line.voice_text_btn', '字')}</button>
+            <div class="line-voice-duration">${duration}</div>
+            <button class="line-voice-expand" onclick="event.stopPropagation();LineVoice.toggleExpand('${msg.id}')" title="${I18n.t('line.voice_toggle_text_title', '显示/隐藏文字')}">${I18n.t('line.voice_text_btn', '字')}</button>
         </div>
-        ${msg.expanded ? `<div class="voice-text-expanded">${preview}</div>` : ''}`;
+        ${msg.expanded ? `<div class="line-voice-text-expanded">${preview}</div>` : ''}`;
     },
 
     _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
@@ -229,7 +229,7 @@ const LineVoice = {
     },
 
     _setState(msgId, state) {
-        const el = document.querySelector(`.voice-bubble[data-msg-id="${msgId}"]`);
+        const el = document.querySelector(`.line-voice-bubble[data-msg-id="${msgId}"]`);
         if (!el) return;
         el.classList.remove('is-loading', 'is-playing');
         const play = el.querySelector('.voice-play-icon');

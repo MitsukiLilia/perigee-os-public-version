@@ -2073,6 +2073,11 @@ body.dark-mode .tw-profile-avatar-wrap { background: var(--bg-base); }
 .tw-pixiv-link-card:hover {
     background: rgba(255,255,255,0.08);
 }
+/* v2.122.0 链路B: 懒生成中（防再次点击 + 视觉） */
+.tw-pixiv-link-card.tw-pixiv-link-loading {
+    pointer-events: none;
+    opacity: 0.85;
+}
 .tw-pixiv-link-icon {
     font-size: 18px;
     flex-shrink: 0;
@@ -2081,6 +2086,119 @@ body.dark-mode .tw-profile-avatar-wrap { background: var(--bg-base); }
     color: var(--text-primary);
     font-size: 13px;
     font-weight: 500;
+}
+/* v2.124.0 真推特风 pixiv embed 丰富卡 */
+.tw-pixiv-link-card.tw-pixiv-rich {
+    display: block;
+    padding: 0;
+    overflow: hidden;
+}
+.tw-pixiv-main {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    align-items: stretch;
+}
+.tw-pixiv-cover {
+    position: relative;
+    width: 72px;
+    height: 96px;
+    flex-shrink: 0;
+    background: #f5efe6;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    overflow: hidden;
+}
+.tw-pixiv-cover-text {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #5a4a3a;
+    text-align: center;
+    word-break: break-word;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.tw-pixiv-cover-author {
+    margin-top: 5px;
+    max-width: 100%;
+    font-size: 9px;
+    color: #8a7a68;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.tw-pixiv-cover-ph {
+    display: inline-flex;
+    color: #a8957f;
+}
+.tw-pixiv-cover-ph svg {
+    width: 28px;
+    height: 28px;
+}
+.tw-pixiv-r18 {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.72);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 1px 5px;
+    border-radius: 0 4px 0 4px;
+    z-index: 1;
+}
+.tw-pixiv-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.tw-pixiv-syn {
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+.tw-pixiv-tags {
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #1d9bf0;
+    word-break: break-word;
+}
+.tw-pixiv-source {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 12px;
+    border-top: 1px solid rgba(128, 128, 128, 0.22);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.tw-pixiv-source svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+}
+/* teaser loading 态：覆盖 rich 的 block 布局、恢复简洁行内 spinner */
+.tw-pixiv-link-card.tw-pixiv-rich.tw-pixiv-link-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
 }
 
 /* doujin_writer fanFriend profile 信息卡 */

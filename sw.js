@@ -1,6 +1,6 @@
 // Service Worker for Perigee OS
 // 版本号：每次更新代码时修改此版本号以强制更新缓存
-const VERSION = '2.116.0';
+const VERSION = '2.131.0';
 const CACHE_NAME = `perigee-os-v${VERSION}`;
 
 // 核心本地资源（必须全部成功，否则 SW 安装失败）
@@ -34,6 +34,7 @@ const coreUrls = [
   './js/pixiv-novel.js',
   './js/illust-gallery.js',
   './js/twitter.js',
+  './js/wandoro.js',
   './js/weibo.js',
   './js/lofter.js',
   './js/tts-engine.js',
@@ -71,6 +72,7 @@ const coreUrls = [
   './css/forum.css',
   './css/pixiv.css',
   './css/twitter.css',
+  './css/wandoro.css',
   './css/line.css',
   './assets/textures/washi.svg',
   './assets/textures/watercolor.svg',

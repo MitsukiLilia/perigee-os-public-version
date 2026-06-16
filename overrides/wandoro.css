@@ -1,0 +1,153 @@
+/* ===== ワンドロ（お題企画）/ privatter 外链揭示卡 样式【公開版 = 全年齢 SFW】 ===== */
+/* privatter 揭示卡 + 全屏 privatter 页 + 翻译块。公開版は全年齢のみ（分级角标 / パスワードゲート 样式は含まない）。 */
+
+/* ===== ワンドロ 外链揭示卡（时间线 OGP 卡）— privatter（文）===== */
+.tw-ext-card {
+    display: flex;
+    align-items: stretch;
+    margin-top: 8px;
+    border: 1px solid rgba(128,128,128,0.28);
+    border-radius: 14px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.03);
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.tw-ext-card:hover { background: rgba(255,255,255,0.07); }
+.tw-ext-thumb {
+    flex-shrink: 0;
+    width: 92px;
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    text-align: center;
+    padding: 6px;
+}
+.tw-ext-thumb-privatter { background: #199cd8; font-size: 15px; }  /* Privatter+ 纯蓝（无渐变）*/
+.tw-ext-meta {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
+}
+.tw-ext-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+}
+.tw-ext-domain { font-size: 12px; color: var(--text-secondary); }
+
+/* ===== privatter 页（全屏 overlay、仿 privatter.me 浅色站、固定色不跟主题）===== */
+.tw-priv-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0,0,0,0.45);
+    display: none;
+    justify-content: center;
+    align-items: stretch;
+}
+.tw-priv-overlay.active { display: flex; }
+body.tw-priv-open { overflow: hidden; }
+.tw-priv-page {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    background: #eaf6fd;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.tw-priv-topbar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+    background: #f7fbfe;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.tw-priv-logo { font-weight: 800; font-size: 18px; color: #199cd8; letter-spacing: 0.2px; }
+.tw-priv-close { background: none; border: none; color: #5a6b76; cursor: pointer; padding: 6px; display: inline-flex; }
+.tw-priv-scroll {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 14px calc(28px + env(safe-area-inset-bottom));
+}
+.tw-priv-card {
+    background: #fff;
+    border: 1px solid #cfe6f5;
+    border-radius: 10px;
+    padding: 18px 16px 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.tw-priv-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.tw-priv-author { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tw-priv-avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: #eef3f6;
+    color: #9aa7b0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.tw-priv-username { font-weight: 700; font-size: 15px; color: #2a3a44; }
+.tw-priv-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #8595a0; }
+.tw-priv-chars { color: #8595a0; }
+.tw-priv-badge {
+    border: 1px solid #c9d8e2;
+    border-radius: 4px;
+    padding: 1px 7px;
+    color: #6b7b86;
+    background: #f3f7fa;
+}
+.tw-priv-share-row { display: flex; gap: 14px; margin: 14px 0 4px; color: #199cd8; }
+.tw-priv-share-row svg { width: 18px; height: 18px; }
+.tw-priv-title { text-align: center; font-weight: 700; font-size: 17px; color: #2a3a44; margin: 18px 0 0; word-break: break-word; }
+.tw-priv-divider { border: none; border-top: 1px solid #e3edf3; margin: 14px 0 18px; }
+.tw-priv-body-text { font-size: 15px; line-height: 1.95; color: #33424c; word-break: break-word; }
+.tw-priv-body-text p { margin: 0 0 1.1em; }
+.tw-priv-body-text p:last-child { margin-bottom: 0; }
+/* privatter SS 翻译按钮 + 译文块 */
+.tw-priv-translate-wrap { margin-top: 18px; }
+.tw-priv-translate-btn {
+    background: none;
+    border: 1px solid #c9d8e2;
+    color: #199cd8;
+    font-size: 13px;
+    padding: 6px 16px;
+    border-radius: 16px;
+    cursor: pointer;
+}
+.tw-priv-translate-btn:disabled { opacity: 0.6; cursor: default; }
+.tw-priv-translated { display: none; font-size: 14.5px; line-height: 1.9; color: #5a6b76; margin-top: 14px; word-break: break-word; }
+.tw-priv-translated.tw-priv-translated-show { display: block; }
+.tw-priv-translated p { margin: 0 0 1em; }
+.tw-priv-translated p:last-child { margin-bottom: 0; }
+.tw-priv-tl-divider { border-top: 1px dashed #d3e1ea; margin: 0 0 14px; }
+.tw-priv-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 48px 0;
+    color: #8595a0;
+    font-size: 14px;
+}
+.tw-priv-spinner svg { width: 30px; height: 30px; color: #199cd8; }

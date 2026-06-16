@@ -12,6 +12,7 @@ const Twitter = {
     _searchQuery: '',
     currentInboxDmId: null,
     currentDmMode: 'npc',
+    _refreshing: false,   // v2.123.0 刷新并发锁（in-memory、不入存档）
 
     // 头像颜色预设
     _AVATAR_COLORS: ['#1d9bf0', '#17bf63', '#794bc4', '#f4900c', '#e0245e', '#2b7be9', '#00ba7c', '#ff6b35', '#8e44ad', '#16a085'],
@@ -33,6 +34,7 @@ const Twitter = {
         pin: `<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" style="vertical-align:-1px"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>`,
         birdLg: `<svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>`,
         book: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>`,
+        loader: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-0.15em"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`,
         palette: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
         paletteLg: `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
         tv: `<svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-0.15em"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>`,
@@ -223,6 +225,12 @@ const Twitter = {
         this.switchTab(this._currentTab, false);
         this.renderTimeline();
         this._updateBadges();
+        // v2.123.0 链路A：进推特页就后台预热 doujin_writer 种子池（沉浸感铁律：无 UI、加锁兜底并发）
+        setTimeout(() => {
+            if (typeof PixivNovel !== 'undefined' && PixivNovel._maybeSeedDoujinWriters) {
+                PixivNovel._maybeSeedDoujinWriters().catch(e => console.warn('[Twitter seed prewarm]', e));
+            }
+        }, 200);
     },
 
     _updateUserAvatar() {
@@ -796,10 +804,8 @@ const Twitter = {
                </div>`) : ''}
         ${this._renderQuotedTweetHtml(tweet)}
         ${tweet.poll ? this._renderPoll(tweet) : ''}
-        ${tweet.pixivLink ? `<a class="tw-pixiv-link-card" href="${this._esc(tweet.pixivLink)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">
-            <div class="tw-pixiv-link-icon">${this._svg.book}</div>
-            <div class="tw-pixiv-link-text">${I18n.t('tw.profile_pixiv_link_card_title', 'pixiv で読む')}</div>
-        </a>` : ''}
+        ${this._renderPixivLinkCard(tweet)}
+        ${(typeof Wandoro !== 'undefined') ? Wandoro._renderGatedLinkCard(tweet) : ''}
         ${tlBlock}
         <div class="tw-card-footer">
             <button class="tw-action-btn tw-action-reply" onclick="event.stopPropagation();Twitter.openTweet('${this._esc(tweet.id)}',${isNpcStr})" title="${I18n.t('tw.action_reply', 'リプライ')}">${this._svg.chat}<span>${replyCount || ''}</span></button>
@@ -813,19 +819,25 @@ const Twitter = {
 
     // ===== 刷新时间线（两个 Tab 同时更新）=====
     async refreshTimeline() {
+        if (this._refreshing) {                                    // v2.123.0 并发锁：刷新中再点直接挡（根治狂点并发 push+saveData 写花数据）
+            Utils.showToast(I18n.t('tw.refresh_in_progress', '更新中です…'));
+            return;
+        }
+        this._refreshing = true;
         const btn = document.getElementById('twRefreshBtn');
         if (btn) btn.classList.add('spinning');
         try {
             // 五つのジェネレーター並列（ツイート×2 + 同人イベント + トレンド + 通知）
             // allSettled：一部が失敗（API超限/タイムアウト等）しても成功分は反映し続ける。
             // 旧 Promise.all は1つでも失敗すると全体が「更新失敗」になり、"刷新报错但内容正常" の原因だった。
-            const _genLabels = ['npcTweets', 'fanTweets', 'fandomEvent', 'trends', 'notifications'];
+            const _genLabels = ['npcTweets', 'fanTweets', 'fandomEvent', 'trends', 'notifications', 'wandoro'];
             const _results = await Promise.allSettled([
                 this._generateNpcTweets(),
                 this._generateFanTweets(),
                 this._generateFandomEvent(),
                 this._generateTrends(),
-                this._generateNotifications()
+                this._generateNotifications(),
+                ((typeof Wandoro !== 'undefined') ? Wandoro._maybeWandoroByTime() : Promise.resolve(null))   // v2.129.0 完結後の ワンドロ 時間駆動 → wandoro.js（缺失则 no-op）
             ]);
             _results.forEach((r, i) => {
                 if (r.status === 'rejected') console.warn(`[Twitter refresh] ${_genLabels[i]} failed:`, r.reason);
@@ -850,6 +862,7 @@ const Twitter = {
         } catch (e) {
             Utils.showToast(I18n.t('t.tw_refresh_failed', '更新失敗：') + e.message);
         } finally {
+            this._refreshing = false;
             if (btn) btn.classList.remove('spinning');
         }
     },
@@ -1029,17 +1042,15 @@ ${typeof Utils !== 'undefined' ? Utils.getEventContextPrompt(3) : ''}`;
             });
         });
 
-        // 只保留最新 50 条 NPC 推文
+        // 只保留最新 50 条 NPC 推文（v2.126.0 点赞推永不裁：超出 50 也保留 liked，回味得到）
         if (t.npcTweets.length > 50) {
-            const removed = t.npcTweets.slice(0, t.npcTweets.length - 50);
-            // いいね済みでない画像をIDBから削除
             const likedIds = new Set((t.likedTweetIds || []).map(l => l.id));
-            removed.forEach(tw => {
-                if (tw.image?.generatedImageId && !likedIds.has(tw.id)) {
-                    IllustGallery.remove(tw.image.generatedImageId).catch(() => {});
-                }
+            const keepRecent = new Set(t.npcTweets.slice(-50).map(tw => tw.id));
+            // 被裁的（既非最近 50、也未点赞）→ 其生成图从 IDB 删除
+            t.npcTweets.filter(tw => !keepRecent.has(tw.id) && !likedIds.has(tw.id)).forEach(tw => {
+                if (tw.image?.generatedImageId) IllustGallery.remove(tw.image.generatedImageId).catch(() => {});
             });
-            t.npcTweets = t.npcTweets.slice(-50);
+            t.npcTweets = t.npcTweets.filter(tw => keepRecent.has(tw.id) || likedIds.has(tw.id));
         }
         Utils.saveData();
     },
@@ -1197,6 +1208,7 @@ ${Utils.PROMPTS.infoAccessRule()}
 - 自然なカジュアル日本語で書くこと: 草 / やば / 覇権 / 泣いた / 刺さった / 沼った / 待ってこれ / 尊い / 無理 / しんどい 等
 - ハッシュタグと絵文字を自然に含めること
 - 文手 (doujin_writer) は創作活動の日常を投稿すること（「新刊の表紙できた！」「pixivに短編上げました」「原稿が進まない…」）
+- doujin_writer が「pixivに〜を上げた/投稿した/公開した」と自作小説を告知するツイートで、その作品が上記「pixiv 新作情報」に存在しない場合は、PIXIV_NOVEL_ID は NONE のまま PIXIV_PROMO: yes を付けること。読者がカードをタップした瞬間にアプリ内でその作品を生成して読めるようにするため。その場合ツイート本文には作品のCP・シチュエーション・ネタが具体的に伝わるように書くこと（後で小説本文を生成する種になる）。
 - 絵師 (doujin_artist) はラフ・落書き・進捗イラストを投稿すること（「描きました！」「ラフですが見てください」）
 - CP厨は推しカプへの感情を全力で表現すること（「あのシーンのAB解釈が天才すぎる」「今日もABが尊い」）
 - 企画主は参加型のツイートをすること（「#○○ワンドロ 本日のお題は『再会』です！」「推しカプ5選タグやりませんか」）
@@ -1219,7 +1231,8 @@ IMAGE_TYPE: [photo/art/screenshot/NONE]
 QUOTE_AUTHOR: [引用元の発信者名、引用ツイートでない場合NONE]
 QUOTE_HANDLE: [引用元の@handle、NONEの場合省略可]
 QUOTE_CONTENT: [引用元ツイートの内容1-2行、NONEの場合省略可]
-PIXIV_LINK: [pixiv URL、NPC 自宣推用、自宣でない場合 NONE]
+PIXIV_NOVEL_ID: [上記「pixiv 新作情報」の pixiv ID をそのまま記入、NPC 自宣推用、自宣でない場合 NONE]
+PIXIV_PROMO: [このツイートが「自分の新作pixiv小説を投稿/告知」する自宣ツイートで、かつ PIXIV_NOVEL_ID が NONE（上記「pixiv 新作情報」に該当作品が無い）の場合のみ yes。それ以外（単なるpixivへの言及・感想・他人の作品の話題、または告知でない場合）は NONE]
 TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 REPLY_1: [名前]|[@handle]|[fan/industry/media/doujin_writer/doujin_artist/cp_fan]|[日本語のリプライ]
 REPLY_2: [名前]|[@handle]|[fan/industry/media/doujin_writer/doujin_artist/cp_fan]|[日本語のリプライ]
@@ -1232,6 +1245,7 @@ REPLY_2: [名前]|[@handle]|[fan/industry/media/doujin_writer/doujin_artist/cp_f
 NAME: [アカウント名]
 HANDLE: [@handle]
 TYPE: [fan/doujin_writer/doujin_artist/cp_fan等]
+PIXIV_PROMO: [このスレッドが「自分の新作pixiv小説を投稿/告知」する自宣スレッドで、かつ該当作品が上記「pixiv 新作情報」に無い場合のみ yes。それ以外は NONE]
 THREAD_1: [1/n ツイート本文]
 THREAD_2: [2/n ツイート本文]
 THREAD_3: [3/n ツイート本文]
@@ -1252,6 +1266,33 @@ POLL: [選択肢1]|[票数]||[選択肢2]|[票数]||[選択肢3]|[票数]||[選�
             const friend = friends.find(f => f.handle === tw.handle);
             if (friend) { tw.name = friend.name; }
         });
+
+        // v2.123.0 链路A：对文手推代码确定性反查作者近期未宣传新作 → 挂 pixivNovelId（不靠 LLM 填，学微博 linkedLofterArticleId）
+        const _promotedWriters = new Set();   // 节制④：同一作者本次刷新最多挂一篇（防长帖/同人多条重复挂卡）
+        // v2.128.0 修复链路A重复自宣链路B小说：已被任意推文链接过的小说 id（含链路B点击回填、A 历次自宣）→ A 永不二次宣传。
+        // 用「出生即定」的判据（fromTweetId / 已链接 id）替代仅靠运行时设 promotedOnTwitter（并行 generator + 快速连刷下时序不可靠）。
+        const _linkedNovelIds = new Set((t.npcTweets || []).map(x => x.pixivNovelId).filter(Boolean));
+        parsed.forEach(tw => {
+            if (tw.type !== 'doujin_writer') return;                    // 节制①：只文手推
+            if (tw.threadIndex != null && tw.threadIndex > 0) return;   // 节制⑤：长帖只有首条(i===0)带 pixiv 卡，与解析期约束一致
+            const writer = friends.find(f => f.type === 'doujin_writer' && (f.handle === tw.handle || f.pixivHandle === tw.handle));
+            if (!writer) return;
+            if (_promotedWriters.has(writer.id)) return;                 // 节制④：同作者本刷已挂过、不再挂第二篇
+            const promote = writer.promoteStyle || 'occasional';
+            const chance = promote === 'active' ? 1.0 : (promote === 'shy' ? 0.05 : 0.3);
+            if (Math.random() > chance) return;                          // 节制②：promoteStyle 个性闸（保留作者性格、代码可靠执行非 LLM 掷骰）
+            const novels = (AppState.data.pixivData && AppState.data.pixivData.novels) || [];
+            const recent = novels
+                .filter(n => n.author_npc_id === writer.id && !n.fromTweetId && !n.promotedOnTwitter && !_linkedNovelIds.has(n.id) && n.createdAt && (Date.now() - n.createdAt) < 3 * 86400000)
+                .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))[0];   // 取最新一篇
+            if (!recent) return;                                         // 节制③：必须真有近期未宣传新作（链路B 出身 fromTweetId 的不算、已被任意推文链接过的不算）
+            tw.pixivNovelId = recent.id;                                 // 代码确定性挂、覆盖 LLM 填值
+            tw.pixivPromo = false;                                       // 有真作品、不走链路B 懒生成
+            recent.promotedOnTwitter = true;                            // 已宣传标记（快路径；真正的去重靠 fromTweetId + _linkedNovelIds）
+            _linkedNovelIds.add(recent.id);                            // v2.128.0 本刷内立即登记、防同批次/后续刷新重复挂同一篇
+            _promotedWriters.add(writer.id);
+        });
+        // promotedOnTwitter 的持久化由本函数尾部 Utils.saveData()（push loop 后必跑）统一落盘，避免一次刷新重复全量写
 
         const now = Date.now();
         parsed.forEach((tw, i) => {
@@ -1274,7 +1315,10 @@ POLL: [選択肢1]|[票数]||[選択肢2]|[票数]||[選択肢3]|[票数]||[選�
                 replies: tw.replies || [],
                 likes: eng.likes,
                 retweets: eng.retweets,
-                savedToForumId: null
+                savedToForumId: null,
+                pixivNovelId: tw.pixivNovelId || null,  // v2.121.0 doujin_writer 自宣推 → app 内 pixiv 小说关联(修复历史漏字段)
+                pixivPromo: tw.pixivPromo || false,  // v2.122.0 链路B: 自宣推待生成标记（懒生成小说用）
+                gated: tw.gated || null  // v2.126.0 ワンドロ privatter/poipiku 外链揭示卡（门后懒生成）
             });
         });
 
@@ -1289,7 +1333,8 @@ POLL: [選択肢1]|[票数]||[選択肢2]|[票数]||[選択肢3]|[票数]||[選�
                     IllustGallery.remove(tw.image.generatedImageId).catch(() => {});
                 }
             });
-            t.npcTweets = t.npcTweets.filter(tw => tw.source !== 'fan' || tw.fromSearch || keepIds.has(tw.id));
+            // v2.126.0 点赞推永不裁：超出 60 也保留 liked（连揭开的 SS 全留，个人主页 いいね tab 回味得到）
+            t.npcTweets = t.npcTweets.filter(tw => tw.source !== 'fan' || tw.fromSearch || keepIds.has(tw.id) || likedIds.has(tw.id));
         }
         Utils.saveData();
     },
@@ -1319,7 +1364,6 @@ POLL: [選択肢1]|[票数]||[選択肢2]|[票数]||[選択肢3]|[票数]||[選�
 ${noContextRule}${eventGateRule}
 
 企画の例（1つ選択）:
-- ワンドロ / ワンライ（1時間お絵描き / 1時間ライティング）：お題と参加ツイート
 - 推しカプ○選：好きなシーンやモーメントをリストアップ
 - ○○版深夜の創作クラスタ：深夜にゆるく語り合う
 - 記念日企画：キャラの誕生日や作品の記念日を祝う
@@ -1381,7 +1425,8 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             const fanTweets = t.npcTweets.filter(tw => tw.source === 'fan' && !tw.fromSearch);
             if (fanTweets.length > 60) {
                 const keepIds = new Set(fanTweets.slice(-60).map(tw => tw.id));
-                t.npcTweets = t.npcTweets.filter(tw => tw.source !== 'fan' || tw.fromSearch || keepIds.has(tw.id));
+                const likedIds = new Set((t.likedTweetIds || []).map(l => l.id));   // v2.126.0 点赞推永不裁
+                t.npcTweets = t.npcTweets.filter(tw => tw.source !== 'fan' || tw.fromSearch || keepIds.has(tw.id) || likedIds.has(tw.id));
             }
             Utils.saveData();
             Utils.emitEvent('tweet_event', 'twitter', { title: parsed[0]?.content?.slice(0, 40) || 'ファンダムイベント', summary: `${parsed.length}件のイベントツイート` });
@@ -1402,6 +1447,10 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             const tHandle = (tb.match(/^HANDLE:\s*(.+)$/m) || [])[1]?.trim() || '@user';
             const tType = (tb.match(/^TYPE:\s*(.+)$/m) || [])[1]?.trim() || 'fan';
             const tTl = (tb.match(/^TRANSLATION:\s*(.+)$/m) || [])[1]?.trim() || null;
+            const tPromoRaw = (tb.match(/^PIXIV_PROMO:\s*(.+)$/m) || [])[1]?.trim();
+            const tPixivPromo = !!(tPromoRaw && /^yes\b/i.test(tPromoRaw));
+            let tPixivNovelId = (tb.match(/^PIXIV_NOVEL_ID:\s*(.+)$/m) || [])[1]?.trim();
+            if (!tPixivNovelId || tPixivNovelId === 'NONE') tPixivNovelId = null;
             const threadParts = [];
             const partRe = /^THREAD_(\d+):\s*(.+)$/gm;
             let pm;
@@ -1409,12 +1458,15 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             if (threadParts.length >= 2) {
                 const threadId = 'thread_' + Utils.generateId();
                 threadParts.forEach((content, i) => {
-                    threadTweets.push({ name: tName, handle: tHandle, type: tType, content, translation: i === 0 ? tTl : null, replies: [], image: null, quotedTweet: null, threadId, threadIndex: i, threadTotal: threadParts.length });
+                    threadTweets.push({ name: tName, handle: tHandle, type: tType, content, translation: i === 0 ? tTl : null, replies: [], image: null, quotedTweet: null, threadId, threadIndex: i, threadTotal: threadParts.length, pixivPromo: i === 0 ? tPixivPromo : false, pixivNovelId: i === 0 ? tPixivNovelId : null });
                 });
             }
         }
 
-        const blocks = text.split(/---\s*FANTWEET\s*---/i).map(s => s.trim()).filter(Boolean);
+        // v2.122.0 single 解析前先剥掉 FANTHREAD 块（threadRe 已先抽取完毕、不受影响）；
+        // 否则 thread 块会黏在前一条 single 的 block 末尾、其 PIXIV_PROMO 等字段污染该 single
+        const textNoThreads = text.replace(/---\s*FANTHREAD\s*---\s*\n[\s\S]*?(?=---\s*FAN(?:TWEET|THREAD)\s*---|$)/gi, '');
+        const blocks = textNoThreads.split(/---\s*FANTWEET\s*---/i).map(s => s.trim()).filter(Boolean);
         const now = Date.now();
         const singleTweets = blocks.map(block => {
             const name = (block.match(/^NAME:\s*(.+)$/m) || [])[1]?.trim() || 'ファン';
@@ -1422,8 +1474,9 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             const rawType = (block.match(/^TYPE:\s*(.+)$/m) || [])[1]?.trim() || 'fan';
             const validTypes = ['fan', 'industry', 'media', 'doujin_writer', 'doujin_artist', 'cp_fan', 'organizer', 'event_promo', 'event_haul', 'event_repo', 'fanart_share', 'radio_drama'];
             const type = validTypes.includes(rawType) ? rawType : 'fan';
-            // Content: stop before IMAGE_EMOJI, TRANSLATION or REPLY_
-            const contentMatch = block.match(/CONTENT:[ \t]*\n?([\s\S]*?)(?=\nIMAGE_EMOJI:|\nQUOTE_AUTHOR:|\nTRANSLATION:|\nREPLY_\d|\s*$)/);
+            // Content: stop before 任何结构化字段（v2.125.0：补全 POLL/PIXIV_*/IMAGE_DESC 等边界，
+            // 否则 LLM 把 POLL 行紧跟 CONTENT 后时会被吞进正文当文字显示——作者真机发现的投票推 bug）
+            const contentMatch = block.match(/CONTENT:[ \t]*\n?([\s\S]*?)(?=\nIMAGE_EMOJI:|\nIMAGE_DESC:|\nIMAGE_TYPE:|\nQUOTE_AUTHOR:|\nQUOTE_HANDLE:|\nQUOTE_CONTENT:|\nPIXIV_NOVEL_ID:|\nPIXIV_PROMO:|\nPIXIV_LINK:|\nPRIVATTER:|\nPOIPIKU:|\nGATED_TITLE:|\nODAI:|\nR18:|\nPASS:|\nPASS_HINT:|\nPOLL:|\nTRANSLATION:|\nREPLY_\d|\s*$)/);
             const content = contentMatch ? contentMatch[1].trim() : '';
             // 画像（オプション）
             const imgEmoji = (block.match(/^IMAGE_EMOJI:\s*(.+)$/m) || [])[1]?.trim();
@@ -1435,9 +1488,19 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             const qtHandle = (block.match(/^QUOTE_HANDLE:\s*(.+)$/m) || [])[1]?.trim();
             const qtContent = (block.match(/^QUOTE_CONTENT:\s*(.+)$/m) || [])[1]?.trim();
             const quotedTweet = (qtAuthor && qtAuthor !== 'NONE') ? { authorName: qtAuthor, authorHandle: qtHandle || '@user', content: qtContent || '', avatarColor: '#888' } : null;
-            // v2.70.0 PIXIV_LINK（NPC 自宣推用、optional）
-            const pixivLinkRaw = (block.match(/^PIXIV_LINK:\s*(.+)$/m) || [])[1]?.trim();
-            const pixivLink = (pixivLinkRaw && pixivLinkRaw !== 'NONE') ? pixivLinkRaw : null;
+            // v2.121.0 PIXIV_NOVEL_ID（NPC 自宣推用、app 内 pixiv 小说 id、optional）
+            // LLM は内部 novel id をそのまま返す。旧フォーマット(PIXIV_LINK の外部 URL)も後方互換で id を抽出
+            let pixivNovelId = (block.match(/^PIXIV_NOVEL_ID:\s*(.+)$/m) || [])[1]?.trim();
+            if (!pixivNovelId || pixivNovelId === 'NONE') {
+                const legacyLink = (block.match(/^PIXIV_LINK:\s*(.+)$/m) || [])[1]?.trim();
+                const m = (legacyLink && legacyLink !== 'NONE') ? legacyLink.match(/[?&]id=([^&\s]+)/) : null;
+                pixivNovelId = m ? m[1] : null;
+            }
+            // v2.122.0 PIXIV_PROMO（自宣推だが小説未生成 → 懒生成カード表示用）
+            const pixivPromoRaw = (block.match(/^PIXIV_PROMO:\s*(.+)$/m) || [])[1]?.trim();
+            const pixivPromo = !!(pixivPromoRaw && /^yes\b/i.test(pixivPromoRaw));
+            // v2.129.0 ワンドロ privatter/poipiku 外链揭示卡解析 → 抽到 wandoro.js（公开版 omit 文件即无 R-18 脚手架）
+            const gated = (typeof Wandoro !== 'undefined' && Wandoro.parseGated) ? Wandoro.parseGated(block) : null;
             // 投票（オプション）
             const pollRaw = (block.match(/^POLL:\s*(.+)$/m) || [])[1]?.trim();
             let poll = null;
@@ -1466,7 +1529,7 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
                     });
                 }
             }
-            return { name, handle, type, content, translation, replies, image, quotedTweet, poll, pixivLink };
+            return { name, handle, type, content, translation, replies, image, quotedTweet, poll, pixivNovelId, pixivPromo, gated };
         }).filter(r => r.content);
         return [...singleTweets, ...threadTweets];
     },
@@ -1531,6 +1594,8 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             ${tweet.image.description ? `<span class="tw-image-desc tw-image-desc-overlay">${this._esc(tweet.image.description)}</span>` : ''}
            </div>`) : ''}
     ${this._renderQuotedTweetHtml(tweet)}
+    ${this._renderPixivLinkCard(tweet)}
+    ${(typeof Wandoro !== 'undefined') ? Wandoro._renderGatedLinkCard(tweet) : ''}
     ${opTl}
     <div class="tw-thread-time">${this._formatDate(tweet.timestamp)}</div>
     <div class="tw-thread-actions tw-thread-actions-v2">
@@ -3729,7 +3794,7 @@ ${formHtml}`;
 - occasional: 30% 確率で自宣（時々まとめて告知、控えめに）
 - shy: 5% 確率（基本発信しない、たまに「pixiv 更新しました」程度の短文のみ）
 
-自宣ツイートには PIXIV_LINK フィールドを含めること（pixiv ID から URL 生成: https://www.pixiv.net/novel/show.php?id=<pixiv ID>）。
+自宣ツイートには PIXIV_NOVEL_ID フィールドに上記の「pixiv ID」をそのまま記入すること（URL は生成しないこと、ID 以外の文字を含めないこと）。アプリ内の pixiv リーダーへ直接ジャンプするために使われます。
 
 ${lines}
 `;
@@ -6521,6 +6586,82 @@ ${tabContent}`;
         this.renderFanProfile();
     },
 
+    // ===== v2.121.0 时间线推文の pixiv 小说リンクカード（app 内ジャンプ） =====
+    // 旧実装は外部 URL(<a href target=_blank>)で必ず死リンク化していた（内部 id を真 pixiv の数字 id と勘違いした URL）。
+    // 微博→lofter と同様に内部 novel id で app 内リーダーへ遷移する。id が実在する novel を指す時だけカードを表示（死カード防止）。
+    _resolvePixivNovelId(tweet) {
+        if (!tweet) return null;
+        let id = tweet.pixivNovelId || null;
+        // 後方互換: 旧 tweet は pixivLink(外部 URL)しか持たない → URL から id を抽出
+        if (!id && tweet.pixivLink) {
+            const m = String(tweet.pixivLink).match(/[?&]id=([^&\s]+)/);
+            id = m ? decodeURIComponent(m[1]) : null;
+        }
+        if (!id) return null;
+        // 実在チェック: app 内に該当 novel が無ければ（LLM の捏造 id 等）カードを出さない
+        const exists = (AppState.data.pixivData?.novels || []).some(n => n.id === id);
+        return exists ? id : null;
+    },
+
+    _renderPixivLinkCard(tweet) {
+        const id = this._resolvePixivNovelId(tweet);
+        const novels = (AppState.data.pixivData && AppState.data.pixivData.novels) || [];
+        // 状态A：小说已存在 → 完整丰富卡（真推特风 pixiv embed）
+        if (id) {
+            const novel = novels.find(n => n.id === id);
+            if (novel) {
+                return this._pixivRichCard(novel, tweet, `Twitter._openPixivNovel('${this._esc(id)}')`, null);
+            }
+        }
+        // 状态B：v2.122.0 链路B 自宣推但小说尚未生成 → teaser 卡（点击时懒生成、封面占位、简介取推文）
+        if (tweet && tweet.pixivPromo && tweet.id) {
+            return this._pixivRichCard(null, tweet, `Twitter._openPromoNovel('${this._esc(tweet.id)}', this)`, tweet.id);
+        }
+        return '';
+    },
+
+    // v2.124.0 真推特风 pixiv embed 丰富卡：左封面（标题+作者+R18角标）｜右简介/tags ｜底 pixiv.net 来源行
+    // novel 为 null = 链路B 未生成的 teaser 卡（封面书图标占位、简介取推文）；promoTweetId 非空 = teaser（挂 data-promo-tweet 给懒生成 loading 复用）
+    _pixivRichCard(novel, tweet, onclick, promoTweetId) {
+        const strip = s => String(s || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+        const isPromo = !!(tweet && tweet.pixivPromo);   // 链路B：用来源推文正文当简介
+        const r18 = this._pixivIsR18(novel, tweet);
+        const r18Badge = r18 ? `<span class="tw-pixiv-r18">R-18</span>` : '';
+        // 封面：有 novel 用标题文字（复用米色书封观感）；teaser 用书 SVG 占位
+        const coverInner = novel
+            ? `<span class="tw-pixiv-cover-text">${this._esc(strip(novel.title))}</span>${novel.author ? `<span class="tw-pixiv-cover-author">${this._esc(strip(novel.author))}</span>` : ''}`
+            : `<span class="tw-pixiv-cover-ph">${this._svg.book}</span>`;
+        // 右侧：链路B（含 teaser）用推文正文当简介；Link A 已生成的用 tags 兜底、避免空白
+        let bodyInner = '';
+        if (isPromo && tweet && tweet.content) {
+            bodyInner = `<div class="tw-pixiv-syn">${this._esc(strip(tweet.content).slice(0, 90))}</div>`;
+        } else if (novel) {
+            const tags = (novel.tags || []).slice(0, 3).map(t => `#${this._esc(strip(t).replace(/^#/, ''))}`).join(' ');
+            bodyInner = tags
+                ? `<div class="tw-pixiv-tags">${tags}</div>`
+                : `<div class="tw-pixiv-syn">${this._esc(strip(novel.title))}</div>`;
+        }
+        const promoAttr = promoTweetId ? ` data-promo-tweet="${this._esc(promoTweetId)}"` : '';
+        return `<div class="tw-pixiv-link-card tw-pixiv-rich"${promoAttr} onclick="event.stopPropagation();${onclick}" role="link" tabindex="0">
+            <div class="tw-pixiv-main">
+                <div class="tw-pixiv-cover">${r18Badge}${coverInner}</div>
+                <div class="tw-pixiv-body">${bodyInner}</div>
+            </div>
+            <div class="tw-pixiv-source">${this._svg.book}<span>pixiv.net</span></div>
+        </div>`;
+    },
+
+    // v2.124.0 R-18 判定：作者「真的才有」——检测 tags/标题/推文里的成人标记，命中才挂角标（小甜饼/日常不挂）
+    _pixivIsR18(novel, tweet) {
+        const re = /R-?18|18\s*禁|成人(?:向|済)|18\s*\+|全年齢対象外|ＮＳＦＷ|NSFW/i;
+        const hay = [
+            novel && novel.title,
+            novel && (novel.tags || []).join(' '),
+            tweet && tweet.content
+        ].filter(Boolean).join(' ');
+        return re.test(hay);
+    },
+
     // ===== v2.70.0 跳 pixiv 小说阅读器 =====
     _openPixivNovel(novelId) {
         if (typeof PixivNovel !== 'undefined' && PixivNovel.openNovel) {
@@ -6533,6 +6674,50 @@ ${tabContent}`;
             PixivNovel.currentChapterIdx = 0;
         }
         Navigation.goTo('pixiv-reader');
+    },
+
+    // ===== v2.122.0 链路B: 自宣推 pixiv 小说懒生成（点击时现场生成） =====
+    async _openPromoNovel(tweetId, cardEl) {
+        const t = this._ensureData();
+        const tweet = (t.npcTweets || []).find(tw => tw.id === tweetId);
+        if (!tweet) return;
+        // 既に生成済み（実在）→ そのまま開く
+        if (tweet.pixivNovelId && (AppState.data.pixivData?.novels || []).some(n => n.id === tweet.pixivNovelId)) {
+            this._openPixivNovel(tweet.pixivNovelId);
+            return;
+        }
+        // 二重タップ防止（in-memory、データには書かない）
+        this._generatingPromo = this._generatingPromo || new Set();
+        if (this._generatingPromo.has(tweetId)) return;
+        this._generatingPromo.add(tweetId);
+        // カードを生成中表示に
+        let card = null, origHtml = null;
+        // 优先用被点击的卡片元素本身（同一推文可能在多个隐藏 screen 里都渲染了同 id 卡片）
+        if (cardEl && cardEl.classList && cardEl.classList.contains('tw-pixiv-link-card')) card = cardEl;
+        if (!card) { try { card = document.querySelector(`.tw-pixiv-link-card[data-promo-tweet="${CSS.escape(tweetId)}"]`); } catch (e) {} }
+        if (card) {
+            origHtml = card.innerHTML;
+            card.classList.add('tw-pixiv-link-loading');
+            card.innerHTML = `<div class="tw-pixiv-link-icon spinning">${this._svg.loader || this._svg.book}</div><div class="tw-pixiv-link-text">${I18n.t('tw.pixiv_promo_generating', '生成中…')}</div>`;
+        }
+        try {
+            const novelId = (typeof PixivNovel !== 'undefined' && PixivNovel.generateFromTweet)
+                ? await PixivNovel.generateFromTweet(tweet) : null;
+            if (novelId) {
+                tweet.pixivNovelId = novelId;
+                Utils.saveData();
+                this._openPixivNovel(novelId);
+            } else {
+                Utils.showToast(I18n.t('tw.pixiv_promo_failed', '作品の生成に失敗しました'));
+                if (card && origHtml != null) { card.classList.remove('tw-pixiv-link-loading'); card.innerHTML = origHtml; }
+            }
+        } catch (e) {
+            console.warn('[PromoNovel] generation failed:', e);
+            Utils.showToast(I18n.t('tw.pixiv_promo_failed', '作品の生成に失敗しました'));
+            if (card && origHtml != null) { card.classList.remove('tw-pixiv-link-loading'); card.innerHTML = origHtml; }
+        } finally {
+            this._generatingPromo.delete(tweetId);
+        }
     },
 
     _renderFanPreview() {

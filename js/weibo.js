@@ -2710,11 +2710,17 @@ ${cp.cpNickname ? `主要 CP：${cp.cpNickname}` : ''}
                 model: override.model
             }
             : null;
+        // 中文圈用户温度（设置卡可调）覆盖各路径写死的 temperature、保留 maxTokens；
+        // 未设温度（旧数据/没碰过）则保持各路径原行为。独立于 enabled、对全局 API 也生效。
+        const userTemp = override?.temperature;
+        const finalOptions = (typeof userTemp === 'number')
+            ? { ...(options || {}), temperature: userTemp }
+            : options;
         return await Utils.callChatAPI(
             [{ role: 'user', content: prompt }],
             null,
             overrideConfig,
-            options
+            finalOptions
         );
     },
 
@@ -3518,7 +3524,8 @@ const WeiboApiSettings = {
         deepseek: { url: 'https://api.deepseek.com', hint: '使用 DeepSeek 官方 API。中文场景推荐、价格便宜（v4-flash 量大用 / v4-pro 文笔好）' },
         openai:   { url: 'https://api.openai.com', hint: '使用 OpenAI 官方 API' },
         google:   { url: 'https://generativelanguage.googleapis.com', hint: '使用 Google Gemini API' },
-        claude:   { url: 'https://api.anthropic.com', hint: '使用 Claude 官方 API' }
+        claude:   { url: 'https://api.anthropic.com', hint: '使用 Claude 官方 API' },
+        custom:   { url: '', hint: '任意 OpenAI 兼容厂家：自己填 Base URL（如 硅基流动 https://api.siliconflow.cn、OpenRouter https://openrouter.ai/api/v1、月之暗面 https://api.moonshot.cn/v1），再 Fetch 拉模型' }
     },
 
     init() {
@@ -3528,9 +3535,12 @@ const WeiboApiSettings = {
         const url = document.getElementById('wbApiUrl');
         const key = document.getElementById('wbApiKey');
         const model = document.getElementById('wbApiModel');
+        const modelSelect = document.getElementById('wbApiModelSelect');
+        const temp = document.getElementById('wbApiTemperature');
+        const tempVal = document.getElementById('wbApiTempValue');
         const fetchBtn = document.getElementById('wbApiFetchModels');
         const saveBtn = document.getElementById('wbApiSave');
-        if (!enabled || !mode || !url || !key || !model) return;
+        if (!enabled || !mode || !url || !key || !model || !temp) return;
 
         enabled.checked = !!o.enabled;
         mode.value = o.mode || 'deepseek';
@@ -3538,16 +3548,30 @@ const WeiboApiSettings = {
         key.value = o.apiKey || '';
         model.value = o.model || '';
 
+        const t = (typeof o.temperature === 'number') ? o.temperature : 1;
+        temp.value = t;
+        if (tempVal) tempVal.textContent = parseFloat(t).toFixed(1);
+        temp.oninput = () => { if (tempVal) tempVal.textContent = parseFloat(temp.value).toFixed(1); };
+
         this._showHint(mode.value);
 
         mode.onchange = () => {
-            url.value = this.PRESETS[mode.value].url;
+            const presetUrls = Object.values(this.PRESETS).map(p => p.url).filter(Boolean);
+            if (mode.value === 'custom') {
+                // 自定义：保留用户已填的 URL；若当前正好是某个内置预设地址，清空让用户自己填
+                if (presetUrls.includes(url.value.trim())) url.value = '';
+            } else {
+                url.value = this.PRESETS[mode.value].url;
+            }
             model.value = '';
             this._showHint(mode.value);
         };
 
+        // 模型下拉（与全局 API 同款：input + 覆盖的隐藏 select + ▼）
+        if (modelSelect) modelSelect.onchange = () => { model.value = modelSelect.value; };
+
         fetchBtn.onclick = () => this._fetchModels(mode.value, url.value, key.value, model);
-        saveBtn.onclick = () => this._save(enabled.checked, mode.value, url.value, key.value, model.value);
+        saveBtn.onclick = () => this._save(enabled.checked, mode.value, url.value, key.value, model.value, parseFloat(temp.value));
     },
 
     _showHint(modeVal) {
@@ -3565,10 +3589,12 @@ const WeiboApiSettings = {
 
     async _fetchModels(mode, baseUrl, apiKey, modelInput) {
         if (!apiKey) { Utils.showToast(I18n.t('settings.weibo_api_key_required', '请先填写 API Key')); return; }
-        let url = baseUrl.replace(/\/$/, '');
-        const listEl = document.getElementById('wbApiModelsList');
-        if (listEl) listEl.innerHTML = `<div style="font-size:13px; color:#999;">${I18n.t('settings.weibo_api_fetching', '获取模型中...')}</div>`;
+        const select = document.getElementById('wbApiModelSelect');
+        const fetchBtn = document.getElementById('wbApiFetchModels');
+        const prevSelected = modelInput.value.trim();
+        let url = (baseUrl || '').replace(/\/$/, '');
 
+        if (fetchBtn) { fetchBtn.textContent = '⏳'; fetchBtn.disabled = true; }
         try {
             let models = [];
             if (mode === 'google') {
@@ -3585,7 +3611,8 @@ const WeiboApiSettings = {
                     'claude-3-haiku-20240307'
                 ];
             } else {
-                // OpenAI 兼容（含 DeepSeek）
+                // OpenAI 兼容（含 DeepSeek / 自定义厂家）
+                if (!url) { Utils.showToast(I18n.t('settings.weibo_api_url_required', '请先填写 Base URL')); return; }
                 const res = await fetch(url + '/v1/models', {
                     headers: { 'Authorization': 'Bearer ' + apiKey }
                 });
@@ -3595,33 +3622,49 @@ const WeiboApiSettings = {
             }
 
             if (models.length === 0) {
-                if (listEl) listEl.innerHTML = `<div style="font-size:13px; color:#999;">${I18n.t('settings.weibo_api_no_models', '未获取到模型列表')}</div>`;
+                Utils.showToast(I18n.t('settings.weibo_api_no_models', '未获取到模型列表'));
                 return;
             }
 
-            if (listEl) {
-                listEl.innerHTML = '<div style="font-size:12px; color:#666; margin-bottom:6px;">' + I18n.t('settings.weibo_api_pick_model', '点击选择模型：') + '</div>' +
-                    models.map(m => `<button class="wb-model-pick-btn" data-model="${m}">${m}</button>`).join('');
-                listEl.querySelectorAll('.wb-model-pick-btn').forEach(btn => {
-                    btn.onclick = () => {
-                        modelInput.value = btn.dataset.model;
-                        Utils.showToast(I18n.t('settings.weibo_api_model_selected', '已选择：') + btn.dataset.model);
-                    };
-                });
-            }
+            models.sort();
+            this._fillModelSelect(select, modelInput, models, prevSelected);
+            Utils.showToast(I18n.t('settings.weibo_api_fetched', '模型已拉取，点 ▼ 选择'));
         } catch (err) {
             console.warn('[WeiboApiSettings] fetch failed', err);
-            if (listEl) listEl.innerHTML = `<div style="font-size:13px; color:#ff5544;">${I18n.t('settings.weibo_api_fetch_failed', '获取失败：') + err.message}</div>`;
+            Utils.showToast(I18n.t('settings.weibo_api_fetch_failed', '获取失败：') + err.message);
+        } finally {
+            if (fetchBtn) { fetchBtn.textContent = 'Fetch'; fetchBtn.disabled = false; }
         }
     },
 
-    _save(enabled, mode, baseUrl, apiKey, model) {
+    // 填充模型下拉框、回填到 input（与全局 tryFetchModels 同行为）
+    _fillModelSelect(select, modelInput, models, prevSelected) {
+        if (!select) return;
+        select.innerHTML = '';
+        models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = m;
+            select.appendChild(opt);
+        });
+        select.onchange = () => { modelInput.value = select.value; };
+        // 智能恢复之前选中的模型，否则默认第一个
+        if (prevSelected && models.includes(prevSelected)) {
+            select.value = prevSelected;
+        } else {
+            select.value = models[0];
+            modelInput.value = models[0];
+        }
+    },
+
+    _save(enabled, mode, baseUrl, apiKey, model, temperature) {
         AppState.data.weiboData.apiOverride = {
             enabled,
             mode,
             baseUrl: baseUrl.trim(),
             apiKey: apiKey.trim(),
             model: model.trim(),
+            temperature: (typeof temperature === 'number' && !isNaN(temperature)) ? temperature : 1,
             sharedWithLofter: true
         };
         Utils.saveData();

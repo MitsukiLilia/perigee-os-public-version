@@ -2,37 +2,438 @@
    LINE 板块样式（第 9 刀 CSS 拆分 · 最后一刀）
    从 style.css 拆出。core(style.css) 先加载，本文件后加载。
 
-   ★ 故意留在 core（共享/全局/变量，未移入本文件）：
-   - :root { --line-* } LINE 配色变量 —— 本文件引用它们，变量定义须留 core
-   - 聊天基础设施（6 板块共享，按铁律留 core）：
-     chat-list-container / chat-item / chat-avatar / chat-info / chat-name /
-     chat-preview / messages-container / message / message-bubble /
-     message-avatar / message-actions / msg-action-btn / chat-input-glass /
-     voice-* 全族（语音泡）—— 被 tutor / worldbook / writer / forum /
-     mail / twitter 共用（grep js/+index.html 实证）
-   - send-icon-btn 主定义（line+forum+tutor 共享）及其 line-green 覆盖
-   - .message-avatar.hidden-avatar / .message.system.summary-message（共享/全局）
+   ★ 故意留在 core（共享/全局，未移入本文件）：
+   - 聊天基础设施合并基线（chat-list-container/chat-item/chat-avatar/
+     chat-info/chat-name/chat-preview/messages-container/message/
+     message-bubble/message-avatar/message-actions/msg-action-btn/
+     chat-input-glass/send-icon-btn）—— 2026-06-10 LINE 解耦后使用者为
+     tutor / worldbook / writer / mail / forum / changelog；
+     LINE 已改用本文件「聊天件（解耦自 core）」段的 line- 前缀副本
    - .modal-title-icon（通用 modal 标题图标，高复用潜力）
    - @media(aspect-ratio:1/1) 内 .line-tab-* 响应式（跟全局壳一致留 core）
 
-   本文件收拢的是 LINE 独占的「装饰层」：导航(line-tab/lh-/#line-talk-*) +
+   本文件收拢的是 聊天件解耦段（line-chat- / line-message- / line-voice-
+   全族 + :root --line- 变量，2026-06-10 自 core 迁入，voice 族连
+   @keyframes voiceWave/voiceSpin 一并迁入）+ LINE 独占的「装饰层」：导航(line-tab/lh-/#line-talk-*) +
    LINE Pay(lp-) + LINE Voom(lv-) + 分享/送金卡(share-card/transfer-card) +
    输入框独占件(attachment-btn/heart-fab/emoji-picker) + 对话菜单(conv-menu) +
    揭示板leak卡(leak-permit) + 推特好友tag(lh-friend-tag-twitter) +
    聊天页深度仿真独占类(line-status/line-header/line-date-sep/line-retry/
-   msg-meta/msg-read/msg-time/msg-body-wrap/sticker-*/typing-*/
+   msg-meta/msg-read/msg-time/msg-body-wrap/sticker- 系/typing- 系/
    chat-online-dot/chat-content/chat-time/chat-unread/chat-*-row/
    chat-pin-separator/chat-avatar-wrap/chat-bg-dot/group-avatar 等) +
    行内 SVG 图标尺寸(line-stat-icon/line-btn-icon/lh-service-icon svg 等)
    ============================================================ */
+/* ==========================================================
+   聊天件（2026-06-10 解耦自 core · line- 前缀）
+   = core 原 block1「聊天部分」+ block2「LINE 深度仿真」合成副本，
+   零视觉变化。修饰符类（user/assistant/system/summary-message/
+   hidden-avatar/theme-color/voice-ai/voice-user/is-playing/
+   is-loading）保持原名，挂在 line- 主类上不跨界。
+   语音族引用主题变量 var(--bubble-*)（随主题变色），勿字面量化。
+   ========================================================== */
+:root {
+    --line-green: #06c755;
+    --line-bg-default: #8cabd9;
+    --line-bubble-me: #06c755;
+    --line-bubble-me-text: #fff;
+    --line-bubble-ai: #fff;
+    --line-bubble-ai-text: #111;
+    --line-read-color: #06c755;
+}
+
+/* --- 聊天列表 --- */
+.line-chat-list-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    background: var(--bg-card);
+}
+
+.line-chat-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.line-chat-item:active {
+    background: var(--bg-secondary);
+}
+
+.line-chat-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    margin-right: 0;
+    object-fit: cover;
+}
+
+.line-chat-name {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 0;
+    color: var(--text-primary);
+}
+
+.line-chat-preview {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    margin-right: 8px;
+}
+
+/* --- 消息区域 --- */
+.line-messages-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--line-bg-default);
+    gap: 4px;
+    padding: 12px 16px;
+}
+
+.line-message {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    position: relative;
+    gap: 8px;
+    margin-bottom: 2px;
+    animation: none;
+}
+
+.line-message.user {
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+}
+
+.line-message-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 0;
+    background: var(--bg-secondary);
+    overflow: hidden;
+    flex-shrink: 0;
+    align-self: flex-end;
+}
+
+.line-message-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.line-message-avatar.hidden-avatar {
+    visibility: hidden;
+}
+
+.line-message-bubble {
+    position: relative;
+    word-wrap: break-word;
+    max-width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    box-shadow: none;
+}
+
+.line-message.assistant .line-message-bubble {
+    background: var(--line-bubble-ai);
+    color: var(--line-bubble-ai-text);
+    border-radius: 18px 18px 18px 4px;
+}
+
+.line-message.user .line-message-bubble {
+    background: var(--line-bubble-me);
+    color: var(--line-bubble-me-text);
+    border-radius: 18px 18px 4px 18px;
+}
+
+/* 主题色模式覆盖（设置「LINE绿 vs 主题色」） */
+.line-messages-container.theme-color .line-message.assistant .line-message-bubble {
+    background: var(--bubble-ai);
+    color: var(--bubble-ai-text);
+}
+
+.line-messages-container.theme-color .line-message.user .line-message-bubble {
+    background: var(--bubble-me);
+    color: var(--bubble-me-text);
+}
+
+.line-message-bubble img {
+    max-width: 200px;
+    border-radius: var(--radius-md);
+    margin: 4px 0;
+    display: block;
+}
+
+/* --- 消息悬浮操作（再生成/删除） --- */
+.line-message-actions {
+    position: absolute;
+    top: 50%;
+    right: -45px;
+    transform: translateY(-50%);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.line-message.user .line-message-actions {
+    right: auto;
+    left: -45px;
+}
+
+.line-message:hover .line-message-actions {
+    display: flex;
+}
+
+.line-msg-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.05);
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.line-msg-action-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.line-msg-action-btn:active {
+    transform: scale(0.9);
+}
+
+/* --- 输入栏 --- */
+.line-chat-input-glass {
+    margin: 0;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    border: none;
+    border-top: 1px solid var(--border-light);
+}
+
+.line-chat-input-glass input {
+    flex: 1;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-medium);
+    outline: none;
+    padding: 8px 14px;
+    font-size: 14px;
+    color: var(--text-primary);
+    border-radius: var(--radius-pill);
+}
+
+.line-chat-input-glass input:focus {
+    border-color: var(--line-green);
+}
+
+/* 深色主题输入框修正（顺序翻转补偿）：themes.css 的通用
+   [data-theme] input{background:var(--bg-elevated)} 在 style.css 时代
+   靠「后加载」压过同特异性的 .chat-input-glass input；解耦后本规则
+   迁入 line.css、晚于 themes.css 加载，顺序翻转 → 这里以更高特异性
+   (0,2,1) 显式补回，维持改名前的夜空/zelda 视觉。 */
+[data-theme="night-sky"] .line-chat-input-glass input,
+[data-theme="zelda"] .line-chat-input-glass input {
+    background: var(--bg-elevated);
+}
+
+.line-send-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--line-green);
+    color: white;
+    border: none;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* --- 系统/总结消息 --- */
+.line-message.system {
+    justify-content: center;
+}
+
+.line-message.system .line-message-bubble {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+    font-size: 13px;
+    text-align: center;
+}
+
+/* v2.94.0 起总结气泡已跳过渲染、保守带走（原 block2 LINE 背景适配） */
+.line-message.system.summary-message {
+    justify-content: center;
+}
+
+.line-message.system.summary-message .line-message-bubble {
+    background: rgba(255,255,255,0.85);
+    color: var(--text-primary);
+    max-width: 85%;
+}
+
+/* --- 语音泡全族（整体迁自 core，core 中已删；保留主题变量引用） --- */
+.line-voice-bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    min-width: 140px;
+    max-width: 240px;
+    border-radius: 18px;
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.15s;
+}
+.line-voice-bubble:active { transform: scale(0.97); }
+
+.line-voice-bubble.voice-ai {
+    background: var(--bubble-ai);
+    color: var(--bubble-ai-text);
+    border-radius: 18px 18px 18px 4px;
+}
+.line-voice-bubble.voice-user {
+    background: var(--bubble-me);
+    color: var(--bubble-me-text);
+    border-radius: 18px 18px 4px 18px;
+}
+
+.line-voice-play {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.18);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.line-voice-bubble.voice-ai .line-voice-play {
+    background: rgba(0,0,0,0.08);
+}
+.line-voice-play svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* 波形：14 个小竖条，播放时依次跳动 */
+.line-voice-wave {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 2px;
+    height: 20px;
+}
+.line-voice-wave span {
+    display: block;
+    width: 2px;
+    height: 6px;
+    border-radius: 1px;
+    background: currentColor;
+    opacity: 0.55;
+}
+/* 12 种随机高度伪装真实波形 */
+.line-voice-wave span:nth-child(3n)   { height: 14px; }
+.line-voice-wave span:nth-child(4n+1) { height: 10px; }
+.line-voice-wave span:nth-child(5n+2) { height: 16px; }
+.line-voice-wave span:nth-child(7n)   { height: 8px;  }
+
+.line-voice-bubble.is-playing .line-voice-wave span {
+    animation: voiceWave 0.9s ease-in-out infinite;
+}
+@keyframes voiceWave {
+    0%, 100% { transform: scaleY(0.45); opacity: 0.45; }
+    50%      { transform: scaleY(1.25); opacity: 1; }
+}
+
+.line-voice-bubble.is-loading .voice-loading-icon {
+    animation: voiceSpin 1s linear infinite;
+}
+@keyframes voiceSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+.line-voice-duration {
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.72;
+    letter-spacing: 0.2px;
+    flex-shrink: 0;
+}
+
+.line-voice-expand {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.1);
+    color: inherit;
+    font-size: 10px;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+}
+.line-voice-bubble.voice-user .line-voice-expand {
+    background: rgba(255,255,255,0.2);
+}
+.line-voice-expand:hover { opacity: 1; }
+
+.line-voice-text-expanded {
+    margin-top: 6px;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.04);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-width: 240px;
+}
+/* 夜空深色适配（跟组件就近维护，沿 themes.css 头注既定约定；
+   原 core 同伴 body.dark-mode 选择器系死代码、不带走） */
+[data-theme="night-sky"] .line-voice-text-expanded {
+    background: rgba(255,255,255,0.08);
+}
+
 /* ========================================================
    LINE 容器 & 底部标签栏
    ======================================================== */
-#line-container {
-    flex-direction: column;
-    height: 100%;
-    position: relative;
-}
+/* ⚠ 此处原有 #line-container { flex-direction:column; height:100%; position:relative; }
+   —— 自第 9 刀起就被上方头注释里的字面「星号+斜杠」（原文 sticker-星号斜杠）提前
+   终止注释吞掉、从未真正生效（生产实证：computed 全来自 .screen）。2026-06-10 修复
+   注释地雷时一并移除：column 与 .screen 重复、height 冗余、position:relative(ID 特
+   异性)会压过 .screen{position:fixed} 复发 iOS 底部白条（v2.96.5 修复）。
+   删除 = 维持线上现状。CSS 注释里永远不要写紧贴的星号+斜杠。 */
 #line-container.active { display: flex; }
 
 .line-tab-screen {
@@ -128,8 +529,8 @@
 }
 
 #line-talk-conversation .app-header,
-#line-talk-conversation .messages-container,
-#line-talk-conversation .chat-input-glass,
+#line-talk-conversation .line-messages-container,
+#line-talk-conversation .line-chat-input-glass,
 #line-talk-conversation .sticker-panel,
 #line-talk-conversation .conversation-menu {
     /* 继承现有样式 */
@@ -742,7 +1143,7 @@
     flex-shrink: 0;
 }
 
-.message:not(.user) .msg-meta {
+.line-message:not(.user) .msg-meta {
     align-items: flex-start;
 }
 
@@ -758,7 +1159,7 @@
 }
 
 /* 主题色模式下时间颜色 */
-.messages-container.theme-color .msg-time {
+.line-messages-container.theme-color .msg-time {
     color: var(--text-tertiary);
 }
 
@@ -800,7 +1201,7 @@
 .line-retry-btn:active { opacity: 0.8; }
 
 /* --- 贴纸消息 --- */
-.message .sticker-content {
+.line-message .sticker-content {
     width: 120px;
     height: 120px;
     display: flex;
@@ -808,13 +1209,13 @@
     justify-content: center;
 }
 
-.message .sticker-content img {
+.line-message .sticker-content img {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
 }
 
-.message .sticker-content .sticker-emoji {
+.line-message .sticker-content .sticker-emoji {
     font-size: 80px;
     line-height: 1;
 }
@@ -995,7 +1396,7 @@
 .line-btn-icon { display: inline-flex; width: 16px; height: 16px; vertical-align: -3px; }
 .line-btn-icon svg { width: 100%; height: 100%; }
 .lv-refresh-btn .line-btn-icon { margin-right: 5px; }
-.msg-action-btn .line-btn-icon { width: 15px; height: 15px; vertical-align: 0; }
+.line-msg-action-btn .line-btn-icon { width: 15px; height: 15px; vertical-align: 0; }
 /* 聊天列表角标（置顶/静音）+ 群组名前缀 */
 .chat-pin-icon, .chat-mute-icon { display: inline-flex; width: 13px; height: 13px; color: var(--text-tertiary); }
 .chat-pin-icon svg, .chat-mute-icon svg { width: 100%; height: 100%; }

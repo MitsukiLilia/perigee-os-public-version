@@ -10,6 +10,7 @@ const PixivNovel = {
     _pendingNextChapterNovelId: null,  // deprecated, kept for compat
     _pendingChapterAction: null,       // { type:'next'|'reroll', novelId, chapterIdx? }
     _isGeneratingChapter: false,       // 并发锁：续章/重写生成中、防双击重复生成
+    _seedingDoujin: false,             // v2.123.0 并发锁：doujin_writer 种子播种中、防并发重复种
 
     // ===== 初始化 =====
     init() {
@@ -23,15 +24,8 @@ const PixivNovel = {
             };
         }
 
-        // 确保有默认文风预设
-        const settings = d.pixivData.settings;
-        if (!settings.writingStyles) {
-            settings.writingStyles = [];
-        }
-        if (settings.writingStyles.length === 0) {
-            settings.writingStyles = this.getDefaultWritingStyles();
-            Utils.saveData();
-        }
+        // 确保有默认文风预设（v2.123.0 抽到 _ensureWritingStyles 复用：推特预热种子也走它、不依赖打开 pixiv tab）
+        const settings = this._ensureWritingStyles();
 
         // 应用保存的字体大小
         this.applyFontSize(settings.fontSize || 16);
@@ -108,13 +102,32 @@ const PixivNovel = {
         setTimeout(() => this._maybeSeedDoujinWriters(), 100);
     },
 
-    // ===== v2.70.0 后台 idempotent 种子播种检测 =====
-    async _maybeSeedDoujinWriters() {
-        const fanFriends = (AppState.data.twitterData && AppState.data.twitterData.fanFriends) || [];
-        const writers = fanFriends.filter(f => f.type === 'doujin_writer');
+    // v2.123.0：确保 pixivData + 默认文风就绪（init 和推特预热种子共用、种子不再依赖打开 pixiv tab）
+    _ensureWritingStyles() {
+        const d = AppState.data;
+        if (!d.pixivData) {
+            d.pixivData = {
+                settings: { cp: '', forumLinked: true, additionalWorldBookIds: [], customPrompt: '', novelRules: '', language: 'jp-cn', writingStyles: [] },
+                novels: [], favorites: []
+            };
+        }
+        const settings = d.pixivData.settings;
+        if (!settings.writingStyles) settings.writingStyles = [];
+        if (settings.writingStyles.length === 0) {
+            settings.writingStyles = this.getDefaultWritingStyles();
+            Utils.saveData();
+        }
+        return settings;
+    },
 
-        // 已有 doujin_writer → 跳过
-        if (writers.length > 0) return;
+    // ===== v2.70.0 后台 idempotent 种子播种检测（v2.123.0 修幂等判据 + 加并发锁）=====
+    async _maybeSeedDoujinWriters() {
+        if (this._seedingDoujin) return;                 // v2.123.0 并发锁（init / 推特预热 / 刷新可能并发触发）
+        const fanFriends = (AppState.data.twitterData && AppState.data.twitterData.fanFriends) || [];
+
+        // v2.123.0 幂等：只认「种子产的」writer（_seeded），手动加的好友不算、也不会把池子锁死
+        const seededWriters = fanFriends.filter(f => f.type === 'doujin_writer' && f._seeded);
+        if (seededWriters.length > 0) return;
 
         // 没填 worldContext 或没 CP → 静默跳过、不报错
         const worldContext = (typeof Forum !== 'undefined' && Forum.getWorldContext)
@@ -125,17 +138,20 @@ const PixivNovel = {
         const cpInfo = (typeof Broadcast !== 'undefined' && Broadcast.getCP) ? Broadcast.getCP() : {};
         if (!cpInfo.hasCP) return;
 
-        // 条件满足 → 静默后台播种
+        // 条件满足 → 静默后台播种（加锁、防并发重复种）
+        this._seedingDoujin = true;
         try {
             await this._seedDoujinWriters(5);
         } catch (e) {
             console.warn('[Seed v2.70.0] 播种失败、下次再试:', e);
+        } finally {
+            this._seedingDoujin = false;
         }
     },
 
     // ===== v2.70.0 LLM 种子播种（无 UI、无 toast）=====
     async _seedDoujinWriters(count = 5) {
-        const settings = AppState.data.pixivData.settings;
+        const settings = this._ensureWritingStyles();  // v2.123.0：确保 pixivData + 默认文风就绪（推特预热可能早于 pixiv.init）
         const styles = (settings.writingStyles || []).filter(s => s.enabled);
         if (styles.length === 0) return;  // 没有可用 style、跳过
 
@@ -220,6 +236,7 @@ ${count}人分繰り返してください。`;
                 handle: fields.HANDLE,
                 pixivHandle: fields.PIXIV_HANDLE || fields.HANDLE,
                 type: 'doujin_writer',
+                _seeded: true,  // v2.123.0 种子标记：幂等判据只认它，手动加的好友不影响补种
                 avatarColor: this._randomAvatarColor(),
                 bio: fields.BIO || null,
                 leakProne: Math.random() > 0.3,  // doujin 默认偏 leakProne
@@ -2562,8 +2579,9 @@ ${autoPerspectiveInstruction}
                 result.content = extractTag('CONTENT');
 
                 // v2.70.0: author 强制覆盖（仅当 pickedNpc 非空）
+                // v2.124.0: 用日文笔名（NPC name = 推特显示名，作者要的）；handle 仅作兜底
                 if (pickedNpc) {
-                    result.author = pickedNpc.pixivHandle || pickedNpc.handle;
+                    result.author = pickedNpc.name || (pickedNpc.pixivHandle || pickedNpc.handle || '').replace(/^@+/, '');
                 }
 
                 if (!result.content) {
@@ -2621,6 +2639,178 @@ ${autoPerspectiveInstruction}
         } catch (e) {
             console.warn('[AutoGen] Novel generation failed:', e.message);
             // 静默失败，不打扰用户
+        }
+    },
+
+    // ===== v2.122.0 链路B：从推特自宣推懒生成对应小说（点击时现场生成）=====
+    // 入参：推文对象（authorName / authorHandle / content / id）
+    // 返回：成功 → 新 novel.id 字符串；失败 → null（不向外 throw）
+    async generateFromTweet(tweet) {
+        try {
+            if (!tweet || !tweet.content || !String(tweet.content).trim()) return null;
+
+            const worldContext = this.getNovelContext();
+            if (!worldContext.trim()) return null; // 没有世界观就跳过
+
+            const settings = AppState.data.pixivData.settings;
+            const cpInfo = Broadcast.getCP();
+            const cp = cpInfo.cp;
+            const cpNickname = cpInfo.cpNickname;
+            const hasCP = cpInfo.hasCP;
+            const langInstruction = this.getLanguageInstruction();
+
+            // === 作者命中：用 authorHandle 在 fanFriends 里找匹配的 doujin_writer ===
+            const fanFriends = (AppState.data.twitterData && AppState.data.twitterData.fanFriends) || [];
+            const handle = tweet.authorHandle;
+            let pickedNpc = fanFriends.find(f => f.type === 'doujin_writer' && (f.handle === handle || f.pixivHandle === handle)) || null;
+            let npcStyle = (pickedNpc && pickedNpc.writingStyleId)
+                ? (settings.writingStyles || []).find(s => s.id === pickedNpc.writingStyleId) || null
+                : null;
+
+            const selectedStyle = npcStyle || this.getRandomWritingStyle();
+            const styleInstruction = selectedStyle
+                ? `\n【文风要求 Writing Style】\n${selectedStyle.rules}\n`
+                : '';
+
+            // NPC 作者身份段（仅当 pickedNpc 非空）
+            const npcInstruction = pickedNpc
+                ? `\n【作者身份 Author Identity】\n你是同人作家 ${pickedNpc.name}（${pickedNpc.handle}）。${pickedNpc.bio || ''}${pickedNpc.contentTags && pickedNpc.contentTags.length > 0 ? `\n你偏好的创作主题：${pickedNpc.contentTags.join('、')}。本作请围绕这些主题或相关方向展开（如果与当前剧情匹配）。` : ''}\n`
+                : '';
+
+            // 视角指令（读取上次保存的设置，默认第三人称）
+            const autoPerspective = settings.perspective || 'third';
+            const autoFocusChar = settings.focusChar || '';
+            let autoPerspectiveInstruction = '';
+            if (autoPerspective === 'third') {
+                autoPerspectiveInstruction = `\n【视角要求 — 绝对禁止违反】\n必须严格使用第三人称（三人称）叙事。绝对禁止在叙事中使用第一人称代词（I/私/俺/僕/あたし 等）。角色内心独白/心理描写必须用全角括号（）包裹以区分客观叙述。`;
+                if (autoFocusChar) {
+                    autoPerspectiveInstruction += `\n焦点角色限制：全程跟随【${autoFocusChar}】的视角（三人称限制视角），不得脱离该角色，不得写其他角色的内心想法。`;
+                }
+            } else if (autoPerspective === 'first') {
+                autoPerspectiveInstruction = `\n【视角要求】请使用第一人称（一人称）视角写作。\n`;
+            } else if (autoPerspective === 'second') {
+                autoPerspectiveInstruction = `\n【视角要求】请使用第二人称视角，以"你"为主角写作。\n`;
+            }
+
+            // === 种子段（核心）：把推文正文当「梗」放进最优先位置 ===
+            const seedAuthorName = tweet.authorName || (handle || '').replace(/^@/, '') || '同人作家';
+            const seedHandle = handle || '';
+            const tweetSeedInstruction = `\n【このツイートで予告された作品を実際に書き起こす — 最優先】\n同人作家「${seedAuthorName}」（${seedHandle}）は X(Twitter) でこうツイートした：\n「${String(tweet.content).trim()}」\nこのツイートで言及・予告されている作品（CP・シチュエーション・ネタ・キャラの関係性）を、忠実に実際の小説本文として書き起こすこと。ツイートのネタと矛盾しないこと。ツイートに書かれた具体的な要素（例：特定のシーン、設定、キャラの状態）は必ず本文に反映すること。ツイート内の #ハッシュタグ や @メンション はノイズとして無視せず、作者の意図として汲み取ること。\n`;
+
+            const systemPrompt = `你是一位优秀的Pixiv同人小说作者。
+你的任务是基于提供的【原作世界观】、【原作剧情时间线】和【世界书设定】，并且严格依照下面这条推特预告的内容，创作一篇高质量的同人小说。
+
+【内容安全指引 - 虚构文学与剧情张力】
+你的创作属于虚构的战斗/冒险/剧情类ACG题材。在正常的文学创作中，角色在战斗中遭遇重创、流血、陷入绝境或面临危机，是塑造角色精神成长（Character Arc）和剧情张力（Dramatic Tension）的必要艺术手法。
+
+重要原则：
+1. **尊重原作事实**：提供的"原作剧情时间线"是绝对发生的正史。
+2. **角色还原**：请参考"世界书"中的角色设定，保持人物性格（OOC禁止），还原人物说话方式。
+${tweetSeedInstruction}
+${worldContext}
+${styleInstruction}
+${langInstruction}
+${npcInstruction}
+${autoPerspectiveInstruction}
+创作方向：
+- 这是一篇${hasCP ? `以${cp}${cpNickname ? `（${cpNickname}）` : ''}为CP的同人` : '同人'}短篇小说
+- **必须严格按照上面那条推特预告的内容来写**，把推文里预告的作品忠实地写成完整正文，不要另起炉灶写无关的角度
+- 保持角色性格一致，情节贴合推文预告
+
+具体要求：
+- 标题形式必须多样化。在以下格式中选择最贴合推文预告的一种：①极短意象型「溶ける春」「君の声」②情景描写型「深夜の台所で」「雨の帰り道」③角色视点型「○○の知らない△△」④诗性反転型「三度死んで、また会おう」⑤心理内省型「伝わらない想いの果てに」。绝对禁止”同人小说””第一话””日常”等敷衍通用标题。
+- 写出1500-2500字短篇小说，完整结局
+- 细腻心理描写和对话
+
+绝对禁止的tags：
+- 不要生成任何包含「梦」「夢」「梦小说」「夢主」「梦向」的标签
+- 不要生成「原创角色」「OC」「自创」等标签
+
+请严格使用以下标签格式输出小说，不要使用JSON：
+<TITLE>标题 (纯日文格式文本，绝对不要包含翻译标签)</TITLE>
+<TAGS>作品, CP, 角色, 主题 (纯文本，不要包含翻译标签)</TAGS>
+<AUTHOR>日式网名</AUTHOR>
+<CONTENT>
+小说正文内容...
+请直接开始正文，千万不要在正文开头重复标题！
+</CONTENT>`;
+
+            const messages = [{ role: 'user', content: '请根据以上设定和推特预告，把这条推预告的作品写成完整短篇。' }];
+            const _overrideCfg = AppState.data.pixivData?.settings?.apiOverride;
+            const response = await Utils.callChatAPI(messages, systemPrompt, _overrideCfg?.enabled ? _overrideCfg : null);
+
+            let result = {};
+            const extractTag = (tag) => {
+                const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
+                const match = response.match(regex);
+                return match ? match[1].trim() : '';
+            };
+            const stripHtml = (text) => text.replace(/<details[^>]*>[\s\S]*?<\/details>/gi, '').replace(/<[^>]*>/g, '').trim();
+
+            result.title = stripHtml(extractTag('TITLE'));
+            const rawTags = stripHtml(extractTag('TAGS'));
+            result.tags = rawTags ? rawTags.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
+            result.author = extractTag('AUTHOR');
+            result.content = extractTag('CONTENT');
+
+            if (!result.content) return null; // 解析失败 → null
+
+            // 作者覆盖：命中 NPC 用其日文笔名（name = 推特显示名，作者要的）；handle 仅作兜底
+            if (pickedNpc) {
+                result.author = pickedNpc.name || (pickedNpc.pixivHandle || pickedNpc.handle || '').replace(/^@+/, '');
+            } else {
+                result.author = tweet.authorName || (handle || '').replace(/^@/, '') || this.generatePenName();
+            }
+
+            const content = result.content;
+            const wordCount = content.replace(/<[^>]*>/g, '').length;
+
+            const dreamNovelKeywords = ['梦', '夢', '梦小说', '夢主', '梦向', '原创角色', 'OC', '自创', '梦女主', '女主'];
+            let filteredTags = (result.tags || []).filter(tag =>
+                !dreamNovelKeywords.some(kw => tag.includes(kw))
+            );
+            if (hasCP && !filteredTags.some(t => t.includes(cp))) filteredTags.unshift(cp);
+            if (cpNickname && !filteredTags.some(t => t.includes(cpNickname))) filteredTags.splice(1, 0, cpNickname);
+
+            const novel = {
+                id: Utils.generateId(),
+                title: result.title || '（自動生成）',
+                author: result.author || this.generatePenName(),
+                author_npc_id: pickedNpc ? pickedNpc.id : null,
+                fromTweetId: tweet.id,  // v2.122.0 链路B：标记来源推文
+                tags: filteredTags,
+                coverGradient: this.generateCoverGradient(),
+                writingStyleId: selectedStyle ? selectedStyle.id : null,
+                chapters: [{
+                    id: Utils.generateId(),
+                    chapterNum: 1,
+                    title: result.title || '',
+                    content,
+                    plotProgressId: null,
+                    wordCount,
+                    createdAt: Date.now()
+                }],
+                isSerial: false,
+                hearts: Math.floor(Math.random() * 50) + 5,
+                timestamp: Date.now(),
+                updatedAt: Date.now(),
+                createdAt: Date.now()
+            };
+
+            AppState.data.pixivData.novels.unshift(novel);
+            this._recordNovelAngle(novel);
+            Utils.saveData();
+            // 如果用户正好在 Pixiv 小说页面，刷新列表
+            const pixivScreen = document.getElementById('pixiv-novel');
+            if (pixivScreen && pixivScreen.classList.contains('active')) {
+                this.renderTagBar();
+                this.renderNovelList();
+            }
+
+            return novel.id;
+        } catch (e) {
+            console.warn('[GenFromTweet]', e);
+            return null;
         }
     },
 

@@ -808,7 +808,7 @@ const LineVoom = {
             </div>
             <div class="lv-comment-input">
                 <input type="text" id="lvCommentInput" placeholder="${I18n.t('line.comment_placeholder', 'コメントを入力...')}" autocomplete="off">
-                <button class="send-icon-btn" onclick="LineVoom.submitComment('${postId}')">↑</button>
+                <button class="line-send-btn" onclick="LineVoom.submitComment('${postId}')">↑</button>
             </div>
         `;
     },
@@ -1290,23 +1290,23 @@ const ChatList = {
                 avatarHtml = `<div class="chat-avatar-wrap group-avatar">${imgs}</div>`;
             } else {
                 avatarHtml = `<div class="chat-avatar-wrap" ${c ? `onclick="event.stopPropagation();ChatList.editCharacter('${c.id}')" style="cursor:pointer;" title="${I18n.t('btn.edit', '編集')}"` : ''}>
-                    <img src="${(c?.avatar || (members && members[0]?.avatar) || DEFAULT_AVATAR)}" class="chat-avatar">
+                    <img src="${(c?.avatar || (members && members[0]?.avatar) || DEFAULT_AVATAR)}" class="line-chat-avatar">
                     <div class="chat-online-dot visible"></div>
                 </div>`;
             }
 
-            return `<div class="chat-item" onclick="ChatList.open('${id}')">
+            return `<div class="line-chat-item" onclick="ChatList.open('${id}')">
                 ${avatarHtml}
                 <div class="chat-content">
                     <div class="chat-top-row">
                         <div class="chat-name-row">
-                            <span class="chat-name">${isGroup ? `<span class="chat-group-icon">${LINE_SVG.group}</span>` : ''}${this._esc(name)}</span>
+                            <span class="line-chat-name">${isGroup ? `<span class="chat-group-icon">${LINE_SVG.group}</span>` : ''}${this._esc(name)}</span>
                             ${pinIcon}${muteIcon}
                         </div>
                         <span class="chat-time">${time}</span>
                     </div>
                     <div class="chat-bottom-row">
-                        <span class="chat-preview">${preview}</span>
+                        <span class="line-chat-preview">${preview}</span>
                         ${unread}
                     </div>
                 </div>
@@ -1533,12 +1533,12 @@ const Conversation = {
                 bubbleContent = `<img src="${msg.content}" alt="Image">`;
             } else if (msg.type === 'sticker') {
                 // 贴纸无气泡
-                html += `<div class="message ${msg.role}" data-msg-id="${msgId}">
-                    ${!isUser ? `<div class="message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
+                html += `<div class="line-message ${msg.role}" data-msg-id="${msgId}">
+                    ${!isUser ? `<div class="line-message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
                     <div class="sticker-content">${msg.content.startsWith('data:') || msg.content.startsWith('http') ? `<img src="${msg.content}">` : `<span class="sticker-emoji">${msg.content}</span>`}</div>
                     ${metaHtml}
-                    <div class="message-actions">
-                        <button class="msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
+                    <div class="line-message-actions">
+                        <button class="line-msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
                     </div>
                 </div>`;
                 continue;
@@ -1569,12 +1569,12 @@ const Conversation = {
                         <div class="share-card-sub">▶ ${I18n.t('line.niconico_views', {views: this._esc(shareData.views || '0')})}</div>
                     </div>`;
                 }
-                html += `<div class="message ${msg.role}" data-msg-id="${msgId}">
-                    ${!isUser ? `<div class="message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
+                html += `<div class="line-message ${msg.role}" data-msg-id="${msgId}">
+                    ${!isUser ? `<div class="line-message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
                     ${cardHtml}
                     ${metaHtml}
-                    <div class="message-actions">
-                        <button class="msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
+                    <div class="line-message-actions">
+                        <button class="line-msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
                     </div>
                 </div>`;
                 continue;
@@ -1585,7 +1585,7 @@ const Conversation = {
                 // 舅舅党爆料許可ボタン
                 let leakData = {};
                 try { leakData = JSON.parse(msg.content); } catch(e) {}
-                html += `<div class="message system" data-msg-id="${msgId}">
+                html += `<div class="line-message system" data-msg-id="${msgId}">
                     <div class="leak-permit-card">
                         <div class="leak-permit-text">${I18n.t('line.leak_permit_ask', '掲示板への投稿を許可しますか？')}</div>
                         <div class="leak-permit-actions">
@@ -1599,16 +1599,16 @@ const Conversation = {
                 // 转账卡片
                 let txData = {};
                 try { txData = JSON.parse(msg.content); } catch(e) {}
-                html += `<div class="message ${msg.role}" data-msg-id="${msgId}">
-                    ${!isUser ? `<div class="message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
+                html += `<div class="line-message ${msg.role}" data-msg-id="${msgId}">
+                    ${!isUser ? `<div class="line-message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
                     <div class="transfer-card">
                         <div class="transfer-card-title"><span class="line-stat-icon">${LINE_SVG.coin}</span> ${I18n.t('line.send_money', '送金')}</div>
                         <div class="transfer-card-amount">¥${(txData.amount || 0).toLocaleString()}</div>
                         ${txData.description ? `<div class="transfer-card-desc">${this._esc(txData.description)}</div>` : ''}
                     </div>
                     ${metaHtml}
-                    <div class="message-actions">
-                        <button class="msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
+                    <div class="line-message-actions">
+                        <button class="line-msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
                     </div>
                 </div>`;
                 continue;
@@ -1616,14 +1616,14 @@ const Conversation = {
                 // 语音消息气泡（LineVoice 渲染 + 管理播放状态）
                 const voiceHtml = (typeof LineVoice !== 'undefined')
                     ? LineVoice.renderBubble(msg, isUser)
-                    : `<div class="message-bubble">${this._esc(msg.content)}</div>`;
-                html += `<div class="message ${msg.role}" data-msg-id="${msgId}">
-                    ${!isUser ? `<div class="message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
+                    : `<div class="line-message-bubble">${this._esc(msg.content)}</div>`;
+                html += `<div class="line-message ${msg.role}" data-msg-id="${msgId}">
+                    ${!isUser ? `<div class="line-message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
                     <div class="msg-body-wrap">${voiceHtml}</div>
                     ${metaHtml}
-                    <div class="message-actions">
-                        ${msg.role === 'assistant' ? `<button class="msg-action-btn" onclick="Conversation.regenerateMessage(${msgId})" title="${I18n.t('line.action_regenerate', 'Regenerate')}"><span class="line-btn-icon">${LINE_SVG.refresh}</span></button>` : ''}
-                        <button class="msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
+                    <div class="line-message-actions">
+                        ${msg.role === 'assistant' ? `<button class="line-msg-action-btn" onclick="Conversation.regenerateMessage(${msgId})" title="${I18n.t('line.action_regenerate', 'Regenerate')}"><span class="line-btn-icon">${LINE_SVG.refresh}</span></button>` : ''}
+                        <button class="line-msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
                     </div>
                 </div>`;
                 continue;
@@ -1638,16 +1638,16 @@ const Conversation = {
             // 上限超過でまとめた複数行は改行を保持（[TL]→details 変換後なので折りたたみ内部には影響しない）
             bubbleContent = bubbleContent.replace(/\n/g, '<br>');
 
-            html += `<div class="message ${msg.role}" data-msg-id="${msgId}">
-                ${!isUser ? `<div class="message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${senderAvatar}"></div>` : ''}
+            html += `<div class="line-message ${msg.role}" data-msg-id="${msgId}">
+                ${!isUser ? `<div class="line-message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${senderAvatar}"></div>` : ''}
                 <div class="msg-body-wrap">
                     ${senderName && showAvatar ? `<div class="group-sender-name">${this._esc(senderName)}</div>` : ''}
-                    <div class="message-bubble">${bubbleContent}</div>
+                    <div class="line-message-bubble">${bubbleContent}</div>
                 </div>
                 ${metaHtml}
-                <div class="message-actions">
-                    ${msg.role === 'assistant' ? `<button class="msg-action-btn" onclick="Conversation.regenerateMessage(${msgId})" title="${I18n.t('line.action_regenerate', 'Regenerate')}"><span class="line-btn-icon">${LINE_SVG.refresh}</span></button>` : ''}
-                    <button class="msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
+                <div class="line-message-actions">
+                    ${msg.role === 'assistant' ? `<button class="line-msg-action-btn" onclick="Conversation.regenerateMessage(${msgId})" title="${I18n.t('line.action_regenerate', 'Regenerate')}"><span class="line-btn-icon">${LINE_SVG.refresh}</span></button>` : ''}
+                    <button class="line-msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
                 </div>
             </div>`;
         }
@@ -1664,7 +1664,7 @@ const Conversation = {
         el = document.createElement('div');
         el.id = 'lineTypingIndicator';
         el.className = 'typing-indicator';
-        el.innerHTML = `<div class="message-avatar"><img src="${char.avatar || DEFAULT_AVATAR}"></div><div class="typing-dots"><span></span><span></span><span></span></div>`;
+        el.innerHTML = `<div class="line-message-avatar"><img src="${char.avatar || DEFAULT_AVATAR}"></div><div class="typing-dots"><span></span><span></span><span></span></div>`;
         container.appendChild(el);
         Utils.scrollToBottom(container);
     },

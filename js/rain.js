@@ -85,13 +85,14 @@ const RainEngine = {
         const desktop = document.getElementById('desktop');
         if (!desktop) return;
 
-        // 建 canvas（动态创建、自包含）
+        // 建 canvas（动态创建、自包含）。
+        // width/height:100% 让显示框跟 #desktop 走（已铺到物理底、不留底缝）；canvas 是替换元素、
+        // 显式 100% 是确定值会生效（inset:0/auto 撑不开它）→ 显示尺寸由 CSS 定、不依赖 JS 测高。
+        // #desktop > * 那条 ID 规则会把子元素压成 relative + 0 高（希卡/动森老坑），内联 position:absolute 特异性最高不被压。
         const canvas = document.createElement('canvas');
         canvas.id = 'rainCanvas';
         canvas.style.cssText =
-            'position:absolute;inset:0;pointer-events:none;z-index:' + RainConfig.Z_INDEX + ';';
-        // #desktop > * 那条 ID 规则会把子元素压成 relative + 0 高（希卡/动森老坑），
-        // 用 cssText 直接写 position:absolute + inset:0 内联样式特异性最高、不被压。
+            'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:' + RainConfig.Z_INDEX + ';';
         desktop.appendChild(canvas);
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
@@ -182,12 +183,14 @@ const RainEngine = {
         this.trails.length = 0;
     },
 
-    // —— 尺寸：CSS 像素 × dpr，scale 后用 CSS 坐标 ——
+    // —— 尺寸：canvas 显示框由 CSS width/height:100% 撑满 #desktop（铺到物理底、不留底缝、见 init 注释）。
+    //   这里按 canvas 实际渲染尺寸算 backing store。canvas 已被 100% 撑开、其 rect 即撑满后真实尺寸；
+    //   即便 iOS 测量略偏、显示由 CSS 100% 主导不会留缝。
     _resize() {
-        const desktop = document.getElementById('desktop');
-        if (!desktop || !this.canvas) return;
-        const w = desktop.clientWidth;
-        const h = desktop.clientHeight;
+        if (!this.canvas) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
         if (!w || !h) return;
         const dpr = window.devicePixelRatio || 1;
         this.dpr = dpr;
@@ -195,8 +198,6 @@ const RainEngine = {
         this.H = h;
         this.canvas.width = Math.round(w * dpr);
         this.canvas.height = Math.round(h * dpr);
-        this.canvas.style.width = w + 'px';
-        this.canvas.style.height = h + 'px';
         this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // scale(dpr,dpr) + 重置（防累积）
         // 重新分布粒子贴合新尺寸
         this._seedDrops();

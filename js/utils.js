@@ -57,7 +57,8 @@ const Utils = {
                     officialNpcs: Array.isArray(fd.officialNpcs) ? fd.officialNpcs : [],
                     mergedSummaries: Array.isArray(fd.mergedSummaries) ? fd.mergedSummaries : [],
                     plotSummaries: Array.isArray(fd.plotSummaries) ? fd.plotSummaries : [],
-                    officialSummaries: Array.isArray(fd.officialSummaries) ? fd.officialSummaries : []
+                    officialSummaries: Array.isArray(fd.officialSummaries) ? fd.officialSummaries : [],
+                    seriesEnded: typeof fd.seriesEnded === 'boolean' ? fd.seriesEnded : false   // v2.126.0 完結フラグ（ワンドロ 完結後ペース切替；未定義は falsy=連載中）
                 };
 
                 // 3. 旧 officialPosts → 合并进 threads（按 timestamp 倒序）
@@ -76,6 +77,38 @@ const Utils = {
 
                 Utils.saveData();
                 console.log('[Migration v2.60] forumData → broadcast 抽离 + slots 扁平化 + officialPosts 合并 完成');
+            }
+
+            // ── v2.128.0 一次性去重：修复链路A 历史重复自宣 ──
+            // 链路B 生成的小说曾漏进链路A 反查池被反复自宣 → 同一 pixivNovelId 出现多条 fan 推。
+            // 清掉冗余：点赞过的全留（回味用），否则只留最早一条（含链路B 原始安利推）。只碰 source==='fan'，npc 推不动。
+            const _twd = AppState.data.twitterData;
+            if (_twd && !_twd._dedupePromoV128) {
+                const _tws = Array.isArray(_twd.npcTweets) ? _twd.npcTweets : [];
+                const _likedIds = new Set((_twd.likedTweetIds || []).map(l => l.id));
+                const _byNovel = {};
+                _tws.forEach(tw => {
+                    if (tw && tw.source === 'fan' && tw.pixivNovelId) {
+                        (_byNovel[tw.pixivNovelId] = _byNovel[tw.pixivNovelId] || []).push(tw);
+                    }
+                });
+                const _dropIds = new Set();
+                Object.keys(_byNovel).forEach(nid => {
+                    const group = _byNovel[nid];
+                    if (group.length <= 1) return;   // 没重复
+                    const _liked = group.filter(tw => _likedIds.has(tw.id));
+                    const _keep = _liked.length
+                        ? _liked   // 点赞过的全留
+                        : [group.slice().sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))[0]];   // 否则留最早一条
+                    const _keepSet = new Set(_keep.map(tw => tw.id));
+                    group.forEach(tw => { if (!_keepSet.has(tw.id)) _dropIds.add(tw.id); });
+                });
+                if (_dropIds.size) {
+                    _twd.npcTweets = _tws.filter(tw => !_dropIds.has(tw.id));
+                    console.log(`[Migration v2.128] 链路A 重复自宣去重：清掉 ${_dropIds.size} 条冗余推文`);
+                }
+                _twd._dedupePromoV128 = true;
+                Utils.saveData();
             }
         } catch (e) {
             console.error('[Load Error]', e);
@@ -628,7 +661,7 @@ ${intro}以下の情報階層を厳守すること。
                 worldSetting: '', worldBookId: '', worldBookIds: [],
                 plotProgress: [], plotDrafts: [],
                 officialInfo: [], officialNpcs: [],
-                mergedSummaries: [], plotSummaries: [], officialSummaries: []
+                mergedSummaries: [], plotSummaries: [], officialSummaries: [], seriesEnded: false
             },
             twitterData: {
                 userName: '公式アカウント', userHandle: 'official', userAvatarLetter: 'M',

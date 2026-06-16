@@ -12,8 +12,9 @@
 
    留在 core(style.css)：
    · :root{} 默认变量（冬夜主题 + 默认字体 --font-*）= 变量定义源头、必须最先加载
-   · 散落在组件旁的少数深色微调（body.dark-mode .widget-* 死代码 +
-     [data-theme="night-sky"] .voice-text-expanded、跟组件就近维护）
+   · 散落在组件旁的少数深色微调（body.dark-mode .widget-* 死代码；
+     原 [data-theme="night-sky"] .voice-text-expanded 已随 LINE 解耦
+     改名 .line-voice-text-expanded 迁入 css/line.css、仍跟组件就近维护）
 
    壁纸 url 已补 ../assets（本文件在 css/ 子目录、相对路径比根目录多一层）。
    ============================================================ */

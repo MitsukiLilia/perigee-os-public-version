@@ -16,22 +16,23 @@ const GlassConfig = {
 
     // —— 性能 ——
     FPS_CAP: 30,                   // 帧率上限（雨不需要 60fps，省电）
-    RENDER_SCALE: 0.85,            // 渲染分辨率系数（<1 降采样再由 CSS 拉伸，折射模糊看不出）
+    RENDER_SCALE: 0.8,             // 渲染分辨率系数（<1 降采样再由 CSS 拉伸，折射模糊看不出；邻格扫描后降一档省电）
 
     // —— 折射 / 雾 ——
-    REFRACT_STRENGTH: 0.045,       // 折射强度（背景扭曲程度）
-    FOG_DENSITY: 0.30,             // 雾浓度（0=无雾 1=全糊）
+    REFRACT_STRENGTH: 0.07,        // 折射强度（背景扭曲程度、水珠透镜感；越大水珠像放大镜）
+    FOG_DENSITY: 0.24,             // 雾浓度（0=无雾 1=全糊）
 
     // —— 雨滴 ——
     DROP_DENSITY: 1.0,             // 雨滴密度总系数
     TRAIL_STRENGTH: 0.6,           // 雨滴拖痕明显度
+    HIGHLIGHT_STRENGTH: 0.45,      // 水珠玻璃高光强度（左上受光亮边、越大越透亮发光）
 
     // —— 氛围 ——
     COLOR_BREATH_AMOUNT: 0.5,      // 冷暖色彩呼吸幅度（再乘进 shader 极淡常量、几乎不可察觉）
     COLOR_BREATH_SPEED: 0.18,      // 色彩呼吸速度(rad/s)
     LIGHT_GLOW_INTERVAL: 26.0,     // 天光微亮周期(s)，几十秒一次
     LIGHT_GLOW_AMOUNT: 0.6,        // 天光亮度（再乘进 shader 0.10 常量、克制）
-    VIGNETTE_AMOUNT: 0.35,         // 四角暗角强度
+    VIGNETTE_AMOUNT: 0.28,         // 四角暗角强度
 };
 
 const GlassRainEngine = {
@@ -60,7 +61,7 @@ const GlassRainEngine = {
         'void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }',
     ].join('\n'),
 
-    // —— 片段着色器：Task 1 先用透传（仅采样背景图、无折射无雨），Task 2 换全效果 ——
+    // —— 片段着色器：雨天玻璃窗（折射 + 起雾 + 大小不一的下落水珠 + 玻璃高光）——
     FRAG_SRC: [
         'precision highp float;',
         'uniform sampler2D u_bg;',
@@ -70,6 +71,7 @@ const GlassRainEngine = {
         'uniform float u_fog;',
         'uniform float u_dropDensity;',
         'uniform float u_trail;',
+        'uniform float u_highlight;',
         'uniform float u_breathAmt;',
         'uniform float u_breathSpeed;',
         'uniform float u_glow;',      // CPU 端算好的天光脉冲 0..1
@@ -81,41 +83,66 @@ const GlassRainEngine = {
         '  p3+=dot(p3,p3.yzx+33.33);',
         '  return fract((p3.xx+p3.yz)*p3.zy);',
         '}',
-        // 一层下落雨滴：返回高度 0..n（drop 透镜 + 上方拖痕）
-        'float dropLayer(vec2 uv, float t, vec2 g){',
-        '  vec2 id=floor(uv*g);',
-        '  vec2 f =fract(uv*g);',
-        '  vec2 rnd=hash22(id);',
-        '  float speed=0.4+rnd.y*0.6;',
-        '  float cy=fract(rnd.x - t*speed);',      // 减号 = 自上而下落
-        '  float cx=0.5+(rnd.x-0.5)*0.6;',
-        '  float d=length((f-vec2(cx,cy))*vec2(g.y/g.x,1.0));',
-        '  float drop=smoothstep(0.16,0.0,d);',
-        '  float trail=smoothstep(0.05,0.0,abs(f.x-cx))*smoothstep(0.0,0.45,f.y-cy);', // 拖痕在 drop 上方
-        '  return drop + trail*u_trail*0.5;',
+        // 一层下落雨滴 → 高度场。每格一滴（随机：有无/大小/水平位/格内垂直位），
+        // 整层「匀速下滚」(st.y+=t*fall) = 水珠平滑跨格下落、无每格 fract 循环的瞬移。
+        // ★扫上下相邻格(j=-1..1)让水珠/拖痕能跨格连续 = 消除「交界处水珠被裁掉」的板块缝。
+        //   水平方向水珠不出格(cx∈[0.14,0.86]、半径折算后 reach∈[0.03,0.97])、故只扫纵向省 2/3 开销。
+        // seed 让多层网格错开。fall = 该层下滚速度(格/秒)。
+        'float dropLayer(vec2 uv, float t, vec2 g, float seed, float fall){',
+        '  vec2 st=uv*g; st.y += t*fall;',
+        '  vec2 id=floor(st);',
+        '  vec2 f =fract(st);',
+        '  float aspect=g.y/g.x;',
+        '  float h=0.0;',
+        '  for(int j=-1;j<=1;j++){',
+        '    float fj=float(j);',
+        '    vec2 cid=id+vec2(0.0,fj);',
+        '    vec2 rnd=hash22(cid+seed);',
+        '    float present=step(0.24, fract(rnd.x*rnd.y*97.0+seed));', // ~76% 格有滴、破规整网格
+        '    float rsize=hash11(dot(cid,vec2(12.99,78.23))+seed);',
+        '    float cx=0.5+(rnd.x-0.5)*0.72;',
+        '    float cy=0.5+(rnd.y-0.5)*0.6;',         // 格内垂直随机位（静态、下落靠 st 下滚）
+        '    float rad=0.07+rsize*0.15;',            // 0.07..0.22 大小不一
+        '    vec2 dpos=vec2(cx, fj+cy);',
+        '    float d=length((f-dpos)*vec2(aspect,1.0));',
+        '    float drop=smoothstep(rad, rad*0.12, d);',
+        '    float ty=f.y-dpos.y;',                  // drop 上方距离
+        '    float trail=smoothstep(0.04,0.0,abs(f.x-cx))*smoothstep(0.0,0.08,ty)*smoothstep(0.75,0.12,ty);', // 有限长拖痕、防跨多格裁切
+        '    h+=(drop+trail*u_trail*0.5)*present;',
+        '  }',
+        '  return h;',
         '}',
+        // 三层 parallax：大/中/小 → 下滚速度递减（大水珠滑得快、小珠近静止），层间视差让落速差自然可感
         'float dropField(vec2 uv, float t){',
         '  float h=0.0;',
-        '  h+=dropLayer(uv,            t,      vec2(6.0,12.0));',
-        '  h+=dropLayer(uv*1.7+5.0,    t*1.3,  vec2(6.0,12.0))*0.7;',
-        '  return clamp(h*u_dropDensity, 0.0, 1.5);',
+        '  h+=dropLayer(uv,           t, vec2(5.0,10.0),  0.0, 5.0);',       // 粗·大·快
+        '  h+=dropLayer(uv*1.7+5.0,   t, vec2(5.0,10.0), 13.0, 3.0)*0.85;', // 中
+        '  h+=dropLayer(uv*2.7+11.0,  t, vec2(5.0,10.0), 27.0, 1.6)*0.7;',  // 细·小·慢
+        '  return clamp(h*u_dropDensity, 0.0, 1.6);',
         '}',
         'void main(){',
         '  vec2 uv=gl_FragCoord.xy/u_res;',
         '  float t=u_time;',
         '  float h=dropField(uv,t);',
-        // 解析法线（2 次额外采样、不依赖 derivative 扩展 = cheap normals）
-        '  vec2 e=1.0/u_res;',
+        // 解析法线（2 次额外采样、不依赖 derivative 扩展 = cheap normals）。
+        // 步长取数像素(STEP)放大坡度，否则单像素差分太小、折射≈不可见。
+        '  vec2 e=3.0/u_res;',
         '  float hx=dropField(uv+vec2(e.x,0.0),t);',
         '  float hy=dropField(uv+vec2(0.0,e.y),t);',
         '  vec2 n=vec2(hx-h, hy-h);',
-        // 折射采样
-        '  vec2 ruv=clamp(uv + n*u_refract, 0.001, 0.999);',
+        // 折射采样：水珠越高折射越强 = 像放大镜透镜。
+        // n 已是「3px 步长」的坡度(边缘可达 ~0.3)、直接当折射向量、不再额外放大。
+        '  float lens=1.0+clamp(h,0.0,1.0)*1.4;',
+        '  vec2 ruv=clamp(uv + n*u_refract*lens, 0.001, 0.999);',
         '  vec3 col=texture2D(u_bg, ruv).rgb;',
-        // 起雾玻璃：drop/trail 处把雾擦清
-        '  vec3 fogCol=vec3(0.80,0.85,0.90);',
-        '  float clearness=clamp(h,0.0,1.0);',
+        // 起雾玻璃：drop/trail 处把雾擦清（透亮）
+        '  vec3 fogCol=vec3(0.82,0.87,0.92);',
+        '  float clearness=clamp(h*1.3,0.0,1.0);',
         '  col=mix(mix(col,fogCol,u_fog), col, clearness);',
+        // 玻璃高光：水珠曲面左上受光的亮边 → 透亮发光感（n 同上量级、系数 ~4）
+        '  float spec=clamp((-n.x*0.7 + n.y*1.0)*4.0, 0.0, 1.0);',
+        '  spec*=smoothstep(0.04,0.5,h);',          // 只在水珠上
+        '  col+=spec*u_highlight*vec3(1.0,1.0,1.0);',
         // 极淡冷暖呼吸
         '  float breath=sin(t*u_breathSpeed)*0.5+0.5;',
         '  col*=mix(vec3(1.0), vec3(0.965,0.985,1.04), breath*u_breathAmt);',
@@ -135,10 +162,14 @@ const GlassRainEngine = {
         const desktop = document.getElementById('desktop');
         if (!desktop) return;
 
-        // 建 canvas（内联定位：z-index:0 在图标之下、绕过 #desktop>* 的 relative/z1 压制）
+        // 建 canvas（内联定位：z-index:0 在图标之下、绕过 #desktop>* 的 relative/z1 压制）。
+        // ★白条修法：用 width/height:100% 让 canvas 显示尺寸跟 #desktop 走（#desktop 是 .screen
+        //   fixed+bottom:-env、已验证铺到物理底）。canvas 是替换元素、inset:0/auto 撑不开它，
+        //   但显式 height:100% 是「确定值」会生效 → 显示尺寸由 CSS 定、不依赖 JS 测高度（iOS 对
+        //   fixed 元素 rect 有量化怪癖、上一版测高度修法在真机没生效）→ 无论测量准不准都不留底缝。
         const canvas = document.createElement('canvas');
         canvas.id = 'rainGlassCanvas';
-        canvas.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:0;';
+        canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
         desktop.appendChild(canvas);
         this.canvas = canvas;
 
@@ -168,6 +199,7 @@ const GlassRainEngine = {
         this.uniforms.u_fog         = gl.getUniformLocation(program, 'u_fog');
         this.uniforms.u_dropDensity = gl.getUniformLocation(program, 'u_dropDensity');
         this.uniforms.u_trail       = gl.getUniformLocation(program, 'u_trail');
+        this.uniforms.u_highlight   = gl.getUniformLocation(program, 'u_highlight');
         this.uniforms.u_breathAmt   = gl.getUniformLocation(program, 'u_breathAmt');
         this.uniforms.u_breathSpeed = gl.getUniformLocation(program, 'u_breathSpeed');
         this.uniforms.u_glow        = gl.getUniformLocation(program, 'u_glow');
@@ -277,18 +309,19 @@ const GlassRainEngine = {
         if (this.canvas) this.canvas.style.display = 'none';
     },
 
-    // —— 尺寸：CSS 像素 × dpr × RENDER_SCALE（降采样）——
+    // —— 尺寸：canvas 显示框由 CSS width/height:100% 撑满 #desktop（铺到物理底、不留底缝、见 init 注释）。
+    //   这里只按 canvas 实际渲染尺寸算 backing store（降采样）。canvas 已被 100% 撑开，
+    //   getBoundingClientRect 取到的就是撑满后的真实尺寸。即便 iOS 测量略偏，显示由 CSS 100% 主导、不会留缝。
     _resize() {
-        const desktop = document.getElementById('desktop');
-        if (!desktop || !this.canvas || !this.gl) return;
-        const w = desktop.clientWidth, h = desktop.clientHeight;
+        if (!this.canvas || !this.gl) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const w = rect.width, h = rect.height;
         if (!w || !h) return;
         const dpr = window.devicePixelRatio || 1;
         this.dpr = dpr; this.W = w; this.H = h;
         const bw = Math.max(1, Math.round(w * dpr * GlassConfig.RENDER_SCALE));
         const bh = Math.max(1, Math.round(h * dpr * GlassConfig.RENDER_SCALE));
         this.canvas.width = bw; this.canvas.height = bh;
-        this.canvas.style.width = w + 'px'; this.canvas.style.height = h + 'px';
         this.gl.viewport(0, 0, bw, bh);
     },
 
@@ -334,6 +367,7 @@ const GlassRainEngine = {
         gl.uniform1f(this.uniforms.u_fog, C.FOG_DENSITY);
         gl.uniform1f(this.uniforms.u_dropDensity, C.DROP_DENSITY);
         gl.uniform1f(this.uniforms.u_trail, C.TRAIL_STRENGTH);
+        gl.uniform1f(this.uniforms.u_highlight, C.HIGHLIGHT_STRENGTH);
         gl.uniform1f(this.uniforms.u_breathAmt, C.COLOR_BREATH_AMOUNT);
         gl.uniform1f(this.uniforms.u_breathSpeed, C.COLOR_BREATH_SPEED);
         gl.uniform1f(this.uniforms.u_glow, glow);
@@ -358,7 +392,7 @@ const GlassRainEngine = {
         gl.useProgram(this.program);
         // 重取 uniform location
         const names = ['u_bg','u_res','u_time','u_refract','u_fog','u_dropDensity',
-                       'u_trail','u_breathAmt','u_breathSpeed','u_glow','u_vignette'];
+                       'u_trail','u_highlight','u_breathAmt','u_breathSpeed','u_glow','u_vignette'];
         this.uniforms = {};
         names.forEach(n => { this.uniforms[n] = gl.getUniformLocation(this.program, n); });
         // 重建 quad

@@ -1524,310 +1524,6 @@ body.dark-mode .widget-clock {
     font-size: 18px;
 }
 
-/* 聊天部分 */
-.chat-list-container {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 16px;
-    background: var(--bg-card);
-}
-
-.chat-item {
-    display: flex;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.chat-avatar {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: var(--bg-secondary);
-    margin-right: 15px;
-    object-fit: cover;
-}
-
-.chat-info {
-    flex: 1;
-}
-
-.chat-name {
-    font-weight: 600;
-    font-size: 16px;
-    margin-bottom: 4px;
-}
-
-.chat-preview {
-    font-size: 14px;
-    color: var(--text-secondary);
-}
-
-.messages-container {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-}
-
-.message {
-    display: flex;
-    align-items: flex-end;
-    width: 100%;
-    position: relative;
-}
-
-.message.user {
-    justify-content: flex-end;
-}
-
-.message-avatar {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    margin-right: 8px;
-    background: var(--bg-secondary);
-    overflow: hidden;
-    flex-shrink: 0;
-}
-
-.message-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.message-bubble {
-    position: relative;
-    word-wrap: break-word;
-}
-
-.message.assistant .message-bubble {
-    background: var(--bubble-ai);
-    color: var(--bubble-ai-text);
-    border-radius: 18px 18px 18px 4px;
-}
-
-.message.user .message-bubble {
-    background: var(--bubble-me);
-    color: var(--bubble-me-text);
-    border-radius: 18px 18px 4px 18px;
-}
-
-.message-bubble img {
-    max-width: 200px;
-    border-radius: var(--radius-md);
-    margin: 4px 0;
-    display: block;
-}
-
-/* ===================================================
-   LINE 语音消息气泡
-   =================================================== */
-.voice-bubble {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px;
-    min-width: 140px;
-    max-width: 240px;
-    border-radius: 18px;
-    cursor: pointer;
-    user-select: none;
-    transition: transform 0.15s;
-}
-.voice-bubble:active { transform: scale(0.97); }
-
-.voice-bubble.voice-ai {
-    background: var(--bubble-ai);
-    color: var(--bubble-ai-text);
-    border-radius: 18px 18px 18px 4px;
-}
-.voice-bubble.voice-user {
-    background: var(--bubble-me);
-    color: var(--bubble-me-text);
-    border-radius: 18px 18px 4px 18px;
-}
-
-.voice-play {
-    flex-shrink: 0;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.18);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.voice-bubble.voice-ai .voice-play {
-    background: rgba(0,0,0,0.08);
-}
-.voice-play svg {
-    width: 14px;
-    height: 14px;
-}
-
-/* 波形：14 个小竖条，播放时依次跳动 */
-.voice-wave {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 2px;
-    height: 20px;
-}
-.voice-wave span {
-    display: block;
-    width: 2px;
-    height: 6px;
-    border-radius: 1px;
-    background: currentColor;
-    opacity: 0.55;
-}
-/* 12 种随机高度伪装真实波形 */
-.voice-wave span:nth-child(3n)   { height: 14px; }
-.voice-wave span:nth-child(4n+1) { height: 10px; }
-.voice-wave span:nth-child(5n+2) { height: 16px; }
-.voice-wave span:nth-child(7n)   { height: 8px;  }
-
-.voice-bubble.is-playing .voice-wave span {
-    animation: voiceWave 0.9s ease-in-out infinite;
-}
-@keyframes voiceWave {
-    0%, 100% { transform: scaleY(0.45); opacity: 0.45; }
-    50%      { transform: scaleY(1.25); opacity: 1; }
-}
-
-.voice-bubble.is-loading .voice-loading-icon {
-    animation: voiceSpin 1s linear infinite;
-}
-@keyframes voiceSpin {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-}
-
-.voice-duration {
-    font-size: 11px;
-    font-weight: 500;
-    opacity: 0.72;
-    letter-spacing: 0.2px;
-    flex-shrink: 0;
-}
-
-.voice-expand {
-    flex-shrink: 0;
-    width: 20px;
-    height: 20px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.1);
-    color: inherit;
-    font-size: 10px;
-    cursor: pointer;
-    padding: 0;
-    opacity: 0.6;
-    transition: opacity 0.15s;
-}
-.voice-bubble.voice-user .voice-expand {
-    background: rgba(255,255,255,0.2);
-}
-.voice-expand:hover { opacity: 1; }
-
-.voice-text-expanded {
-    margin-top: 6px;
-    padding: 8px 12px;
-    background: rgba(0,0,0,0.04);
-    border-radius: 10px;
-    font-size: 13px;
-    color: var(--text-secondary);
-    line-height: 1.5;
-    max-width: 240px;
-}
-body.dark-mode .voice-text-expanded,
-[data-theme="night-sky"] .voice-text-expanded {
-    background: rgba(255,255,255,0.08);
-}
-
-.message-actions {
-    position: absolute;
-    top: 50%;
-    right: -45px;
-    transform: translateY(-50%);
-    display: none;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.message.user .message-actions {
-    right: auto;
-    left: -45px;
-}
-
-.message:hover .message-actions {
-    display: flex;
-}
-
-.msg-action-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: rgba(0, 0, 0, 0.05);
-    border: none;
-    cursor: pointer;
-    font-size: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-
-.msg-action-btn:hover {
-    background: rgba(0, 0, 0, 0.1);
-}
-
-.msg-action-btn:active {
-    transform: scale(0.9);
-}
-
-.chat-input-glass {
-    margin: 10px 16px 20px;
-    padding: 6px;
-    background: var(--glass-panel);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-radius: 30px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    position: relative;
-    border: 1px solid var(--glass-border);
-}
-
-.chat-input-glass input {
-    flex: 1;
-    background: transparent;
-    border: none;
-    outline: none;
-    padding: 8px 12px;
-    font-size: 16px;
-    color: var(--text-primary);
-}
-
-.send-icon-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: var(--accent-color);
-    color: white;
-    border: none;
-    font-weight: bold;
-    font-size: 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 /* 设置 & 表单 */
 .settings-scroll {
     flex: 1;
@@ -3835,24 +3531,20 @@ details.tl>span {
 }
 
 /* ==========================================================
-   LINE Chat — 深度仿真样式
+   聊天基础设施 · 合并基线（2026-06-10 LINE 解耦时合并）
+   = 原「聊天部分」block1(旧1527-1830) + 原「LINE 深度仿真」block2
+   合成结果，使用者：tutor / worldbook / writer / mail / forum /
+   changelog。LINE 已改用 css/line.css 的 line- 前缀副本。
+   含历史 LINE 色字面量（注明处），待各板块专属设计时更换。
+   ⚠ 位置故意保持在原 block2 处：2600 段 @media(aspect-ratio:1/1)
+   内有同特异性 .message-bubble 规则，本段须晚于它（级联保序）。
+   语音泡 .voice-* 全族系 LINE 独占、已随解耦迁入 line.css。
    ========================================================== */
-
-/* --- LINE 配色变量 --- */
-:root {
-    --line-green: #06c755;
-    --line-bg-default: #8cabd9;
-    --line-bubble-me: #06c755;
-    --line-bubble-me-text: #fff;
-    --line-bubble-ai: #fff;
-    --line-bubble-ai-text: #111;
-    --line-read-color: #06c755;
-}
-
-/* --- 聊天列表页 --- */
 .chat-list-container {
-    background: var(--bg-card);
+    flex: 1;
+    overflow-y: auto;
     padding: 0;
+    background: var(--bg-card);
 }
 
 .chat-item {
@@ -3873,15 +3565,19 @@ details.tl>span {
     height: 52px;
     border-radius: 50%;
     background: var(--bg-secondary);
-    object-fit: cover;
     margin-right: 0;
+    object-fit: cover;
+}
+
+.chat-info {
+    flex: 1;
 }
 
 .chat-name {
-    font-size: 15px;
     font-weight: 600;
-    color: var(--text-primary);
+    font-size: 15px;
     margin-bottom: 0;
+    color: var(--text-primary);
 }
 
 .chat-preview {
@@ -3894,22 +3590,24 @@ details.tl>span {
     margin-right: 8px;
 }
 
-/* --- 消息区域 --- */
 .messages-container {
-    background: var(--line-bg-default);
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: #8cabd9; /* 历史 LINE 色（原 --line-bg-default） */
     gap: 4px;
     padding: 12px 16px;
 }
 
-/* --- 消息行 --- */
 .message {
     display: flex;
     align-items: flex-end;
     width: 100%;
+    position: relative;
     gap: 8px;
     margin-bottom: 2px;
     animation: none;
-    position: relative;
 }
 
 .message.user {
@@ -3917,22 +3615,30 @@ details.tl>span {
     justify-content: flex-start;
 }
 
-/* 头像 */
 .message-avatar {
     width: 32px;
     height: 32px;
     border-radius: 50%;
     margin-right: 0;
+    background: var(--bg-secondary);
+    overflow: hidden;
     flex-shrink: 0;
     align-self: flex-end;
+}
+
+.message-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .message-avatar.hidden-avatar {
     visibility: hidden;
 }
 
-/* 气泡 */
 .message-bubble {
+    position: relative;
+    word-wrap: break-word;
     max-width: 100%;
     padding: 10px 14px;
     font-size: 14px;
@@ -3941,66 +3647,108 @@ details.tl>span {
 }
 
 .message.assistant .message-bubble {
-    background: var(--line-bubble-ai);
-    color: var(--line-bubble-ai-text);
+    background: #fff; /* 历史 LINE 色（原 --line-bubble-ai） */
+    color: #111;
     border-radius: 18px 18px 18px 4px;
 }
 
 .message.user .message-bubble {
-    background: var(--line-bubble-me);
-    color: var(--line-bubble-me-text);
+    background: #06c755; /* 历史 LINE 绿（原 --line-bubble-me） */
+    color: #fff;
     border-radius: 18px 18px 4px 18px;
 }
 
-/* 主题色模式覆盖 */
-.messages-container.theme-color .message.assistant .message-bubble {
-    background: var(--bubble-ai);
-    color: var(--bubble-ai-text);
+.message-bubble img {
+    max-width: 200px;
+    border-radius: var(--radius-md);
+    margin: 4px 0;
+    display: block;
 }
 
-.messages-container.theme-color .message.user .message-bubble {
-    background: var(--bubble-me);
-    color: var(--bubble-me-text);
+.message-actions {
+    position: absolute;
+    top: 50%;
+    right: -45px;
+    transform: translateY(-50%);
+    display: none;
+    flex-direction: column;
+    gap: 4px;
 }
 
-/* --- 输入栏 LINE 风格 --- */
-.chat-input-glass {
-    border-radius: 0;
-    background: var(--bg-card);
+.message.user .message-actions {
+    right: auto;
+    left: -45px;
+}
+
+.message:hover .message-actions {
+    display: flex;
+}
+
+.msg-action-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.05);
     border: none;
-    border-top: 1px solid var(--border-light);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.msg-action-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.msg-action-btn:active {
+    transform: scale(0.9);
+}
+
+.chat-input-glass {
     margin: 0;
     padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg-card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    display: flex;
+    align-items: center;
     gap: 10px;
+    position: relative;
+    border: none;
+    border-top: 1px solid var(--border-light);
 }
 
 .chat-input-glass input {
+    flex: 1;
+    background: var(--bg-secondary);
     border: 1px solid var(--border-medium);
-    border-radius: var(--radius-pill);
+    outline: none;
     padding: 8px 14px;
     font-size: 14px;
-    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-radius: var(--radius-pill);
 }
 
 .chat-input-glass input:focus {
-    border-color: var(--line-green);
+    border-color: #06c755; /* 历史 LINE 绿（原 --line-green） */
 }
 
 .send-icon-btn {
-    background: var(--line-green);
-}
-
-/* --- 总结消息（保留现有样式但适配 LINE 背景）--- */
-.message.system.summary-message {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #06c755; /* 历史 LINE 绿（原 --line-green 覆盖 --accent-color） */
+    color: white;
+    border: none;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
     justify-content: center;
-}
-
-.message.system.summary-message .message-bubble {
-    background: rgba(255,255,255,0.85);
-    color: var(--text-primary);
-    max-width: 85%;
 }
 
 /* ========================================================

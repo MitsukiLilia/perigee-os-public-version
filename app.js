@@ -88,6 +88,7 @@ const AppState = {
             mergedSummaries: [],
             plotSummaries: [],
             officialSummaries: [],
+            seriesEnded: false,   // v2.126.0 完結フラグ（ワンドロ 完結後ペース切替）
             // v2.69.0: CP 配对设置（从 pixivData.settings 迁移过来）
             // v2.71.0: productionName 字段加入（微博作品超话用）
             cpSettings: { cpCharA: '', cpCharB: '', cpNickname: '', productionName: '' }

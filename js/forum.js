@@ -2461,6 +2461,7 @@ CONTENT:
                 Melonbooks.onPlotPublished(newPlotId);
             }
             if (typeof Mercari !== 'undefined' && Mercari.onPlotPublished) Mercari.onPlotPublished(newPlotId);
+            if (typeof Wandoro !== 'undefined' && Wandoro.onPlotPublished) Wandoro.onPlotPublished(newPlotId);   // v2.129.0 完結前：一话起一轮 ワンドロ（抽到 wandoro.js、缺失则 no-op）
 
             document.getElementById('plotModal').classList.remove('active');
             this.renderPlotList();
@@ -2533,7 +2534,13 @@ CONTENT:
         }
 
         const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-        container.innerHTML = plots.map((p, i) => {
+        const _ended = !!AppState.data.broadcast.seriesEnded;   // v2.126.0 完結フラグ（ワンドロ ペース切替）
+        const _finaleRow = `<div class="plot-finale-row">
+            <span class="plot-finale-label">${I18n.t('bc.series_finale', '完結済み')}</span>
+            <button class="plot-finale-toggle${_ended ? ' on' : ''}" onclick="Forum.toggleSeriesEnded()" role="switch" aria-checked="${_ended}"><span class="plot-finale-knob"></span></button>
+            <span class="plot-finale-hint">${_ended ? I18n.t('bc.series_finale_on_hint', '完結後ペース：ワンドロは時間で進行') : I18n.t('bc.series_finale_off_hint', '完結したらONに（ワンドロが時間ペースに）')}</span>
+        </div>`;
+        container.innerHTML = _finaleRow + plots.map((p, i) => {
             const preview = _esc(p.content.slice(0, 60));
             const isCovered = coveredSet.has(p.id);
             return `
@@ -2548,6 +2555,17 @@ CONTENT:
                     <div class="plot-entry-preview">${preview}${p.content.length > 60 ? '...' : ''}</div>
                 </div> `;
         }).join('');
+    },
+
+    // v2.126.0 完結トグル（放送局）：完結後 ワンドロ を時間ペースに切替（broadcast.seriesEnded）
+    toggleSeriesEnded() {
+        if (!AppState.data.broadcast) return;
+        AppState.data.broadcast.seriesEnded = !AppState.data.broadcast.seriesEnded;
+        Utils.saveData();
+        this.renderPlotList();
+        Utils.showToast(AppState.data.broadcast.seriesEnded
+            ? I18n.t('bc.series_finale_set', '✓ 完結済みにしました')
+            : I18n.t('bc.series_finale_unset', '✓ 連載中に戻しました'));
     },
 
     // ===== 官方情报管理 =====
@@ -2844,6 +2862,11 @@ CONTENT:
         this._renderVoicedCharsChips();
         this._toggleVoicedCharsSection();
 
+        // 角色预置下拉（每次打开按当前语言重建、并确保关闭状态）
+        this._buildRoleDropdown();
+        const roleDd = document.getElementById('npcRoleDropdown');
+        if (roleDd) roleDd.style.display = 'none';
+
         // 绑定一次 — role 变更时切换 voicedChars 区可见性
         const roleEl = document.getElementById('npcRole');
         if (roleEl && !roleEl._npcBound) {
@@ -2873,6 +2896,60 @@ CONTENT:
         const role = document.getElementById('npcRole')?.value || '';
         const section = document.getElementById('npcVoicedCharsSection');
         if (section) section.style.display = this._isSeiyuuRole(role) ? 'block' : 'none';
+    },
+
+    // ===== 角色预置下拉（自定义，替代 iOS Safari 不弹的原生 datalist） =====
+    // i18n 角色名 key（早已定义，原 datalist 用硬编码值而未用上）
+    _ROLE_PRESET_KEYS: [
+        'forum.role_producer', 'forum.role_series_constr', 'forum.role_director',
+        'forum.role_writer', 'forum.role_seiyuu', 'forum.role_anim_director',
+        'forum.role_storyboard', 'forum.role_official_twitter', 'forum.role_illustrator'
+    ],
+
+    _buildRoleDropdown() {
+        const dd = document.getElementById('npcRoleDropdown');
+        if (!dd) return;
+        dd.innerHTML = '';
+        this._ROLE_PRESET_KEYS.forEach(k => {
+            const v = I18n.t(k);
+            const el = document.createElement('div');
+            el.className = 'npc-role-opt';
+            el.textContent = v;
+            el.onclick = (e) => { e.stopPropagation(); this._pickRolePreset(v); };
+            dd.appendChild(el);
+        });
+    },
+
+    _toggleRoleDropdown(e) {
+        if (e) e.stopPropagation();
+        const dd = document.getElementById('npcRoleDropdown');
+        if (!dd) return;
+        const willShow = dd.style.display === 'none' || !dd.style.display;
+        dd.style.display = willShow ? 'block' : 'none';
+        // 点击下拉以外区域关闭（绑定一次，幂等检查 display）
+        if (willShow && !this._roleDropdownOutsideBound) {
+            this._roleDropdownOutsideBound = true;
+            // 箭头包裹保住 this（即便目前 _onRoleDropdownOutside 未用 this，防将来重构踩坑）
+            document.addEventListener('click', e => this._onRoleDropdownOutside(e));
+        }
+    },
+
+    _onRoleDropdownOutside(e) {
+        const dd = document.getElementById('npcRoleDropdown');
+        if (!dd || dd.style.display === 'none') return;
+        const field = dd.closest('.npc-role-field');
+        if (field && !field.contains(e.target)) dd.style.display = 'none';
+    },
+
+    _pickRolePreset(value) {
+        const input = document.getElementById('npcRole');
+        if (input) {
+            input.value = value;
+            // 选「声優」要展开配音角色区
+            this._toggleVoicedCharsSection();
+        }
+        const dd = document.getElementById('npcRoleDropdown');
+        if (dd) dd.style.display = 'none';
     },
 
     _addVoicedChar() {
@@ -2919,6 +2996,16 @@ CONTENT:
         const handle = document.getElementById('npcHandle').value.trim().replace(/^@+/, '');
         const voiceId = document.getElementById('npcVoiceId').value.trim();
         const isSeiyuu = this._isSeiyuuRole(role);
+        // 提醒：声優角色在配音角色输入框打了字却没点「追加」就保存 —— 提示别误丢
+        // （不自动追加，保留「必须显式追加」的设计；让用户确认后再保存）
+        if (isSeiyuu) {
+            const vcInput = document.getElementById('npcVoicedCharsInput');
+            if (vcInput && vcInput.value.trim()) {
+                Utils.showToast(I18n.t('forum.npc_voiced_chars_pending', '「配音角色」还没点「追加」，确认后再保存哦'));
+                vcInput.focus();
+                return;
+            }
+        }
         const voicedCharacters = isSeiyuu ? [...this._editingVoicedChars] : [];
 
         const data = AppState.data.forumData;
@@ -4482,6 +4569,7 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
             Melonbooks.onPlotPublished(draftPlotId);
         }
         if (draftPlotId && typeof Mercari !== 'undefined' && Mercari.onPlotPublished) Mercari.onPlotPublished(draftPlotId);
+        if (draftPlotId && typeof Wandoro !== 'undefined' && Wandoro.onPlotPublished) Wandoro.onPlotPublished(draftPlotId);   // v2.129.0 完結前：草稿发布也起一轮 ワンドロ（抽到 wandoro.js、缺失则 no-op）
 
         this.renderPlotDraftList();
         this.renderPlotList();
