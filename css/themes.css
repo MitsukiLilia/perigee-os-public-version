@@ -52,7 +52,7 @@
        这里不改它（保持上方浅色不动），桌面 widget 的玻璃在下方 override 段单独针对
        .widget-card / .widget-clock / .widget-vinyl 处理，避免污染 app 内部。 */
     /* 壁纸：清晰阴天海景照片，作 shader 未就绪 / 2D 兜底时的底图（照片是本主题灵魂、唯一的非纯色例外；用户填 URL 时 applyWallpaper 的 inline backgroundImage 优先级更高自动覆盖）*/
-    --wallpaper-gradient: url('../assets/textures/seascape-bg.webp') center / cover no-repeat;
+    --wallpaper-gradient: url('assets/textures/seascape-bg.webp') center / cover no-repeat;
     /* 图标渐变色 */
     --icon-gradient-1: linear-gradient(135deg, #89A3BA 0%, #a8c0d3 100%);
     --icon-gradient-2: linear-gradient(135deg, #92C7CC 0%, #b8dce0 100%);
@@ -145,7 +145,7 @@
     --app-icon-bg: rgba(40, 44, 78, 0.40);
     --app-icon-color: rgba(232, 236, 250, 0.92);
     /* 夜空沉浸：内嵌星空银河照片当壁纸（用户上传壁纸时 applyWallpaper 的 inline backgroundImage 优先级更高、自动覆盖） */
-    --wallpaper-gradient: url('../assets/textures/night-sky-bg.webp') center / cover no-repeat;
+    --wallpaper-gradient: url('assets/textures/night-sky-bg.webp') center / cover no-repeat;
     --icon-gradient-1: linear-gradient(135deg, #5c66a0 0%, #7a84b8 100%);
     --icon-gradient-2: linear-gradient(135deg, #6B74A8 0%, #8890c0 100%);
     --desktop-text: #e6e8f6;
@@ -181,7 +181,7 @@
     --icon-bg: var(--accent-color);
     --app-icon-bg: rgba(255, 253, 248, 0.88);
     --app-icon-color: rgba(58, 66, 72, 0.7);
-    --wallpaper-gradient: url('../assets/textures/journal-bg.webp');
+    --wallpaper-gradient: url('assets/textures/journal-bg.webp');
     --icon-gradient-1: linear-gradient(135deg, #7a9e8a 0%, #9ab8a8 100%);
     --icon-gradient-2: linear-gradient(135deg, #b8c8d4 0%, #d0dce4 100%);
     --desktop-text: #5c4a32;
@@ -861,7 +861,7 @@
     --app-icon-bg: rgba(255, 251, 247, 0.92);
     --app-icon-color: rgba(107, 74, 69, 0.75);
     /* 壁纸：作者手绘草莓蛋糕水彩桌布（四周点缀、中间留白给图标） */
-    --wallpaper-gradient: url('../assets/textures/strawberry-bg.webp') center / cover no-repeat;
+    --wallpaper-gradient: url('assets/textures/strawberry-bg.webp') center / cover no-repeat;
     --icon-gradient-1: #d96b7a;
     --icon-gradient-2: #efb8c2;
     /* 桌面文字用深可可色（莓红 #c25b6a 在奶油白上对比仅 3.9:1 不过 AA，
