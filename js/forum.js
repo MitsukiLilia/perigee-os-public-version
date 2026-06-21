@@ -3995,17 +3995,8 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
 
     // ===== 合并总结管理 =====
 
-    showSummaryModal() {
-        this._summaryPreviewData = null;
-        document.getElementById('summaryModalTitle').textContent = I18n.t('forum.summary_modal_title', '剧情 & 情报综合总结');
-        this._renderSummaryModal();
-        document.getElementById('summaryModal').classList.add('active');
-    },
-
-    closeSummaryModal() {
-        document.getElementById('summaryModal').classList.remove('active');
-        this._summaryPreviewData = null;
-    },
+    // v2.136.0: showSummaryModal / closeSummaryModal 已移除——总结管理从弹窗下放为放送局「总结」Tab 的一级内容，
+    // 切 tab 即由 Broadcast._initSummaryTab() 重置 _summaryPreviewData 并调用 _renderSummaryModal() 直接渲染。
 
     // 计算下一期总结将覆盖的范围
     _calcNextSummaryScope(untilPlotId) {

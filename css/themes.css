@@ -51,8 +51,8 @@
     /* 注意：--glass-panel 被 app 内部 chrome（app-header / chat-input / kb-drawer 等）复用，
        这里不改它（保持上方浅色不动），桌面 widget 的玻璃在下方 override 段单独针对
        .widget-card / .widget-clock / .widget-vinyl 处理，避免污染 app 内部。 */
-    /* 壁纸：内嵌雨天玻璃照片（照片是本主题灵魂、唯一的非纯色例外；用户填 URL 时 applyWallpaper 的 inline backgroundImage 优先级更高自动覆盖）*/
-    --wallpaper-gradient: url('../assets/textures/summer-rain-bg.webp') center / cover no-repeat;
+    /* 壁纸：清晰阴天海景照片，作 shader 未就绪 / 2D 兜底时的底图（照片是本主题灵魂、唯一的非纯色例外；用户填 URL 时 applyWallpaper 的 inline backgroundImage 优先级更高自动覆盖）*/
+    --wallpaper-gradient: url('../assets/textures/seascape-bg.webp') center / cover no-repeat;
     /* 图标渐变色 */
     --icon-gradient-1: linear-gradient(135deg, #89A3BA 0%, #a8c0d3 100%);
     --icon-gradient-2: linear-gradient(135deg, #92C7CC 0%, #b8dce0 100%);
@@ -62,6 +62,23 @@
     --danger-color: #ff3b30;
     --success-color: #34c759;
     --warning-color: #ff9500;
+}
+
+/* ── 真·液态玻璃折射（仅 Chromium；由 js/liquid-glass.js 探测后给 <html> 加 .lg-supported）──
+   不支持的引擎（iPhone/WebKit、Firefox）没有 .lg-supported → 保持下方 738/770 与 style.css:1431
+   的磨砂基线、零回归。质量分流不再硬写 blur 值、改用 :not() 排除让关/降级态自然落回那套基线：
+     · .lg-quality-off（关）→ 三条折射规则全不命中 → 图标/Dock/widget 全回磨砂基线（= iPhone 的样子）
+     · .lg-degrade-icons（自动低端降级）→ 只图标那条不命中 → 图标回磨砂、Dock/widget 仍折射
+   这样「关/降级」与 iPhone/旧版肉眼一致。折射叠一层轻 blur 当起雾；filter 由 #lg-* 提供。
+   （只在 Chromium 命中、无需 -webkit-backdrop-filter 兜底。） */
+.lg-supported:not(.lg-quality-off):not(.lg-degrade-icons)[data-theme="summer-rain"] .app-icon {
+    backdrop-filter: url(#lg-icon) blur(3px) saturate(140%);
+}
+.lg-supported:not(.lg-quality-off)[data-theme="summer-rain"] .dock {
+    backdrop-filter: url(#lg-dock) blur(6px) saturate(140%);
+}
+.lg-supported:not(.lg-quality-off)[data-theme="summer-rain"] .widget-card {
+    backdrop-filter: url(#lg-clock) blur(3px) saturate(140%);
 }
 
 /* 柔粉主题 — 暖粉色系 */
@@ -808,4 +825,114 @@
    故无需 overflow:hidden 裁剪）。 */
 [data-theme="summer-rain"] .app-icon {
     position: relative;
+}
+
+/* ============================================================
+   草莓蛋糕主题（strawberry）— 奶油白基调 · 桌面专属 override
+   只动 #desktop（图标 / widget / 状态栏 / 页码点），仿真 app 内部不碰。
+   图标 = 手绘草莓蛋糕贴纸 webp，由 js/strawberry-icons.js 在本主题下注入
+   <img> 替换桌面 .app-icon（与手帐/夜空同机制，三方守卫对称）。
+   背景 = strawberry-bg.webp，已接 --wallpaper-gradient（见下）。
+   ============================================================ */
+[data-theme="strawberry"] {
+    --bg-base: #fdf5ef;
+    --bg-secondary: #faf0e8;
+    --bg-elevated: #fef8f3;
+    --bg-card: #fffaf6;
+    --glass-panel: rgba(255, 252, 248, 0.85);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --bg-hover: rgba(217, 107, 122, 0.08);
+    --accent-color: #d96b7a;
+    --accent-soft: #efb8c2;
+    --accent-shadow: rgba(217, 107, 122, 0.25);
+    --text-primary: #6b4a45;
+    --text-secondary: #9a7a72;
+    --text-tertiary: #c0a098;
+    --border-light: #f2e2da;
+    --border-medium: #ead2c6;
+    --border-dark: #ddc0b2;
+    --bubble-me: #d96b7a;
+    --bubble-me-text: #ffffff;
+    --bubble-ai: #faf0e8;
+    --bubble-ai-text: #6b4a45;
+    --summary-bg: #f6d8cc;
+    --summary-text: #6b4a45;
+    --icon-bg: var(--accent-color);
+    --app-icon-bg: rgba(255, 251, 247, 0.92);
+    --app-icon-color: rgba(107, 74, 69, 0.75);
+    /* 壁纸：作者手绘草莓蛋糕水彩桌布（四周点缀、中间留白给图标） */
+    --wallpaper-gradient: url('../assets/textures/strawberry-bg.webp') center / cover no-repeat;
+    --icon-gradient-1: #d96b7a;
+    --icon-gradient-2: #efb8c2;
+    /* 桌面文字用深可可色（莓红 #c25b6a 在奶油白上对比仅 3.9:1 不过 AA，
+       审查实锤；莓红留给图标符号，那是大块矢量在更白的卡片上） */
+    --desktop-text: #6b4a45;
+    --danger-color: #d9534f;
+    --success-color: #7ab87a;
+    --warning-color: #d4944c;
+    /* 不覆盖 --radius-*：那几个 token 被 melon/niconico 等仿真 app 消费，
+       改了会让 app 内模态框圆角变化、越过「桌面外壳」边界 */
+}
+
+/* 图标 = 手绘草莓蛋糕贴纸(webp)，自带奶油白卡造型 + 奶盖 + 草莓。
+   .app-icon 退成透明托盘（去掉玻璃卡背景/边框/磨砂），投影用 img 的
+   drop-shadow 贴合蛋糕 alpha 轮廓而非方框。图标替换由 js/strawberry-icons.js 负责。 */
+[data-theme="strawberry"] .app-icon {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: visible;
+}
+[data-theme="strawberry"] .app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 4px rgba(150, 80, 90, 0.22));
+    pointer-events: none;
+}
+
+/* widget 卡片：奶油白 + 莓红淡边 + 柔光 */
+[data-theme="strawberry"] .widget-card {
+    background: rgba(255, 251, 247, 0.90);
+    border: 1.5px solid rgba(217, 107, 122, 0.26);
+    box-shadow: 0 2px 12px rgba(180, 90, 100, 0.10);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    position: relative;
+}
+
+/* widget 顶沿奶油扇贝花边（纯白半圆平铺，单色不渐变） */
+[data-theme="strawberry"] .widget-card::before {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: 12px;
+    right: 12px;
+    height: 7px;
+    background: radial-gradient(circle 4px at 6px 7px, #fffdfb 4px, transparent 4.5px);
+    background-size: 12px 7px;
+    background-repeat: repeat-x;
+    z-index: 1;
+    pointer-events: none;
+}
+
+[data-theme="strawberry"] .widget-clock,
+[data-theme="strawberry"] .widget-vinyl {
+    background: rgba(255, 251, 247, 0.90);
+}
+
+/* 时钟时间染莓红 */
+[data-theme="strawberry"] .widget-clock .clock-time-wide,
+[data-theme="strawberry"] .widget-clock .clock-time-small {
+    color: var(--accent-color);
+}
+
+/* 页码点：莓红（用真正生效的 .page-dots .dot，非 journal 失效的 .page-dot） */
+[data-theme="strawberry"] .page-dots .dot {
+    background: rgba(217, 107, 122, 0.35);
+}
+[data-theme="strawberry"] .page-dots .dot.active {
+    background: #d96b7a;
 }

@@ -1736,6 +1736,12 @@ Generate cover illustration tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple
                     case 'openai':
                         blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config);
                         break;
+                    case 'gpt-image':
+                        blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config);
+                        break;
+                    case 'openrouter':
+                        blobs = await PixivIllust.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
+                        break;
                     case 'stabilityai':
                         blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config);
                         break;

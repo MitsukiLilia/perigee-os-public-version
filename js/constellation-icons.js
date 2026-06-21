@@ -1,7 +1,7 @@
 // ===== 夜空(night-sky)主题 · 星座图标 =====
 // 仅在 night-sky 主题下，把桌面 app 图标替换成「星座连线」SVG；切走恢复默认图标。
 // 用户自定义图标（AppState.data.customIcons）优先级最高，不被星座覆盖。
-// 图标 SVG 由小克手绘（viewBox 48）：白细线连轮廓 + 大小不一带光晕的节点星 + 零星散星。
+// 图标 SVG 由作者手绘（viewBox 48）：白细线连轮廓 + 大小不一带光晕的节点星 + 零星散星。
 // 调用时机：DesktopRenderer.render() 末尾（applyCustomIcons 之前）+ SystemConfig.applyTheme() 末尾。
 
 const ConstellationIcons = {
@@ -66,7 +66,7 @@ const ConstellationIcons = {
         c.innerHTML = this.SVGS[appId];
       } else if (c.dataset.iconDefault && !customIcons[appId]) {
         // 切走夜空 / 该 app 无星座版：恢复默认 SVG（仅在非手帐主题时；手帐会自己接管）
-        if (document.documentElement.dataset.theme !== 'journal') {
+        if (document.documentElement.dataset.theme !== 'journal' && document.documentElement.dataset.theme !== 'strawberry') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

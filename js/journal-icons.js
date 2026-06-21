@@ -48,7 +48,7 @@ const JournalIcons = {
       } else if (c.dataset.iconDefault) {
         // 离开手帐主题 / 该 app 无手帐图标：恢复原始 SVG
         // 但若当前是夜空主题，图标已由 ConstellationIcons 接管，不要恢复（与 constellation-icons.js 的 journal 守卫镜像对称）
-        if (document.documentElement.dataset.theme !== 'night-sky') {
+        if (document.documentElement.dataset.theme !== 'night-sky' && document.documentElement.dataset.theme !== 'strawberry') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

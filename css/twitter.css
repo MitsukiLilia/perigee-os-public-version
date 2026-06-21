@@ -1212,6 +1212,23 @@ body.dark-mode .tw-profile-avatar-wrap { background: var(--bg-base); }
 .tw-profile-line-btn:disabled { opacity: 0.5; cursor: default; filter: none; }
 /* NPC名/アバター クリッカブル */
 .tw-avatar-link { cursor: pointer; }
+
+/* 时间线「查看更早的推文」分页按钮 */
+.tw-load-earlier {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 12px auto 24px;
+    padding: 12px;
+    background: none;
+    border: 1px solid var(--border-light);
+    border-radius: 9999px;
+    color: var(--accent-color);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.tw-load-earlier:hover { background: var(--border-light); }
 .tw-avatar-link:hover { opacity: 0.82; }
 .tw-name-link { cursor: pointer; }
 .tw-name-link:hover { text-decoration: underline; }

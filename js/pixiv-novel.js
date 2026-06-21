@@ -1464,7 +1464,7 @@ Internal monologues MUST be enclosed in full-width parentheses （）.`;
             // 参考范围：取目标章节之前的所有章节摘要
             const contextChapters = isReroll ? novel.chapters.slice(0, rerollIdx) : novel.chapters;
 
-            // ── 章节记忆：最近 5 章喂全文，更早的喂摘要（借鉴预设的滑动窗口）──
+            // ── 章节记忆：最近 5 章喂全文，更早的喂摘要（滑动窗口记忆策略）──
             // 只喂摘要时 AI 看不到上一章实际怎么收尾，新章开头容易与上一章结尾重复。
             const FULL_TEXT_WINDOW = 5;
             const fullTextFromIdx = Math.max(0, contextChapters.length - FULL_TEXT_WINDOW);

@@ -176,6 +176,10 @@
     align-items: center;
 }
 .lof-top-icon:active { opacity: 0.6; }
+.lof-top-icon:disabled { opacity: 0.45; cursor: not-allowed; }
+/* v2.144.0 刷新中：图标转圈（lofter.css 无现成 spin、新增 lofSpin） */
+.lof-top-icon.lof-refreshing svg { animation: lofSpin 0.8s linear infinite; transform-origin: center; }
+@keyframes lofSpin { to { transform: rotate(360deg); } }
 .lof-top-title {
     font-size: 17px;
     font-weight: 600;
@@ -2069,6 +2073,160 @@
 [data-theme="night-sky"] .lof-settings-hint { color: #6a6a72; }
 [data-theme="night-sky"] .lof-settings-number,
 [data-theme="night-sky"] .lof-settings-select {
+    background: #2a2a30;
+    border-color: #3a3a40;
+    color: #e8e8ec;
+}
+
+/* ========== v2.141.0 文手管理（设置页入口 + 列表 + 编辑）========== */
+.lof-settings-entry-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-medium, #e2e2e2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    cursor: pointer;
+    text-align: left;
+}
+.lof-settings-entry-btn:active { opacity: 0.85; }
+.lof-settings-entry-btn svg { flex: none; color: var(--text-secondary, #999); }
+
+.lof-writer-mgr-body,
+.lof-writer-edit-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg-page, #f7f7fa);
+    padding: 14px;
+}
+/* v2.144.0 文手管理顶部说明条：讲清「这里是全部中文圈 NPC」 */
+.lof-writer-mgr-intro {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    line-height: 1.6;
+    background: var(--bg-card, #fff);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+}
+.lof-writer-mgr-empty {
+    font-size: 13px;
+    color: var(--text-secondary, #888);
+    line-height: 1.6;
+    padding: 48px 24px;
+    text-align: center;
+}
+.lof-writer-row {
+    display: flex;
+    gap: 12px;
+    background: var(--bg-card, #fff);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+}
+.lof-writer-row.disabled { opacity: 0.5; }
+.lof-writer-avatar {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+}
+.lof-writer-main { flex: 1; min-width: 0; }
+.lof-writer-name-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+.lof-writer-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+}
+.lof-writer-type {
+    font-size: 11px;
+    color: #1abc9c;
+    background: rgba(26, 188, 156, 0.12);
+    border-radius: 5px;
+    padding: 1px 7px;
+}
+.lof-writer-count { font-size: 11px; color: var(--text-secondary, #999); }
+.lof-writer-tags {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    line-height: 1.5;
+    margin-bottom: 10px;
+    word-break: break-word;
+}
+.lof-writer-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.lof-writer-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-secondary, #777);
+    cursor: pointer;
+    margin-right: auto;
+}
+.lof-writer-toggle input { cursor: pointer; }
+.lof-writer-btn {
+    border: 1px solid var(--border-medium, #ddd);
+    background: var(--bg-card, #fff);
+    border-radius: 7px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--text-primary, #333);
+    cursor: pointer;
+}
+.lof-writer-btn:active { opacity: 0.8; }
+.lof-writer-del { color: #e0556e; border-color: rgba(224, 85, 110, 0.4); }
+.lof-writer-edit-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border-medium, #ddd);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--text-primary, #1a1a1a);
+}
+
+[data-theme="night-sky"] .lof-settings-entry-btn {
+    background: #1a1a1f;
+    border-color: #3a3a40;
+    color: #e8e8ec;
+}
+[data-theme="night-sky"] .lof-writer-mgr-body,
+[data-theme="night-sky"] .lof-writer-edit-body { background: #0f0f12; }
+[data-theme="night-sky"] .lof-writer-row { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-writer-mgr-intro { background: #1a1a1f; color: #8a8a92; }
+[data-theme="night-sky"] .lof-writer-name { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-writer-count,
+[data-theme="night-sky"] .lof-writer-tags,
+[data-theme="night-sky"] .lof-writer-toggle,
+[data-theme="night-sky"] .lof-writer-mgr-empty { color: #8a8a92; }
+[data-theme="night-sky"] .lof-writer-btn,
+[data-theme="night-sky"] .lof-writer-edit-input {
     background: #2a2a30;
     border-color: #3a3a40;
     color: #e8e8ec;

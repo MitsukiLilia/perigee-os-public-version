@@ -110,7 +110,7 @@ const PaymentTracker = {
         if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('尾款提醒', {
                 body: `${payment.itemName} 今天需要付尾款 ¥${payment.balance.toFixed(2)}`,
-                icon: './icon-192.png'
+                icon: './icon-192-v5.png'
             });
         }
     }

@@ -1152,6 +1152,9 @@
 .wb-top-action:active {
     color: #ff8200;
 }
+.wb-top-action:disabled { opacity: 0.45; cursor: not-allowed; }
+/* v2.144.0 刷新中：复用已有 wbSpin keyframes 让刷新图标转圈 */
+.wb-top-action.wb-refreshing svg { animation: wbSpin 0.8s linear infinite; transform-origin: center; }
 
 /* ========== 我的 tab 设置 list 风格（IMG_1583）========== */
 .wb-settings-list {

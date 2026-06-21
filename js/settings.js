@@ -397,7 +397,7 @@ const APISettings = {
         const key = document.getElementById('imageApiKey').value.trim();
         let url = document.getElementById('imageApiUrl').value.trim();
         const btn = document.getElementById('fetchImageModelsBtn');
-        const datalist = document.getElementById('imageModelList');
+        const select = document.getElementById('imageModelSelect');
         const input = document.getElementById('imageApiModel');
 
         if (!key) return alert('请先输入 API Key');
@@ -406,8 +406,10 @@ const APISettings = {
         // Midjourney/Stability通常没有标准化列表接口，或者格式不同
         // 这里主要支持OpenAI和兼容OpenAI的生图服务
 
-        if (provider === 'openai') {
+        if (provider === 'openai' || provider === 'gpt-image') {
             url = 'https://api.openai.com/v1'; // 强制官方地址
+        } else if (provider === 'openrouter') {
+            if (!url) url = 'https://openrouter.ai/api/v1'; // OpenRouter 官方地址兜底（用户没填时）
         } else if (!url) {
             return alert('请输入完整的 API URL');
         }
@@ -416,6 +418,8 @@ const APISettings = {
         while (url.endsWith('/')) url = url.slice(0, -1);
         // 移除 /images/generations 等后缀
         url = url.replace(/\/images\/generations?$/, '');
+        // OpenRouter 等用户可能填完整 chat 端点，去掉后缀避免 Fetch 拼出 .../chat/completions/v1/models
+        url = url.replace(/\/(chat\/)?completions$/i, '');
         // 移除 /v1 (如果Fetch会自动加上)
         // 但通常 /v1/models 是标准
         // 简单处理：尝试访问 ${url}/models 或 ${url}/v1/models
@@ -468,16 +472,24 @@ const APISettings = {
         btn.disabled = false;
 
         if (models.length > 0) {
-            // 更新 datalist
-            datalist.innerHTML = '';
-            models.forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m;
-                datalist.appendChild(opt);
-            });
-            alert(`✓ 成功获取 ${models.length} 个模型！\n请点击输入框查看或选择。`);
-            // 尝试聚焦输入框以显示列表
-            input.focus();
+            // 填充自定义下拉 select（iOS 原生 datalist 弹不出，改用 select；点 input 右侧 ▼ 选）
+            if (select) {
+                select.innerHTML = '';
+                const ph = document.createElement('option');
+                ph.value = '';
+                ph.textContent = `— 已拉取 ${models.length} 个，点选 —`;
+                select.appendChild(ph);
+                models.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m;
+                    opt.textContent = m;
+                    select.appendChild(opt);
+                });
+                // 回填当前 input 已有的模型（若在列表中），方便看到当前选中
+                const prev = input.value.trim();
+                if (prev && models.includes(prev)) select.value = prev;
+            }
+            alert(`✓ 成功获取 ${models.length} 个模型！\n点输入框右侧 ▼ 选择，或手动输入。`);
         } else {
             alert(`获取失败: ${errorMsg || '未找到兼容的模型列表'}\n\n请手动输入模型名称。`);
         }
@@ -486,7 +498,7 @@ const APISettings = {
 
 // 2. 系统配置模块
 const SystemConfig = {
-    THEMES: ['sakura', 'night-sky', 'summer-rain', 'journal', 'minimal', 'zelda', 'animal'],
+    THEMES: ['sakura', 'night-sky', 'summer-rain', 'journal', 'minimal', 'zelda', 'animal', 'strawberry'],
     FONTS: ['cjk-serif', 'jp-mincho', 'sans', 'mono', 'system'],
 
     // 老 → 新主题映射（静默迁移）
@@ -512,7 +524,8 @@ const SystemConfig = {
                 bgTexture: 'none',
                 customTheme: '',
                 rainEffect: true,
-                starfieldEffect: true
+                starfieldEffect: true,
+                glassQuality: 'auto'
             };
         }
         const cfg = AppState.data.systemConfig;
@@ -556,6 +569,8 @@ const SystemConfig = {
         if (cfg.customTheme === undefined) cfg.customTheme = '';
         if (cfg.rainEffect === undefined) cfg.rainEffect = true;
         if (cfg.starfieldEffect === undefined) cfg.starfieldEffect = true;
+        if (cfg.glassQuality === undefined) cfg.glassQuality = 'auto';
+        if (cfg.showDockLabels === undefined) cfg.showDockLabels = true;
         if (!cfg.language) cfg.language = 'zh';
 
         // 应用所有视觉设定
@@ -566,6 +581,7 @@ const SystemConfig = {
         this.applyCustomTheme(cfg.customTheme);
         this.applyRainEffect(cfg.rainEffect);
         this.applyStarfieldEffect(cfg.starfieldEffect);
+        this.applyGlassQuality(cfg.glassQuality);
 
         // 表单值
         const langSel = document.getElementById('systemLanguage');
@@ -574,6 +590,9 @@ const SystemConfig = {
         if (wpIn) wpIn.value = cfg.wallpaper || '';
         // 动态特效开关：按当前主题显示对应开关 + 回填态（夏雨=雨 / 夜空=星空 / 其他主题=隐藏整行）
         this._updateThemeEffectRow();
+        this._updateGlassQualityRow();
+        const dockLabelsToggle = document.getElementById('dockLabelsToggle');
+        if (dockLabelsToggle) dockLabelsToggle.checked = cfg.showDockLabels !== false;
         this._syncTexturePicker(cfg.bgTexture);
         this._syncThemeHighlight(cfg.theme);
         this._syncFontHighlight(cfg.fontFamily);
@@ -758,8 +777,10 @@ const SystemConfig = {
         // 主题专属图标（applyTheme 只改属性、不重渲染图标，这里主动刷新一次）
         if (typeof ConstellationIcons !== 'undefined') ConstellationIcons.apply();
         if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
+        if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
         // 切主题后更新「动态特效开关」行（按当前主题显示对应开关 / 隐藏）
         if (typeof this._updateThemeEffectRow === 'function') this._updateThemeEffectRow();
+        if (typeof this._updateGlassQualityRow === 'function') this._updateGlassQualityRow();
     },
 
     applyFont(font) {
@@ -799,6 +820,32 @@ const SystemConfig = {
     applyStarfieldEffect(enabled) {
         document.body.classList.toggle('starfield-off', !enabled);
         if (window.StarfieldEngine) StarfieldEngine.setEnabled(enabled);
+    },
+
+    // 玻璃质量（仅夏雨 + 支持折射时有意义）：'auto' | 'high' | 'off' → LiquidGlass.setQuality
+    applyGlassQuality(level) {
+        const lv = (level === 'high' || level === 'off') ? level : 'auto';
+        if (typeof LiquidGlass !== 'undefined') LiquidGlass.setQuality(lv);
+    },
+    onGlassQualityChange(level) {
+        const cfg = AppState.data.systemConfig || (AppState.data.systemConfig = {});
+        cfg.glassQuality = (level === 'high' || level === 'off') ? level : 'auto';
+        this.applyGlassQuality(cfg.glassQuality);
+        Utils.saveData();
+    },
+    // 仅夏雨主题且引擎支持折射时显示；否则隐藏（iPhone 没真折射可调）
+    _updateGlassQualityRow() {
+        const row = document.getElementById('glassQualityRow');
+        if (!row) return;
+        const theme = document.documentElement.dataset.theme;
+        const supported = (typeof LiquidGlass !== 'undefined') && LiquidGlass.supported;
+        const show = theme === 'summer-rain' && supported;
+        row.style.display = show ? 'flex' : 'none';
+        if (show) {
+            const cfg = AppState.data.systemConfig || {};
+            const sel = document.getElementById('glassQualitySelect');
+            if (sel) sel.value = cfg.glassQuality || 'auto';
+        }
     },
 
     // ── 数据驱动「动态特效开关」：每个主题各自的动态特效，按当前主题显示对应开关 / 无动态则隐藏整行
@@ -985,6 +1032,14 @@ const SystemConfig = {
         setTimeout(() => el.remove(), 2200);
     },
 
+    // v2.144.0 Dock 名称开关：即时写 systemConfig + 重渲 Dock（外观设置里 toggle 的 onchange）
+    onDockLabelsChange(checked) {
+        const cfg = AppState.data.systemConfig || (AppState.data.systemConfig = {});
+        cfg.showDockLabels = !!checked;
+        Utils.saveData();
+        if (typeof DesktopRenderer !== 'undefined' && DesktopRenderer.render) DesktopRenderer.render();
+    },
+
     // 保留 saveConfig 给「应用背景设置」按钮使用：保存壁纸 + 纹理 + 雨效果开关
     saveConfig() {
         const cfg = AppState.data.systemConfig || (AppState.data.systemConfig = {});
@@ -1119,6 +1174,7 @@ const IconCustomizer = {
         Utils.saveData();
         this.render();
         this.applyCustomIcons(); // 立即应用到桌面
+        this._reapplyThemeIcons(); // 重铺当前主题图标，避免改图标后主题贴纸/星座丢失
         Utils.showToast(I18n.t('t.set_icon_saved', '✓ 图标已保存'));
     },
 
@@ -1130,6 +1186,7 @@ const IconCustomizer = {
         Utils.saveData();
         this.render();
         this.applyCustomIcons();
+        this._reapplyThemeIcons(); // reset 后重贴当前主题图标，而非退回默认 SVG（修 pre-existing）
         Utils.showToast(I18n.t('t.set_icon_reset', '✓ 已恢复默认图标'));
     },
 
@@ -1161,6 +1218,14 @@ const IconCustomizer = {
                 iconContainer.innerHTML = `<img src="${iconUrl}" alt="" style="width: 100%; height: 100%; object-fit: contain; border-radius: 12px;" onerror="this.parentElement.innerHTML = this.parentElement.dataset.originalSvg; delete this.parentElement.dataset.originalSvg;">`;
             });
         });
+    },
+
+    // 删/改自定义图标后重铺当前主题图标贴纸/星座(三方守卫对称、顺序同 DesktopRenderer.render)，
+    // 否则被 reset 的 app 会退回默认 SVG 而非主题图标。自定义图标仍最高优先(applyCustomIcons 在此之前已跑)。
+    _reapplyThemeIcons() {
+        if (typeof ConstellationIcons !== 'undefined') ConstellationIcons.apply();
+        if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
+        if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
     }
 };
 
@@ -1188,6 +1253,14 @@ const ImageAPISettings = {
         // Bind events
         document.getElementById('imageApiProvider').onchange = this.onProviderChange.bind(this);
         document.getElementById('saveImageApiBtn').onclick = this.save.bind(this);
+
+        // 模型下拉（透明 select 叠在 input 右侧 ▼）选中后回填 input —— iOS 原生 datalist 弹不出，改用 select
+        const imageModelSelect = document.getElementById('imageModelSelect');
+        if (imageModelSelect) {
+            imageModelSelect.onchange = () => {
+                if (imageModelSelect.value) document.getElementById('imageApiModel').value = imageModelSelect.value;
+            };
+        }
 
         // Restore NovelAI settings if saved
         const naiSettings = AppState.data.novelaiSettings;
@@ -1247,6 +1320,19 @@ const ImageAPISettings = {
                 urlInput.value = 'https://api.openai.com';
                 urlInput.placeholder = 'https://api.openai.com';
                 modelInput.placeholder = 'dall-e-3 / dall-e-2';
+                break;
+            case 'gpt-image':
+                urlInput.value = 'https://api.openai.com';
+                urlInput.placeholder = 'https://api.openai.com';
+                modelInput.placeholder = 'gpt-image-2';
+                break;
+            case 'openrouter':
+                // 官方地址兜底；保留用户已填的自定义 base（仅当空或是上一个 provider 的默认值时才覆盖）
+                if (!urlInput.value || /api\.openai\.com|api\.stability\.ai/.test(urlInput.value)) {
+                    urlInput.value = 'https://openrouter.ai/api/v1';
+                }
+                urlInput.placeholder = 'https://openrouter.ai/api/v1';
+                modelInput.placeholder = 'openai/gpt-5.4-image-2';
                 break;
             case 'stabilityai':
                 urlInput.value = 'https://api.stability.ai';
@@ -1309,7 +1395,7 @@ const ImageAPISettings = {
 
 // ===== TTS 语音朗读设置 =====
 const TTSSettings = {
-    // MiniMax 区域 → API endpoint 映射（两个站账号不互通；参考 Kitty 机 2026.1 版）
+    // MiniMax 区域 → API endpoint 映射（两个站账号不互通；参考 既有方案 2026.1 版）
     MINIMAX_ENDPOINTS: {
         global: 'https://api.minimax.io',
         china:  'https://api.minimaxi.com'
@@ -1558,7 +1644,7 @@ const TTSSettings = {
     },
 
     // 获取/同步 MiniMax 语音模型：测试连接 + 刷新预设列表
-    // MiniMax TTS 没有标准列模型 API，沿用 Kitty 机做法 —— 预设 + 测试
+    // MiniMax TTS 没有标准列模型 API，沿用 既有方案做法 —— 预设 + 测试
     async fetchSpeechModels() {
         const region = document.getElementById('ttsMinimaxRegion')?.value || 'global';
         const customBase = (document.getElementById('ttsMinimaxCustomBase')?.value || '').trim();

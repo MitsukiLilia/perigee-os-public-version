@@ -25,8 +25,13 @@ const APP_REGISTRY = {
     settings:         { label: 'Settings',  i18n: 'app.settings',    iconClass: 'icon-settings',    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.636 5.636l4.243 4.243m4.242 4.242l4.243 4.243M1 12h6m6 0h6M5.636 18.364l4.243-4.243m4.242-4.242l4.243-4.243"/></svg>' },
 };
 
-const DEFAULT_PAGE0 = ['broadcast','chat','worldbook','language','forum','pixiv-novel','twitter','magazine','melonbooks'];
-const DEFAULT_PAGE1 = ['niconico','mercari','weibo','lofter','writer','lyric-lab','payment-tracker','fortune','tarot','travel-account','settings'];
+// Dock 固定的常用 app（不出现在可滑动网格里、跨页固定在底栏）。v1 写死，存成数组为将来可定制留口。
+const DEFAULT_DOCK = ['broadcast','worldbook','settings'];
+const DOCK_MAX = 4;   // iPhone 风格 Dock 上限；下限「最少 1 个」在 _applyMoveFromDock 守
+// 默认网格不含 DEFAULT_DOCK 里的三个（它们去了底栏）。
+// 第1页时钟下 3×3 满 9 个，第2页日历下 8 个，两页更均衡。
+const DEFAULT_PAGE0 = ['chat','forum','pixiv-novel','twitter','magazine','melonbooks','niconico','mercari','lyric-lab'];
+const DEFAULT_PAGE1 = ['weibo','lofter','writer','payment-tracker','fortune','tarot','travel-account','language'];
 const COLS = 3;
 const MAX_ROWS = 4; // visible rows per page on SE3
 
@@ -88,9 +93,13 @@ const DesktopRenderer = {
             DesktopPager.goToPage(layout.pages.length - 1);
         }
 
+        // 底部 Dock 栏（在图标主题块之前渲染，确保 Dock 图标也被主题系统扫到）
+        this._renderDock();
+
         // 夜空主题：图标星座化（在自定义图标之前，自定义优先级最高）
         if (typeof ConstellationIcons !== 'undefined') ConstellationIcons.apply();
         if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
+        if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
         // Apply custom icons if available
         if (typeof IconCustomizer !== 'undefined') IconCustomizer.applyCustomIcons();
         // Apply i18n
@@ -128,6 +137,34 @@ const DesktopRenderer = {
             </div>
             <div class="app-label" ${app.i18n ? `data-i18n="${app.i18n}"` : ''}>${app.label}</div>`;
         return div;
+    },
+
+    // 底部 Dock 栏：固定常用 app，跨页不动。图标复用 .app-item[data-app] + .app-icon 标记，
+    // 主题图标系统（星座/手账/草莓/自定义）会自动套到这里。
+    // v2.144.0：.app-label 由 systemConfig.showDockLabels 控制（默认显示、可在外观设置关掉）。
+    _renderDock() {
+        const dock = document.getElementById('dock');
+        if (!dock) return;
+        // 默认显示名称（!== false 保证老存档 undefined 也走"显示"）；关掉则只剩图标（真 iPhone Dock 风）
+        const showLabels = AppState.data.systemConfig?.showDockLabels !== false;
+        dock.classList.toggle('has-labels', showLabels);
+        const layout = AppState.data.desktopLayout;
+        const raw = (layout && Array.isArray(layout.dock) && layout.dock.length)
+            ? layout.dock : DEFAULT_DOCK;
+        const dockApps = [...new Set(raw)];   // 去重，挡住异常档里重复 appId 渲染成两个相同图标
+        dock.innerHTML = '';
+        for (const appId of dockApps) {
+            const app = APP_REGISTRY[appId];
+            if (!app) continue;
+            const div = document.createElement('div');
+            div.className = 'app-item dock-item';
+            div.dataset.app = appId;
+            div.innerHTML = `<div class="app-icon ${app.iconClass}">${app.svg}</div>`
+                + (showLabels ? `<div class="app-label" ${app.i18n ? `data-i18n="${app.i18n}"` : ''}>${app.label}</div>` : '');
+            dock.appendChild(div);
+        }
+        // 名称里的 data-i18n（世界书 / 设置等）翻译成当前语言；broadcast 无 i18n、直接用硬编码「放送局」
+        if (showLabels && typeof I18n !== 'undefined' && I18n.applyTranslations) I18n.applyTranslations();
     },
 
     _renderWidgetInGrid(item, freeMode) {
@@ -208,6 +245,8 @@ const DesktopRenderer = {
     _ensureBroadcastIcon() {
         const layout = AppState.data.desktopLayout;
         if (!layout || !Array.isArray(layout.pages)) return;
+        // 在 Dock 里就算已存在，不补回网格（否则会撤销 Dock 迁移）
+        if (Array.isArray(layout.dock) && layout.dock.includes('broadcast')) return;
         const exists = layout.pages.some(p =>
             (p.items || []).some(it => it.type === 'icon' && it.appId === 'broadcast')
         );
@@ -241,6 +280,8 @@ const DesktopRenderer = {
     _ensureMercariIcon() {
         const layout = AppState.data.desktopLayout;
         if (!layout || !Array.isArray(layout.pages)) return;
+        // 在 Dock 里就算已存在，不补回网格（否则会和 dock 各一个、每次加载脏写）— 同 _ensureBroadcastIcon
+        if (Array.isArray(layout.dock) && layout.dock.includes('mercari')) return;
         const exists = layout.pages.some(p =>
             (p.items || []).some(it => it.type === 'icon' && it.appId === 'mercari')
         );
@@ -274,6 +315,8 @@ const DesktopRenderer = {
     _ensureWeiboIcon() {
         const layout = AppState.data.desktopLayout;
         if (!layout || !Array.isArray(layout.pages)) return;
+        // 在 Dock 里就算已存在，不补回网格（否则会和 dock 各一个、每次加载脏写）— 同 _ensureBroadcastIcon
+        if (Array.isArray(layout.dock) && layout.dock.includes('weibo')) return;
         const exists = layout.pages.some(p =>
             (p.items || []).some(it => it.type === 'icon' && it.appId === 'weibo')
         );
@@ -306,6 +349,8 @@ const DesktopRenderer = {
     _ensureLofterIcon() {
         const layout = AppState.data.desktopLayout;
         if (!layout || !Array.isArray(layout.pages)) return;
+        // 在 Dock 里就算已存在，不补回网格（否则会和 dock 各一个、每次加载脏写）— 同 _ensureBroadcastIcon
+        if (Array.isArray(layout.dock) && layout.dock.includes('lofter')) return;
         const exists = layout.pages.some(p =>
             (p.items || []).some(it => it.type === 'icon' && it.appId === 'lofter')
         );
@@ -336,6 +381,7 @@ const DesktopRenderer = {
 
     _ensureLayout() {
         if (AppState.data.desktopLayout && AppState.data.desktopLayout.pages.length > 0) {
+            this._migrateDock();   // 必须在 _ensureBroadcastIcon 之前：先把 broadcast 落进 dock，它才不会被补回网格
             this._ensureBroadcastIcon();
             this._ensureMercariIcon();
             this._ensureWeiboIcon();
@@ -409,9 +455,41 @@ const DesktopRenderer = {
             });
         });
 
-        AppState.data.desktopLayout = { pages };
+        AppState.data.desktopLayout = { pages, dock: DEFAULT_DOCK.slice(), _dockMigratedV1: true };
         AppState.data._clockWidgetMigrated = true;
         Utils.saveData();
+    },
+
+    // Dock 迁移与去重：①确保 layout.dock 存在 ②维持不变式「dock 里的 app 不出现在网格」。
+    // 不变式每次加载都过滤一遍（自愈：异常导入档/手改档若让某 dock app 同时出现在网格，会被去掉，
+    // 避免 dock + 网格各一个的重复图标）；reflow 重排填洞只在首次迁移做一次（_dockMigratedV1），
+    // 避免每次加载都重排用户布局。必须在 _ensureBroadcastIcon 之前调用（见 _ensureLayout）。
+    _migrateDock() {
+        const layout = AppState.data.desktopLayout;
+        if (!layout || !Array.isArray(layout.pages)) return;
+        let dirty = false;
+        if (!Array.isArray(layout.dock) || !layout.dock.length) {
+            layout.dock = DEFAULT_DOCK.slice();
+            dirty = true;
+        }
+        const dockSet = new Set(layout.dock);
+        const affected = [];
+        layout.pages.forEach((page, pi) => {
+            if (!Array.isArray(page.items)) return;
+            const before = page.items.length;
+            page.items = page.items.filter(it => !(it.type === 'icon' && dockSet.has(it.appId)));
+            if (page.items.length !== before) affected.push(pi);
+        });
+        if (affected.length) {
+            dirty = true;
+            // 仅首次迁移重排填洞（网格模式）；自由模式不动（不打乱用户自由布局，同 removeWidgetFromLayout 约定）。
+            // 首次之后的自愈式去重只移除不重排（一个空洞胜过一个重复图标）。
+            if (!layout._dockMigratedV1 && !layout.freeMode) {
+                affected.forEach(pi => this.reflow(pi));
+            }
+        }
+        if (!layout._dockMigratedV1) { layout._dockMigratedV1 = true; dirty = true; }
+        if (dirty) Utils.saveData();
     },
 
     // Recalculate positions: pack items sequentially in 3-col grid
@@ -558,12 +636,18 @@ const DesktopEdit = {
 
     init() {
         const wrapper = document.querySelector('.desktop-pages-wrapper');
-        if (!wrapper) return;
+        if (wrapper) this._bindTouchHandlers(wrapper);
+        // Dock 是 #desktop 直接子节点、不在 wrapper 内：单独绑一套，长按 Dock 图标也能进编辑+起拖。
+        // （touch 序列 target 固定为 touchstart 元素，拖 Dock 图标时 move/end 只会派发到 #dock）
+        const dock = document.getElementById('dock');
+        if (dock) this._bindTouchHandlers(dock);
+    },
 
-        wrapper.addEventListener('touchstart', (e) => this._onTouchStart(e), { passive: false });
-        wrapper.addEventListener('touchmove', (e) => this._onTouchMove(e), { passive: false });
-        wrapper.addEventListener('touchend', (e) => this._onTouchEnd(e));
-        wrapper.addEventListener('touchcancel', () => this._cancelPress());
+    _bindTouchHandlers(el) {
+        el.addEventListener('touchstart', (e) => this._onTouchStart(e), { passive: false });
+        el.addEventListener('touchmove', (e) => this._onTouchMove(e), { passive: false });
+        el.addEventListener('touchend', (e) => this._onTouchEnd(e));
+        el.addEventListener('touchcancel', () => this._cancelPress());
     },
 
     _onTouchStart(e) {
@@ -710,6 +794,7 @@ const DesktopEdit = {
         this.dragStarted = true;
         this.dragItem = target;
         this.sourcePageIndex = DesktopPager.currentPage;
+        this._dragFromDock = target.classList.contains('dock-item');   // Dock 源：_endDrag 落点分流时区分
 
         // Save item identity for cross-page moves
         this._dragItemData = {
@@ -767,6 +852,27 @@ const DesktopEdit = {
             }
         }
 
+        // ── Dock 落点优先判定（在网格之前）──
+        // 只有拖 app 图标（有 appId）才认 Dock 落点；widget（无 appId）落 Dock 没意义，让它走网格逻辑
+        const dockEl = document.getElementById('dock');
+        const draggingApp = !!(this._dragItemData && this._dragItemData.appId);
+        if (dockEl && draggingApp) {
+            const dr = dockEl.getBoundingClientRect();
+            const inDock = x >= dr.left && x <= dr.right && y >= dr.top && y <= dr.bottom;
+            if (inDock) {
+                dockEl.classList.add('drag-over');
+                this._dropDockIdx = this._computeDockInsertIdx(x);
+                const ind = document.getElementById('dropIndicator');
+                if (ind) ind.style.display = 'none';
+                // 清掉网格/自由落点，确保 _endDrag 走 Dock 分支
+                this._dropCol = undefined; this._dropRow = undefined;
+                this._dropXPct = undefined; this._dropYPct = undefined;
+                return;
+            }
+            dockEl.classList.remove('drag-over');
+            this._dropDockIdx = undefined;
+        }
+
         // Find current grid
         const grids = document.querySelectorAll('.app-grid');
         const currentGrid = grids[DesktopPager.currentPage];
@@ -797,6 +903,18 @@ const DesktopEdit = {
 
         // Highlight drop position
         this._showDropIndicator(currentGrid, dropCol, dropRow, cellW, cellH, gridRect);
+    },
+
+    // 按落点 x 算在 dock 数组里的插入位置：落在第一个「水平中心 > x」的 dock-item 之前，否则末尾
+    _computeDockInsertIdx(x) {
+        const dockEl = document.getElementById('dock');
+        if (!dockEl) return 0;
+        const items = [...dockEl.querySelectorAll('.dock-item')];
+        for (let i = 0; i < items.length; i++) {
+            const r = items[i].getBoundingClientRect();
+            if (x < r.left + r.width / 2) return i;
+        }
+        return items.length;
     },
 
     _showDropIndicator(grid, col, row, cellW, cellH, gridRect) {
@@ -837,7 +955,14 @@ const DesktopEdit = {
         // Apply the move
         if (this._dragItemData) {
             const layout = AppState.data.desktopLayout;
-            if (layout && layout.freeMode && this._dropXPct !== undefined) {
+            const dockEl = document.getElementById('dock');
+            if (dockEl) dockEl.classList.remove('drag-over');
+            if (this._dropDockIdx !== undefined) {
+                this._applyMoveToDock(this._dropDockIdx);
+            } else if (this._dragFromDock) {
+                // 源是 Dock、落点是网格/自由
+                this._applyMoveFromDock();
+            } else if (layout && layout.freeMode && this._dropXPct !== undefined) {
                 this._applyMoveFree(this._dropXPct, this._dropYPct);
             } else if (this._dropCol !== undefined) {
                 this._applyMove(this._dropCol, this._dropRow);
@@ -850,6 +975,8 @@ const DesktopEdit = {
         this._dropYPct = undefined;
         this._dropCol = undefined;
         this._dropRow = undefined;
+        this._dropDockIdx = undefined;
+        this._dragFromDock = false;
     },
 
     // 自由模式下的拖拽落点：直接写 x, y 百分比，不重排
@@ -880,6 +1007,15 @@ const DesktopEdit = {
 
         Utils.saveData();
         DesktopRenderer.render();
+    },
+
+    // 清理 items 为空的尾页（保留至少 1 页）——与 _applyMove 内的空页清理一致，供 Dock 增删复用
+    _cleanupEmptyPages() {
+        const layout = AppState.data.desktopLayout;
+        if (!layout || !Array.isArray(layout.pages)) return;
+        for (let i = layout.pages.length - 1; i > 0; i--) {
+            if (layout.pages[i] && layout.pages[i].items.length === 0) layout.pages.splice(i, 1);
+        }
     },
 
     _applyMove(targetCol, targetRow) {
@@ -933,5 +1069,92 @@ const DesktopEdit = {
             if (btn) btn.style.display = 'block';
             DesktopPager._locked = true;
         }
+    },
+
+    // 落点 = Dock：网格 icon 加入 Dock（校验上限），或 Dock 内调序
+    _applyMoveToDock(idx) {
+        const layout = AppState.data.desktopLayout;
+        const d = this._dragItemData;
+        if (!layout || !d || !d.appId) return;
+        if (!Array.isArray(layout.dock)) layout.dock = [];
+        const dock = layout.dock;
+
+        if (this._dragFromDock) {
+            // Dock 内调序：先移除原位，再按修正后的 index 插回
+            const from = dock.indexOf(d.appId);
+            if (from < 0) return;
+            dock.splice(from, 1);
+            let to = idx;
+            if (from < idx) to--;
+            dock.splice(Math.max(0, Math.min(to, dock.length)), 0, d.appId);
+        } else {
+            // 网格 → Dock：校验上限
+            if (dock.length >= DOCK_MAX) {
+                Utils.showToast(I18n.t('dock.full', 'Dock 已满'));
+                DesktopRenderer.render();   // 回弹（item 复位）
+                return;
+            }
+            // 从源页网格移除该 icon
+            const sourcePage = layout.pages[this.sourcePageIndex];
+            if (sourcePage && Array.isArray(sourcePage.items)) {
+                const i = sourcePage.items.findIndex(it => it.type === 'icon' && it.appId === d.appId);
+                if (i >= 0) sourcePage.items.splice(i, 1);
+            }
+            dock.splice(Math.max(0, Math.min(idx, dock.length)), 0, d.appId);
+            if (!layout.freeMode) DesktopRenderer.reflow(this.sourcePageIndex);
+        }
+
+        this._cleanupEmptyPages();   // 把图标拖进 Dock 后可能掏空源页 / edge-scroll 翻出的空页一并清掉
+        Utils.saveData();
+        DesktopRenderer.render();
+    },
+
+    // 落点 = 网格、源 = Dock：从 Dock 移除（校验下限），落进网格落点；落点无效则兜底找空位（杜绝消失）
+    _applyMoveFromDock() {
+        const layout = AppState.data.desktopLayout;
+        const d = this._dragItemData;
+        if (!layout || !d || !d.appId || !Array.isArray(layout.dock)) return;
+        const dock = layout.dock;
+        const at = dock.indexOf(d.appId);
+        if (at < 0) return;
+
+        // 下限：至少留 1 个
+        if (dock.length <= 1) {
+            Utils.showToast(I18n.t('dock.min_one', 'Dock 至少保留一个'));
+            DesktopRenderer.render();   // 回弹
+            return;
+        }
+        // 先校验落点页存在再动 dock（对齐 _applyMove/_applyMoveFree：先校验落点、再改数据），
+        // 避免「dock 已移除但落点页缺失」的半成品态
+        const pageIdx = DesktopPager.currentPage;
+        const page = layout.pages[pageIdx];
+        if (!page) { DesktopRenderer.render(); return; }
+        dock.splice(at, 1);
+
+        const newItem = {
+            id: 'di_' + Date.now().toString(36),
+            type: 'icon', appId: d.appId, col: 0, row: 0, colSpan: 1, rowSpan: 1
+        };
+
+        if (layout.freeMode && this._dropXPct !== undefined) {
+            newItem.x = this._dropXPct;
+            newItem.y = this._dropYPct;
+            page.items.push(newItem);
+        } else if (this._dropCol !== undefined) {
+            const targetIndex = this._dropRow * COLS + this._dropCol;
+            const insertAt = Math.min(targetIndex, page.items.length);
+            page.items.splice(insertAt, 0, newItem);
+            DesktopRenderer.reflow(pageIdx);
+        } else {
+            // 兜底：落点无效 → 找空位加回当前页（找不到就 0,0），绝不让 app 消失
+            const spot = DesktopRenderer._findEmptyCell(page, 1) || { col: 0, row: 0 };
+            newItem.col = spot.col; newItem.row = spot.row;
+            page.items.push(newItem);
+            DesktopRenderer.reflow(pageIdx);
+        }
+
+        this._cleanupEmptyPages();   // edge-scroll 拖动中可能 push 过空页，一并清掉
+        Utils.saveData();
+        DesktopRenderer.render();
     }
 };

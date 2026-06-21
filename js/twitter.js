@@ -343,6 +343,7 @@ const Twitter = {
     // ===== 切换标签 =====
     switchTab(tab, rerender = true) {
         this._currentTab = tab;
+        this._timelineLimit = null;  // 切 tab 回到最近一屏，分页从头
         document.getElementById('twTabForyou')?.classList.toggle('active', tab === 'foryou');
         document.getElementById('twTabFollowing')?.classList.toggle('active', tab === 'following');
         document.getElementById('twNavHome')?.classList.toggle('active', true);
@@ -402,7 +403,16 @@ const Twitter = {
 
         // スレッドグルーピング
         const grouped = this._groupTweetsForTimeline(tweets);
-        container.innerHTML = spacesHtml + followingNpcHtml + grouped.map(item => {
+
+        // 渲染窗口：文字推永不裁、数据全保留，但只渲染最近 _timelineLimit 个时间线项
+        //（线程算 1 项，不切断线程半截），避免历史累积后每次全量建 DOM 变卡。
+        // 底部「以前のツイートを見る」按钮按 PAGE 增量加载更早的。
+        const PAGE = 50;
+        if (typeof this._timelineLimit !== 'number') this._timelineLimit = PAGE;
+        const visible = grouped.slice(0, this._timelineLimit);
+        const hasMore = grouped.length > visible.length;
+
+        container.innerHTML = spacesHtml + followingNpcHtml + visible.map(item => {
             if (item.type === 'thread') {
                 return `<div class="tw-thread-group">${item.tweets.map(({ tweet: tw, isNpc, retweetedByName }, i) => {
                     const isLast = i === item.tweets.length - 1;
@@ -411,11 +421,17 @@ const Twitter = {
                 }).join('')}</div>`;
             }
             return this._renderTweetCard(item.tweet, item.isNpc, false, item.retweetedByName);
-        }).join('');
+        }).join('') + (hasMore ? `<button class="tw-load-earlier" onclick="Twitter.showMoreTimeline()">${I18n.t('tw.show_earlier', '以前のツイートを見る')}</button>` : '');
         this._likedSet = null;
 
         // 生成済み画像をロード
         this._loadGeneratedImages(container);
+    },
+
+    // 「以前のツイートを見る」：扩大渲染窗口、增量渲染更早的时间线项（数据本就全在）
+    showMoreTimeline() {
+        this._timelineLimit = (this._timelineLimit || 50) + 50;
+        this.renderTimeline();
     },
 
     // 头像渲染辅助：有图就 <img>，没图就 letter+color
@@ -867,6 +883,31 @@ const Twitter = {
         }
     },
 
+    // ===== v2.140.0 推文裁剪：文字推永不裁，只裁图片推 =====
+    // 文字推全保留（时间线历史 + 链路A 反查信号自愈，存储走 IndexedDB 不怕涨）；
+    // 图片推仍按上限「最近 limit 张 + 点赞」裁剪（省 IDB 图片空间），被裁的删 IDB 图。
+    // scope: 'all'（_generateNpcTweets，作用于全部 npcTweets）| 'fan'（fan 生成路径，仅 source==='fan' && !fromSearch）
+    _pruneTweets(scope, limit) {
+        const t = this._ensureData();
+        const inScope = tw => scope === 'all' ? true : (tw.source === 'fan' && !tw.fromSearch);
+        const likedIds = new Set((t.likedTweetIds || []).map(l => l.id));
+        const imageInScope = t.npcTweets.filter(tw => inScope(tw) && tw.image);
+        if (imageInScope.length <= limit) return;
+        const keepImageIds = new Set(imageInScope.slice(-limit).map(tw => tw.id));
+        // 被裁的图片推（既非最近 limit、也未点赞）→ 删 IDB 生成图
+        imageInScope.slice(0, imageInScope.length - limit).forEach(tw => {
+            if (tw.image?.generatedImageId && !likedIds.has(tw.id) && !keepImageIds.has(tw.id)) {
+                IllustGallery.remove(tw.image.generatedImageId).catch(() => {});
+            }
+        });
+        // 保留：scope 外的、所有文字推、最近 limit 张图、点赞过的
+        t.npcTweets = t.npcTweets.filter(tw => {
+            if (!inScope(tw)) return true;
+            if (!tw.image) return true;                            // 文字推永不裁
+            return keepImageIds.has(tw.id) || likedIds.has(tw.id); // 图片推：最近 limit 或点赞
+        });
+    },
+
     // ===== AI 生成 NPC 推文 =====
     async _generateNpcTweets() {
         const t = this._ensureData();
@@ -1042,16 +1083,8 @@ ${typeof Utils !== 'undefined' ? Utils.getEventContextPrompt(3) : ''}`;
             });
         });
 
-        // 只保留最新 50 条 NPC 推文（v2.126.0 点赞推永不裁：超出 50 也保留 liked，回味得到）
-        if (t.npcTweets.length > 50) {
-            const likedIds = new Set((t.likedTweetIds || []).map(l => l.id));
-            const keepRecent = new Set(t.npcTweets.slice(-50).map(tw => tw.id));
-            // 被裁的（既非最近 50、也未点赞）→ 其生成图从 IDB 删除
-            t.npcTweets.filter(tw => !keepRecent.has(tw.id) && !likedIds.has(tw.id)).forEach(tw => {
-                if (tw.image?.generatedImageId) IllustGallery.remove(tw.image.generatedImageId).catch(() => {});
-            });
-            t.npcTweets = t.npcTweets.filter(tw => keepRecent.has(tw.id) || likedIds.has(tw.id));
-        }
+        // v2.140.0 文字推永不裁、只裁图片推（最近 50 张 + 点赞）；文字时间线历史全保留
+        this._pruneTweets('all', 50);
         Utils.saveData();
     },
 
@@ -1273,7 +1306,8 @@ POLL: [選択肢1]|[票数]||[選択肢2]|[票数]||[選択肢3]|[票数]||[選�
         // 用「出生即定」的判据（fromTweetId / 已链接 id）替代仅靠运行时设 promotedOnTwitter（并行 generator + 快速连刷下时序不可靠）。
         const _linkedNovelIds = new Set((t.npcTweets || []).map(x => x.pixivNovelId).filter(Boolean));
         parsed.forEach(tw => {
-            if (tw.type !== 'doujin_writer') return;                    // 节制①：只文手推
+            if (tw.type !== 'doujin_writer') { tw.pixivNovelId = null; return; }   // v2.140.0(B)：pixiv 小说卡只允许出现在文手自宣推，清掉 LLM 给其它类型误填的 ID
+            tw.pixivNovelId = null;                                     // v2.140.0(B)：文手推的卡也完全由下方代码反查决定，先清 LLM 填值（防 LLM 重复指认已宣传作品 → 重复卡）
             if (tw.threadIndex != null && tw.threadIndex > 0) return;   // 节制⑤：长帖只有首条(i===0)带 pixiv 卡，与解析期约束一致
             const writer = friends.find(f => f.type === 'doujin_writer' && (f.handle === tw.handle || f.pixivHandle === tw.handle));
             if (!writer) return;
@@ -1322,20 +1356,8 @@ POLL: [選択肢1]|[票数]||[選択肢2]|[票数]||[選択肢3]|[票数]||[選�
             });
         });
 
-        // fan 推文上限 60 条（fromSearch 单独管理，不计入此 60 的容量）
-        const fanTweets = t.npcTweets.filter(tw => tw.source === 'fan' && !tw.fromSearch);
-        if (fanTweets.length > 60) {
-            const keepIds = new Set(fanTweets.slice(-60).map(tw => tw.id));
-            // いいね済みでない画像をIDBから削除
-            const likedIds = new Set((t.likedTweetIds || []).map(l => l.id));
-            fanTweets.slice(0, fanTweets.length - 60).forEach(tw => {
-                if (tw.image?.generatedImageId && !likedIds.has(tw.id)) {
-                    IllustGallery.remove(tw.image.generatedImageId).catch(() => {});
-                }
-            });
-            // v2.126.0 点赞推永不裁：超出 60 也保留 liked（连揭开的 SS 全留，个人主页 いいね tab 回味得到）
-            t.npcTweets = t.npcTweets.filter(tw => tw.source !== 'fan' || tw.fromSearch || keepIds.has(tw.id) || likedIds.has(tw.id));
-        }
+        // v2.140.0 fan 文字推永不裁（含自宣推→链路A 反查信号自愈）、只裁 fan 图片推（最近 60 张 + 点赞）
+        this._pruneTweets('fan', 60);
         Utils.saveData();
     },
 
@@ -1421,13 +1443,8 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
                 });
             });
 
-            // fan 推文上限 60 条（与 _generateFanTweets 共享上限；fromSearch 不计入）
-            const fanTweets = t.npcTweets.filter(tw => tw.source === 'fan' && !tw.fromSearch);
-            if (fanTweets.length > 60) {
-                const keepIds = new Set(fanTweets.slice(-60).map(tw => tw.id));
-                const likedIds = new Set((t.likedTweetIds || []).map(l => l.id));   // v2.126.0 点赞推永不裁
-                t.npcTweets = t.npcTweets.filter(tw => tw.source !== 'fan' || tw.fromSearch || keepIds.has(tw.id) || likedIds.has(tw.id));
-            }
+            // v2.140.0 fan 文字推永不裁、只裁 fan 图片推（最近 60 张 + 点赞）
+            this._pruneTweets('fan', 60);
             Utils.saveData();
             Utils.emitEvent('tweet_event', 'twitter', { title: parsed[0]?.content?.slice(0, 40) || 'ファンダムイベント', summary: `${parsed.length}件のイベントツイート` });
         } catch (e) {
@@ -3770,10 +3787,13 @@ ${formHtml}`;
         if (writers.length === 0) return '';
 
         const novels = (AppState.data.pixivData?.novels || []);
-        // 找出最近 3 天内 / author_npc_id 非空的新作（按 createdAt 降序）
+        // v2.140.0 反查信号自愈：已被任意推链接过的小说 id（含链路A 历次自宣、链路B 点击回填）
+        const linkedIds = new Set((t.npcTweets || []).map(x => x.pixivNovelId).filter(Boolean));
+        // 找出尚可自宣的新作：作者非空 / 非链路B出身 / 未宣传过 / 未被链接过 / 3天内（按 createdAt 降序）
+        // ★筛选必须与 _generateFanTweets 代码反查严格对齐，否则 prompt 仍把已宣传作品喂给 LLM → LLM 反复写自宣 → 重复卡
         const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
         const recentWorks = novels
-            .filter(n => n.author_npc_id && n.createdAt && n.createdAt > threeDaysAgo)
+            .filter(n => n.author_npc_id && !n.fromTweetId && !n.promotedOnTwitter && !linkedIds.has(n.id) && n.createdAt && n.createdAt > threeDaysAgo)
             .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0))
             .slice(0, 10);  // timeline 注入上限 10 篇、避免 prompt 爆炸
 
@@ -4969,6 +4989,12 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
                 switch (config.provider) {
                     case 'openai':
                         blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        break;
+                    case 'gpt-image':
+                        blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config);
+                        break;
+                    case 'openrouter':
+                        blobs = await PixivIllust.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'stabilityai':
                         blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config);

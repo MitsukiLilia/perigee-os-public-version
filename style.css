@@ -183,6 +183,7 @@ body.dark-mode #desktop::before {
 .edit-mode .app-item:nth-child(2n) { animation-delay: 0.05s; }
 .edit-mode .app-item:nth-child(3n) { animation-delay: 0.1s; }
 .edit-mode .app-item:nth-child(5n) { animation-delay: 0.15s; }
+/* Dock 图标（className 含 .app-item）编辑态跟随 .edit-mode .app-item 一起抖动，可拖拽编辑 */
 
 /* 自由模式：item 用 translate(-50%,-50%) 居中定位，jiggle 的 rotate 会覆盖掉 translate
    导致每个 item 整体偏移半个身位、溢出错乱。这里用带 translate 的专用 keyframe 保住居中。 */
@@ -224,7 +225,8 @@ body.dark-mode #desktop::before {
 .edit-toolbar {
     position: fixed;
     left: 50%;
-    bottom: calc(20px + env(safe-area-inset-bottom));
+    /* 抬到底部 Dock 药丸（占底部约 14+76=90px）之上，向上延伸 → toolbar 再高也不遮 Dock */
+    bottom: calc(104px + env(safe-area-inset-bottom));
     transform: translateX(-50%);
     z-index: 200;
     display: none;
@@ -1390,7 +1392,7 @@ body.dark-mode .widget-clock {
     display: flex;
     justify-content: center;
     gap: 8px;
-    padding-bottom: 16px;
+    padding-bottom: 10px;   /* Dock 现在负责底部留白，这里只留与 Dock 的间隙 */
 }
 
 .page-dots .dot {
@@ -1405,6 +1407,57 @@ body.dark-mode .widget-clock {
 .page-dots .dot.active {
     background: rgba(255, 255, 255, 0.9);
     transform: scale(1.25);
+}
+
+/* ===== 底部 Dock 栏（iPhone 风格·悬浮圆角药丸） =====
+   居中悬浮、不撑满 → 壁纸从左右和下方透出延展、跨页不动。
+   低透磨砂底色（深浅壁纸都成立、不糊成白板）；药丸形状靠 border + 阴影定义，
+   不依赖 backdrop-filter（iOS over canvas 不一定生效，仅作锦上添花）。
+   margin-bottom 让药丸下方露壁纸 + 避开 Home 指示条（真机 env，模拟器=0）。 */
+.dock {
+    position: relative;
+    z-index: 2;
+    flex-shrink: 0;
+    align-self: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    padding: 9px 16px;
+    border-radius: 32px;
+    background: rgba(255, 255, 255, 0.16);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    backdrop-filter: blur(24px) saturate(150%);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.20);
+}
+
+/* Dock 图标：复用 .app-item / .app-icon（主题图标系统自动套用），无文字 */
+.dock-item {
+    flex: 0 0 auto;
+}
+/* Dock 图标无 .app-label 时：去掉 .app-icon 给 label 留的下边距，让图标在药丸里垂直居中 */
+.dock-item .app-icon {
+    margin-bottom: 0;
+}
+/* v2.144.0 显示名称时（.dock.has-labels）：恢复一点图标-名称间距，名称字号收小（Dock 比网格紧） */
+.dock.has-labels .dock-item .app-icon { margin-bottom: 2px; }
+.dock.has-labels .dock-item .app-label {
+    font-size: 10px;
+    line-height: 1.1;
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+
+/* 拖拽落点高亮：药丸描边亮起、提示「松手放这」 */
+.dock.drag-over {
+    background: rgba(255, 255, 255, 0.28);
+    border-color: var(--accent-color);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.20), inset 0 0 0 2px var(--accent-color);
 }
 
 .app-grid {

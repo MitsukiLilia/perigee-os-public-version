@@ -91,7 +91,8 @@ const AppState = {
             seriesEnded: false,   // v2.126.0 完結フラグ（ワンドロ 完結後ペース切替）
             // v2.69.0: CP 配对设置（从 pixivData.settings 迁移过来）
             // v2.71.0: productionName 字段加入（微博作品超话用）
-            cpSettings: { cpCharA: '', cpCharB: '', cpNickname: '', productionName: '' }
+            // v2.139.0: cpCharARefId/cpCharBRefId — 主角 A/B 参考立绘（存 IllustGallery 的 Blob id，仅 gpt-image edits 生图用；老存档无此字段=null=不影响任何现有行为）
+            cpSettings: { cpCharA: '', cpCharB: '', cpNickname: '', productionName: '', cpCharARefId: null, cpCharBRefId: null }
         },
 
         // 模拟X/推特数据
@@ -420,6 +421,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             AppState.data.weiboData.myLikedPostIds = [];
             Utils.saveData();
         }
+        // v2.138.0: GPT Image 从 DALL-E 拆出独立 provider。老配置若 provider=openai 但 model 填的是 gpt-image 系列，
+        // 自动迁到新的 gpt-image provider（之前会被塞进 DALL-E 请求格式导致生成失败）。判 model 前缀天然幂等。
+        if (AppState.data.imageApiConfig?.provider === 'openai' &&
+            /gpt-image/i.test(AppState.data.imageApiConfig.model || '')) {
+            AppState.data.imageApiConfig.provider = 'gpt-image';
+            Utils.saveData();
+            console.log('[Migration v2.138.0] imageApiConfig openai→gpt-image (model 为 gpt-image 系列)');
+        }
         SystemConfig.init();
         if (typeof RainEngine !== 'undefined') RainEngine.init(); // 夏雨 canvas 真雨（自管生命周期）
         if (typeof GlassRainEngine !== 'undefined') GlassRainEngine.init(); // 夏雨 WebGL 折射玻璃（主力，自管生命周期）
@@ -429,6 +438,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof Decorations !== 'undefined') Decorations.init();
         if (typeof DesktopRenderer !== 'undefined') DesktopRenderer.render();
         if (typeof DesktopEdit !== 'undefined') DesktopEdit.init();
+        if (typeof LiquidGlass !== 'undefined') LiquidGlass.init(); // 夏雨真折射玻璃（仅 Chromium，自管 CSS 分流）
+        // LiquidGlass.init 在 SystemConfig.init 之后才把 supported 置真 → 回刷一次玻璃质量行（否则首屏夏雨下它一直隐藏）
+        if (typeof SystemConfig !== 'undefined' && SystemConfig._updateGlassQualityRow) SystemConfig._updateGlassQualityRow();
         if (typeof Decorations !== 'undefined') Decorations.initDragHandlers();
         DesktopPager.initSwipe();
         if (typeof I18n !== 'undefined' && AppState.data.systemConfig.language) {
@@ -482,6 +494,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     else if (w.type === 'news') Widgets._openForum();
                 }
             }
+        });
+        // 底部 Dock 栏点击（独立委托：Dock 在 #desktopPages 之外）
+        document.getElementById('dock')?.addEventListener('click', (e) => {
+            if (typeof DesktopEdit !== 'undefined' && DesktopEdit.active) return;
+            const item = e.target.closest('.app-item');
+            if (item && item.dataset.app) Navigation.goTo(item.dataset.app);
         });
         document.querySelectorAll('.back-btn').forEach(b => {
             // 跳过已有 onclick 的按钮（如 LINE 内部导航按钮）
@@ -770,11 +788,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const npcSave = document.getElementById('npcSaveBtn');
         if (npcSave) npcSave.onclick = () => Forum.saveNpc();
 
-        // 总结管理（合并总结，入口只保留剧情卡片按钮）
-        const plotSumBtn = document.getElementById('plotSummaryBtn');
-        if (plotSumBtn) plotSumBtn.onclick = () => Forum.showSummaryModal();
-        const sumClose = document.getElementById('summaryCloseBtn');
-        if (sumClose) sumClose.onclick = () => Forum.closeSummaryModal();
+        // 总结管理（v2.136.0: 下放为放送局「总结」Tab 的一级内容，由 Broadcast._initSummaryTab() → Forum._renderSummaryModal() 直接渲染，无需弹窗入口与绑定）
     } catch (e) { console.error('[Init Error] Forum:', e); }
 
     // 13. Pixiv Novel (Likely Error Source)

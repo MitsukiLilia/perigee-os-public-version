@@ -27,6 +27,12 @@ const IllustGallery = {
         return url;
     },
 
+    // v2.139.0: 取原始 Blob（gpt-image edits 的 image[] multipart 需要 Blob 本体；CP 参考立绘预览也用）
+    async getBlob(id) {
+        if (!id) return null;
+        return await this._getStore().getItem(id);
+    },
+
     async remove(id) {
         if (this._urlCache.has(id)) {
             URL.revokeObjectURL(this._urlCache.get(id));

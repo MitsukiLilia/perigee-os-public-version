@@ -80,7 +80,7 @@ const Weibo = {
             profile: I18n.t('weibo.top_profile', '设置')
         };
         const refreshBtn = this.currentTab === 'home'
-            ? `<button class="wb-top-action" id="wbTopRefresh" aria-label="refresh">
+            ? `<button class="wb-top-action ${this._refreshing ? 'wb-refreshing' : ''}" id="wbTopRefresh" aria-label="refresh" ${this._refreshing ? 'disabled' : ''}>
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             </button>`
             : '';
@@ -124,6 +124,7 @@ const Weibo = {
                 return;
             }
             this._refreshing = true;
+            this.renderTopBar();   // v2.144.0 刷新键置灰转圈（_refreshing 纯派生）
             Utils.showToast(I18n.t('weibo.seeding_npcs', '正在初始化中文圈 NPC、请稍等 10-20 秒...'), 8000);
             this._maybeSeedWeiboNpcs().then(() => {
                 return this._generateNpcWeibos(count, '');
@@ -134,12 +135,14 @@ const Weibo = {
                 Utils.showToast(I18n.t('weibo.refresh_failed', '刷新失败：') + (e?.message || 'API 调用出错'), 5000);
             }).finally(() => {
                 this._refreshing = false;
+                this.renderTopBar();   // 恢复刷新键
             });
             this._maybeSeedHotsearch('').catch(() => {});
             return;
         }
 
         this._refreshing = true;
+        this.renderTopBar();   // v2.144.0 刷新键置灰转圈（_refreshing 纯派生）
         Utils.showToast(I18n.t('weibo.refreshing', '刷新中...'));
         this._generateNpcWeibos(count, '').then(() => {
             if (this.currentTab === 'home') this.renderHome();
@@ -148,6 +151,7 @@ const Weibo = {
             Utils.showToast(I18n.t('weibo.refresh_failed', '刷新失败：') + (e?.message || 'API 调用出错'), 5000);
         }).finally(() => {
             this._refreshing = false;
+            this.renderTopBar();   // 恢复刷新键
         });
         this._maybeSeedHotsearch('').catch(() => {});
     },
@@ -2666,6 +2670,7 @@ ${cp.cpNickname ? `主要 CP：${cp.cpNickname}` : ''}
                 followerCount: n.followerCount || 1000,
                 lofterHandle: n.type === 'fan_writer' ? n.handle : null,
                 writingStyleId: null,
+                writingStyle: '',
                 officialRole: null,
                 officialCharId: null,
                 officialCharName: null,

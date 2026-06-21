@@ -208,6 +208,12 @@ Generate image tags:`;
                     case 'openai':
                         blobs = await this.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config);
                         break;
+                    case 'gpt-image':
+                        blobs = await this._gptImage(prompt.positive, prompt.negative, imgSize, 1, config);
+                        break;
+                    case 'openrouter':
+                        blobs = await this.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
+                        break;
                     case 'stabilityai':
                         blobs = await this.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config);
                         break;
@@ -247,6 +253,12 @@ Generate image tags:`;
             switch (config.provider) {
                 case 'openai':
                     blobs = await this.generateWithOpenAI(positivePrompt, negativePrompt, imageSize, imageCount, config);
+                    break;
+                case 'gpt-image':
+                    blobs = await this._gptImage(positivePrompt, negativePrompt, imageSize, imageCount, config);
+                    break;
+                case 'openrouter':
+                    blobs = await this.generateWithOpenRouter(positivePrompt, negativePrompt, imageSize, imageCount, config);
                     break;
                 case 'stabilityai':
                     blobs = await this.generateWithStabilityAI(positivePrompt, negativePrompt, imageSize, imageCount, config);
@@ -330,6 +342,272 @@ Generate image tags:`;
         const data = await response.json();
         // 立即 fetch CDN URL → Blob（CDN URL 约 1 小时后过期，必须在此刻获取）
         return Promise.all(data.data.map(img => fetch(img.url).then(r => r.blob())));
+    },
+
+    // GPT Image（gpt-image-2 等）：与 DALL-E 是两套格式，故独立成函数。
+    // 关键差异：① 不发 quality（'standard' 是 DALL-E 专属值，gpt-image 只认 low/medium/high/auto，发了会报错）
+    //          ② 返回 b64_json（gpt-image 不返回 CDN url），直接转 Blob，无需二次 fetch CDN（也就绕开了 CDN 跨域）
+    //          ③ 不发 response_format / background（gpt-image 不支持这两个参数）
+    async generateWithGptImage(positivePrompt, negativePrompt, imageSize, imageCount, config) {
+        const finalPrompt = negativePrompt ?
+            `${positivePrompt} (avoid: ${negativePrompt})` :
+            positivePrompt;
+
+        const response = await fetch(`${config.url}/v1/images/generations`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.key}`
+            },
+            body: JSON.stringify({
+                model: config.model || 'gpt-image-2',
+                prompt: finalPrompt,
+                n: imageCount,
+                size: imageSize
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || 'GPT Image request failed');
+        }
+
+        const data = await response.json();
+        if (!data.data || data.data.length === 0) {
+            throw new Error(I18n.t('t.pi_gen_no_image', '未返回图片，请重试或调整提示词'));
+        }
+        // gpt-image 正常返回 b64_json；留 url 兜底以兼容个别第三方反代
+        return Promise.all(data.data.map(img =>
+            img.b64_json
+                ? this.base64ToBlob(img.b64_json, 'image/png')
+                : fetch(img.url).then(r => r.blob())
+        ));
+    },
+
+    // GPT Image edits（gpt-image-2 参考图 → 人物一致性）：传入参考立绘 Blob[]，走 /v1/images/edits（multipart）。
+    // 仅当 CP 设置了参考立绘且 provider=gpt-image 时走这里；NAI / DALL-E / 纯文生图路径一律不碰。
+    // 关键差异：① multipart/form-data，参考图字段名 image[]（可多张）；② 不要手设 Content-Type，让浏览器自动带 boundary
+    //          ③ 不发 input_fidelity（gpt-image-2 对输入图自动高保真，发了会报错）④ size 沿用各入口原值（gpt-image-2 接受任意满足约束的尺寸）
+    //          ⑤ 返回同 generations：data[].b64_json → Blob（复用 base64ToBlob），下游零改
+    async generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs) {
+        const finalPrompt = negativePrompt ?
+            `${positivePrompt} (avoid: ${negativePrompt})` :
+            positivePrompt;
+
+        const fd = new FormData();
+        fd.append('model', config.model || 'gpt-image-2');
+        fd.append('prompt', finalPrompt);
+        fd.append('n', String(imageCount));
+        fd.append('size', imageSize);
+        refBlobs.forEach((blob, i) => {
+            const ext = (blob.type && blob.type.indexOf('jpeg') !== -1) ? 'jpg' : 'png';
+            fd.append('image[]', blob, `ref${i}.${ext}`);
+        });
+
+        const response = await fetch(`${config.url}/v1/images/edits`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${config.key}` },  // 不设 Content-Type：multipart boundary 交给浏览器
+            body: fd
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || 'GPT Image edits request failed');
+        }
+
+        const data = await response.json();
+        if (!data.data || data.data.length === 0) {
+            throw new Error(I18n.t('t.pi_gen_no_image', '未返回图片，请重试或调整提示词'));
+        }
+        return Promise.all(data.data.map(img =>
+            img.b64_json
+                ? this.base64ToBlob(img.b64_json, 'image/png')
+                : fetch(img.url).then(r => r.blob())
+        ));
+    },
+
+    // gpt-image 分流：CP 设了参考立绘 → edits 端点（保人物一致）；否则 → 现有纯文生图 generations。
+    // 四个生图入口（pixiv AI/手动、twitter、melon）的 case 'gpt-image' 都走这里，逻辑单一来源。
+    async _gptImage(positivePrompt, negativePrompt, imageSize, imageCount, config) {
+        let refBlobs = [];
+        try {
+            if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
+                refBlobs = await Broadcast.getCPRefImages();
+            }
+        } catch (e) {
+            refBlobs = [];
+        }
+        return (refBlobs && refBlobs.length > 0)
+            ? this.generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs)
+            : this.generateWithGptImage(positivePrompt, negativePrompt, imageSize, imageCount, config);
+    },
+
+    // OpenRouter 生图：与 OpenAI Images API 是两套完全不同的协议，故独立成函数（绝不碰 NAI / DALL-E / gpt-image）。
+    // 关键差异：① 走 chat completions（/chat/completions）+ modalities:['image','text']，不是 /v1/images/*
+    //          ② CP 参考立绘作为多模态输入：messages content 里加 image_url（base64 data URL），不是 multipart image[]
+    //          ③ 尺寸走 image_config.aspect_ratio（由像素 size 映射成最接近的受支持比例），不是像素串 size
+    //          ④ 返回在 choices[0].message.images[].image_url.url（base64 data URL）→ 解析成 Blob
+    //          ⑤ chat completions 无 n 参数 → imageCount>1 时并发多次请求各取首图
+    // 默认模型 openai/gpt-5.4-image-2（OpenRouter 路由的 GPT Image 2，作者要的参考图人物一致性）；用户可在设置改任意 OpenRouter 生图模型（Gemini nano banana 等）。
+    async generateWithOpenRouter(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
+        // AI 辅助多角色时 positivePrompt 只剩 [SCENE] 场景、各角色外观在 charCaptions（同 NovelAI 处理）。
+        // 必须把角色描述合回 prompt + 明确「这 N 个角色都要同时出现」，否则 OpenRouter 只收到场景、易塌成单角色。
+        let scenePrompt = positivePrompt;
+        if (charCaptions && charCaptions.length > 0) {
+            const charSection = charCaptions.map((c, i) => `Character ${i + 1}: ${c}`).join('\n');
+            scenePrompt = `${positivePrompt}\n\nThis image MUST include all ${charCaptions.length} of these characters together in the same scene:\n${charSection}`;
+        }
+        const finalPrompt = negativePrompt ?
+            `${scenePrompt} (avoid: ${negativePrompt})` :
+            scenePrompt;
+
+        // CP 参考立绘（与 gpt-image 同一来源 getCPRefImages）→ base64 data URL 塞进多模态输入
+        let refDataUrls = [];
+        try {
+            if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
+                const refBlobs = await Broadcast.getCPRefImages();
+                if (refBlobs && refBlobs.length > 0) {
+                    // 单张失败只丢该张（对齐 broadcast.getCPRefImages 的 .catch(()=>null) 风格），不整组丢
+                    refDataUrls = (await Promise.all(refBlobs.map(b => this.blobToDataUrl(b).catch(() => null)))).filter(Boolean);
+                }
+            }
+        } catch (e) {
+            refDataUrls = [];
+        }
+
+        // OpenRouter 建议文本在前、图片在后。多张参考立绘要逐张标注「不同角色、都要画进同一张」，
+        // 否则模型易只聚焦其中一张（作者实测：传 A+B 只画了 B）。
+        const content = [{ type: 'text', text: finalPrompt }];
+        if (refDataUrls.length === 1) {
+            content.push({ type: 'text', text: 'Reference image below — keep the character visually consistent with it:' });
+            content.push({ type: 'image_url', image_url: { url: refDataUrls[0] } });
+        } else if (refDataUrls.length > 1) {
+            content.push({ type: 'text', text: `Below are ${refDataUrls.length} reference images, each showing a DIFFERENT character. ALL of these characters must appear together in the generated image, each visually matching their own reference:` });
+            refDataUrls.forEach((url, i) => {
+                content.push({ type: 'text', text: `Reference for character ${i + 1}:` });
+                content.push({ type: 'image_url', image_url: { url } });
+            });
+        }
+
+        // 纯图模型（Flux / SD 等）只认 modalities:['image']；文+图模型（gpt-image-2 / Gemini）用 ['image','text']。
+        // 判据宁松勿误伤默认的 gpt-image-2 / Gemini（它们不含下列任一关键词，恒走 ['image','text']）。
+        const model = config.model || 'openai/gpt-5.4-image-2';
+        const isImageOnly = /flux|black-forest-labs|sourceful|riverflow|stable-?diffusion|sdxl/i.test(model);
+        const body = {
+            model,
+            messages: [{ role: 'user', content }],
+            modalities: isImageOnly ? ['image'] : ['image', 'text']
+        };
+        const aspect = this._pxToAspectRatio(imageSize);
+        if (aspect) body.image_config = { aspect_ratio: aspect };
+
+        const endpoint = this._openRouterEndpoint(config.url);
+        const n = Math.max(1, imageCount || 1);
+
+        // chat completions 没有 n 参数 → 要多张就并发多次请求各取返回的图
+        const requests = [];
+        for (let i = 0; i < n; i++) {
+            requests.push(this._openRouterRequest(endpoint, config.key, body));
+        }
+        const results = await Promise.all(requests);
+        const blobs = results.flat();
+        if (blobs.length === 0) {
+            throw new Error(I18n.t('t.pi_gen_no_image', '未返回图片，请重试或调整提示词'));
+        }
+        return blobs;
+    },
+
+    async _openRouterRequest(endpoint, key, body) {
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+        };
+        // OpenRouter 可选归因 header（不影响功能，仅用于其排行榜署名）
+        try {
+            if (typeof location !== 'undefined' && location.origin && location.origin.indexOf('http') === 0) {
+                headers['HTTP-Referer'] = location.origin;
+            }
+        } catch (e) { /* noop */ }
+        headers['X-Title'] = 'Perigee OS';
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || 'OpenRouter image request failed');
+        }
+        const data = await response.json();
+        const msg = data.choices && data.choices[0] && data.choices[0].message;
+        const images = (msg && msg.images) || [];
+        const blobs = [];
+        for (const img of images) {
+            const url = img && img.image_url && img.image_url.url;
+            const blob = url ? this._dataUrlToBlob(url) : null;
+            if (blob) blobs.push(blob);
+        }
+        return blobs;
+    },
+
+    // 像素尺寸串（'WxH'）→ OpenRouter image_config.aspect_ratio（取最接近的受支持比例）
+    _pxToAspectRatio(imageSize) {
+        if (!imageSize || typeof imageSize !== 'string' || imageSize.indexOf('x') === -1) return null;
+        const parts = imageSize.split('x').map(Number);
+        if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+        const ratio = parts[0] / parts[1];
+        const candidates = [
+            ['1:1', 1], ['2:3', 2 / 3], ['3:2', 3 / 2], ['3:4', 3 / 4], ['4:3', 4 / 3],
+            ['4:5', 4 / 5], ['5:4', 5 / 4], ['9:16', 9 / 16], ['16:9', 16 / 9], ['21:9', 21 / 9]
+        ];
+        let bestLabel = '1:1', bestDiff = Infinity;
+        for (const [label, val] of candidates) {
+            const diff = Math.abs(val - ratio);
+            if (diff < bestDiff) { bestDiff = diff; bestLabel = label; }
+        }
+        return bestLabel;
+    },
+
+    // OpenRouter chat completions 端点容错拼接（用户填 base，自动补 /chat/completions）
+    _openRouterEndpoint(url) {
+        let u = (url || 'https://openrouter.ai/api/v1').trim();
+        while (u.endsWith('/')) u = u.slice(0, -1);
+        if (/\/chat\/completions$/.test(u)) return u;
+        if (/\/v1$/.test(u)) return `${u}/chat/completions`;
+        return `${u}/v1/chat/completions`;
+    },
+
+    // base64 data URL → Blob（OpenRouter 返回的 message.images[].image_url.url 是 data URL）
+    _dataUrlToBlob(dataUrl) {
+        if (!dataUrl || typeof dataUrl !== 'string') return null;
+        const m = /^data:([^;,]+)(;base64)?,(.*)$/i.exec(dataUrl);
+        if (!m) return null;
+        const mime = m[1] || 'image/png';
+        const isBase64 = !!m[2];
+        const dataPart = m[3];
+        if (isBase64) {
+            try {
+                return this.base64ToBlob(dataPart, mime);
+            } catch (e) {
+                return null;
+            }
+        }
+        try {
+            return new Blob([decodeURIComponent(dataPart)], { type: mime });
+        } catch (e) {
+            return null;
+        }
+    },
+
+    // Blob → base64 data URL（OpenRouter 参考图输入用；含完整 data:...;base64, 前缀）
+    blobToDataUrl(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
     },
 
     async generateWithStabilityAI(positivePrompt, negativePrompt, imageSize, imageCount, config) {

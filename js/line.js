@@ -518,27 +518,27 @@ const LineHome = {
                 <div class="setting-row"><label>${I18n.t('line.worldbook', 'ワールドブック')}</label><input type="text" id="lhCharWorldBook" value="${this._esc(char.worldBookId || '')}" placeholder="${I18n.t('line.worldbook_id_placeholder', 'ワールドブックID')}"></div>
                 <div class="setting-row" style="flex-direction:row;justify-content:space-between;align-items:center;">
                     <label style="margin:0;">${I18n.t('line.forum_linked', '論壇連動')}</label>
-                    <div class="wb-toggle">
+                    <label class="wb-toggle" style="margin:0;">
                         <input type="checkbox" id="lhCharForumLinked" ${char.forumLinked ? 'checked' : ''}>
                         <span class="wb-toggle-slider"></span>
-                    </div>
+                    </label>
                 </div>
                 <p style="font-size:11px;color:var(--text-tertiary);padding:0 16px 8px;">${I18n.t('line.forum_linked_hint', 'オンにすると、このキャラクターは論壇の世界観・剧情を自然に把握します')}</p>
                 <div class="setting-row" style="flex-direction:row;justify-content:space-between;align-items:center;">
                     <label style="margin:0;">${I18n.t('line.bilingual_jp_zh', 'バイリンガル（中日）')}</label>
-                    <div class="wb-toggle">
+                    <label class="wb-toggle" style="margin:0;">
                         <input type="checkbox" id="lhCharBilingual" ${char.enableBilingual ? 'checked' : ''}>
                         <span class="wb-toggle-slider"></span>
-                    </div>
+                    </label>
                 </div>
                 <div class="setting-row"><label>${I18n.t('line.read_message_count', '読み込みメッセージ数')}</label><input type="number" id="lhCharReadCount" value="${char.readMessageCount || 10}" min="1" max="50"></div>
                 <div class="setting-row"><label>${I18n.t('line.auto_summary_count', '自動要約（メッセージ数）')}</label><input type="number" id="lhCharSummaryCount" value="${char.autoSummaryCount || 20}" min="5" max="100"></div>
                 <div class="setting-row" style="flex-direction:row;justify-content:space-between;align-items:center;">
                     <label style="margin:0;">${I18n.t('line.hide_after_summary', '要約後にメッセージを隠す')}</label>
-                    <div class="wb-toggle">
+                    <label class="wb-toggle" style="margin:0;">
                         <input type="checkbox" id="lhCharHideAfterSummary" ${char.hideAfterSummary ? 'checked' : ''}>
                         <span class="wb-toggle-slider"></span>
-                    </div>
+                    </label>
                 </div>
             </div>
 
@@ -597,10 +597,10 @@ const LineHome = {
                 <div class="card-header">${I18n.t('line.bubble_color', '吹き出しカラー')}</div>
                 <div class="setting-row" style="flex-direction:row;justify-content:space-between;align-items:center;">
                     <label style="margin:0;">${I18n.t('line.line_green_default', 'LINE グリーン（デフォルト）')}</label>
-                    <div class="wb-toggle">
+                    <label class="wb-toggle" style="margin:0;">
                         <input type="checkbox" id="lhLineGreen" ${s.useLineGreen !== false ? 'checked' : ''} onchange="LineHome._saveSetting('useLineGreen',this.checked)">
                         <span class="wb-toggle-slider"></span>
-                    </div>
+                    </label>
                 </div>
             </div>
             <p style="padding:0 28px 12px;font-size:12px;color:var(--text-tertiary);">${I18n.t('line.bubble_color_off_hint_short', 'オフにすると、テーマカラーに合わせた吹き出しになります')}</p>
@@ -625,17 +625,17 @@ const LineHome = {
                 <div class="card-header">${I18n.t('line.display_settings', '表示設定')}</div>
                 <div class="setting-row" style="flex-direction:row;justify-content:space-between;align-items:center;">
                     <label style="margin:0;">${I18n.t('line.show_read', '既読表示')}</label>
-                    <div class="wb-toggle">
+                    <label class="wb-toggle" style="margin:0;">
                         <input type="checkbox" ${s.showRead !== false ? 'checked' : ''} onchange="LineHome._saveSetting('showRead',this.checked)">
                         <span class="wb-toggle-slider"></span>
-                    </div>
+                    </label>
                 </div>
                 <div class="setting-row" style="flex-direction:row;justify-content:space-between;align-items:center;">
                     <label style="margin:0;">${I18n.t('line.show_typing', 'タイピングインジケーター')}</label>
-                    <div class="wb-toggle">
+                    <label class="wb-toggle" style="margin:0;">
                         <input type="checkbox" ${s.showTyping !== false ? 'checked' : ''} onchange="LineHome._saveSetting('showTyping',this.checked)">
                         <span class="wb-toggle-slider"></span>
-                    </div>
+                    </label>
                 </div>
             </div>
 

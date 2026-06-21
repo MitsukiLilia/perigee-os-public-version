@@ -90,7 +90,7 @@ const ChangelogPrompt = {
                     <div class="changelog-section-label">这次改了什么</div>
                     <ul class="changelog-highlights">${highlights}</ul>
                     ${voice ? `
-                        <div class="changelog-section-label">来自小克</div>
+                        <div class="changelog-section-label">来自作者</div>
                         <div class="changelog-voice"><p>${voice}</p></div>
                     ` : ''}
                 </div>
@@ -131,7 +131,7 @@ const ChangelogHistory = {
         scroll.innerHTML = `
             <div class="changelog-history-intro">
                 <div class="changelog-history-title">往期更新</div>
-                <div class="changelog-history-sub">从开始到现在，宝和小克一起做的每一版。</div>
+                <div class="changelog-history-sub">从开始到现在，作者一路记录的每一版。</div>
             </div>
             ${versions.map((v, i) => this._renderEntry(v, i === 0)).join('')}
         `;
