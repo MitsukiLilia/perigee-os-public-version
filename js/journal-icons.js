@@ -9,17 +9,17 @@ const JournalIcons = {
 
   // app id → webp 文件名（assets/icons/journal/ 目录下）
   ICONS: {
-    'chat':            'envelope-wax.webp',
-    'worldbook':       'notebook-bookmark.webp',
+    'chat':            'book-chat.webp',
+    'worldbook':       'book-globe.webp',
     'language':        'globe.webp',
     'forum':           'letter-pen.webp',
-    'pixiv-novel':     'openbook-nature.webp',
+    'pixiv-novel':     'notebook-p.webp',
     'twitter':         'pens-crossed.webp',
     'magazine':        'bookshelf.webp',
     'melonbooks':      'tote-bag.webp',
     'niconico':        'tv-retro.webp',
     'weibo':           'speech-bubble.webp',
-    'lofter':          'polaroid.webp',
+    'lofter':          'notepad-l.webp',
     'writer':          'mailbox.webp',
     'lyric-lab':       'vinyl.webp',
     'mercari':         'parcel.webp',
@@ -28,7 +28,7 @@ const JournalIcons = {
     'fortune':         'scroll-bow.webp',
     'payment-tracker': 'tag-fortune.webp',
     'travel-account':  'notebook-tag.webp',
-    'settings':        'notebook-plain.webp',
+    'settings':        'notebook-gear.webp',
   },
 
   apply() {
@@ -47,8 +47,8 @@ const JournalIcons = {
         c.innerHTML = `<img src="assets/icons/journal/${this.ICONS[appId]}" alt="${appId}" draggable="false">`;
       } else if (c.dataset.iconDefault) {
         // 离开手帐主题 / 该 app 无手帐图标：恢复原始 SVG
-        // 但若当前是夜空主题，图标已由 ConstellationIcons 接管，不要恢复（与 constellation-icons.js 的 journal 守卫镜像对称）
-        if (document.documentElement.dataset.theme !== 'night-sky' && document.documentElement.dataset.theme !== 'strawberry') {
+        // 但若当前是夜空/草莓/雪国主题，图标已由对应模块接管，不要恢复（四方守卫镜像对称）
+        if (document.documentElement.dataset.theme !== 'night-sky' && document.documentElement.dataset.theme !== 'strawberry' && document.documentElement.dataset.theme !== 'snow-country') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

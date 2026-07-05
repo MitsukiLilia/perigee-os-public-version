@@ -1,6 +1,8 @@
 // 工具模块 - 包含数据持久化和API调用功能
 const Utils = {
     generateId: () => Date.now().toString(36) + Math.random().toString(36).substr(2),
+    // parseFloat + 有限性兜底：v 解析为有限数则用之，否则 fallback（修「temperature 显式 0 被 || 吞成 0.7」）
+    _num(v, fallback) { const n = parseFloat(v); return Number.isFinite(n) ? n : fallback; },
     // fire-and-forget：86处调用无需改动
     saveData() {
         localforage.setItem('PerigeeOS', JSON.parse(JSON.stringify(AppState.data)))
@@ -230,6 +232,8 @@ const Utils = {
             case 'claude':
                 return await this.callClaudeAPI(messages, systemPrompt, options);
             case 'deepseek':
+            case 'openrouter':  // OpenRouter 文字聚合站，OpenAI 兼容
+            case 'pioneer':     // Pioneer 官方中转站，OpenAI 兼容（callOpenAICompatibleAPI 内对 pioneer 双发 X-API-Key）
             case 'openai':
             default:
                 return await this.callOpenAICompatibleAPI(messages, systemPrompt, options);
@@ -245,6 +249,7 @@ const Utils = {
         // console.log('[API Call] Model:', config.model);
 
         // 支持 message.audio = { data: base64, mimeType }（OpenAI 兼容多模态格式）
+        // 支持 message.image = { data: base64, mimeType }（data URI 形式的 image_url）
         const transformed = messages.map(m => {
             if (m.audio) {
                 return {
@@ -252,6 +257,15 @@ const Utils = {
                     content: [
                         { type: 'text', text: m.content || '' },
                         { type: 'input_audio', input_audio: { data: m.audio.data, format: this._audioFormatFromMime(m.audio.mimeType) } }
+                    ]
+                };
+            }
+            if (m.image && m.image.data) {
+                return {
+                    role: m.role,
+                    content: [
+                        { type: 'text', text: m.content || '' },
+                        { type: 'image_url', image_url: { url: `data:${m.image.mimeType || 'image/png'};base64,${m.image.data}` } }
                     ]
                 };
             }
@@ -263,16 +277,24 @@ const Utils = {
             messages: systemPrompt
                 ? [{ role: 'system', content: systemPrompt }, ...transformed]
                 : transformed,
-            temperature: options?.temperature ?? (parseFloat(config.temperature) || 0.7),
             max_tokens: options?.maxTokens ?? 50000
         };
+        // Pioneer 中转对部分上游模型（尤其 Claude）不接受采样参数，带 temperature 会报 upstream provider error
+        // → Pioneer 模式省略 temperature（用模型默认采样）；其它 provider 照旧发
+        if (config.mode !== 'pioneer') {
+            requestBody.temperature = options?.temperature ?? Utils._num(config.temperature, 0.7);
+        }
+
+        // 鉴权头：标准 Bearer；Pioneer 中转站文档示例用 X-API-Key，双发兜底（服务器取其一）
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${config.key}`
+        };
+        if (config.mode === 'pioneer') headers['X-API-Key'] = config.key;
 
         const res = await this._fetchWithTimeout(endpoint, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${config.key}`
-            },
+            headers,
             body: JSON.stringify(requestBody)
         });
 
@@ -350,6 +372,9 @@ const Utils = {
             if (msg.audio && msg.audio.data) {
                 parts.push({ inline_data: { mime_type: msg.audio.mimeType || 'audio/webm', data: msg.audio.data } });
             }
+            if (msg.image && msg.image.data) {
+                parts.push({ inline_data: { mime_type: msg.image.mimeType || 'image/png', data: msg.image.data } });
+            }
             if (parts.length === 0) parts.push({ text: '' });
             contents.push({
                 role: msg.role === 'assistant' ? 'model' : 'user',
@@ -360,13 +385,12 @@ const Utils = {
         const requestBody = {
             contents: contents,
             generationConfig: {
-                temperature: options?.temperature ?? (parseFloat(config.temperature) || 0.7),
+                temperature: options?.temperature ?? Utils._num(config.temperature, 0.7),
                 maxOutputTokens: options?.maxTokens ?? 50000
             }
         };
 
-        console.log('[Google API Call]', endpoint, requestBody);
-
+        // 不打印 endpoint（含 ?key=）与 requestBody，避免明文 key / 用户内容进控制台
         const res = await this._fetchWithTimeout(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -420,11 +444,25 @@ const Utils = {
         const config = AppState.data.apiConfig;
         const endpoint = `${config.url}/v1/messages`;
 
+        // 支持 message.image = { data: base64, mimeType }（Anthropic base64 图片格式）
+        const transformed = messages.map(m => {
+            if (m.image && m.image.data) {
+                return {
+                    role: m.role,
+                    content: [
+                        { type: 'image', source: { type: 'base64', media_type: m.image.mimeType || 'image/png', data: m.image.data } },
+                        { type: 'text', text: m.content || '' }
+                    ]
+                };
+            }
+            return m;
+        });
+
         const requestBody = {
             model: config.model,
             max_tokens: options?.maxTokens ?? 50000,
-            messages: messages,
-            temperature: options?.temperature ?? (parseFloat(config.temperature) || 0.7)
+            messages: transformed,
+            temperature: options?.temperature ?? Utils._num(config.temperature, 0.7)
         };
 
         if (systemPrompt) {
@@ -512,7 +550,8 @@ const Utils = {
             doujin_published: '同人誌新刊',
             doujin_event: '即売会情報',
             nico_video_published: 'ニコ動投稿',
-            nico_trending: 'ニコ動話題'
+            nico_trending: 'ニコ動話題',
+            leak_posted: 'リーク情報'
         };
         const lines = events.map(e => {
             const label = TYPE_LABELS[e.type] || e.type;
@@ -633,7 +672,7 @@ ${intro}以下の情報階層を厳守すること。
     // ═══════════════════════════════════════════════════════
 
     // 重置时**保留**的字段（API/系统配置/世界书/桌面布局/外部API/TTS）
-    _PRESERVED_KEYS: ['apiConfig', 'systemConfig', 'worldBooks', 'desktopLayout', 'widgets', 'imageApiConfig', 'ttsConfig', '_clockWidgetMigrated'],
+    _PRESERVED_KEYS: ['apiConfig', 'systemConfig', 'worldBooks', 'desktopLayout', 'widgets', 'imageApiConfig', 'ttsConfig', '_clockWidgetMigrated', 'videoApiConfig'],
 
     // 各模块的"出厂默认"。新增模块时在这里补一行就够。
     _DATA_DEFAULTS() {
@@ -674,6 +713,7 @@ ${intro}以下の情報階層を厳守すること。
             magazineData: null,
             melonbooksData: null,
             niconicoData: null,
+            videoGenTasks: [],
             tarotData: null,
             fortuneData: null,
             travelData: null,

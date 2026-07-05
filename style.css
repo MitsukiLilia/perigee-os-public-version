@@ -589,6 +589,11 @@ body.dark-mode #desktop::before {
    =================================================== */
 .widget-polaroid-j {
     position: relative;
+    /* 容器约束:作为 grid/flex 子项允许缩到比内容小,阻止图片原始尺寸把卡撑大
+       (iOS Safari 严格,需要整条链每级都有,详见 pj-frame / pj-image) */
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
     background: #ffffff;
     padding: 10px 10px 0;
     border-radius: 4px;
@@ -632,10 +637,16 @@ body.dark-mode .widget-polaroid-j {
     display: flex;
     flex-direction: column;
     height: 100%;
+    width: 100%;
+    min-width: 0;
+    min-height: 0; /* 链中间层:不加这层,iOS 上即使 img 脱流,frame 仍会被撑 */
     gap: 6px;
 }
 .widget-polaroid-j .pj-image {
     flex: 1;
+    min-width: 0;
+    min-height: 0; /* iOS Safari flex 子项默认 min-height:auto、不肯缩到比内容小,大图会撑高整张卡 */
+    position: relative; /* 作绝对定位 img 的锚 */
     background: #f3f0eb;
     border-radius: 2px;
     overflow: hidden;
@@ -646,6 +657,8 @@ body.dark-mode .widget-polaroid-j {
     font-size: 24px;
 }
 .widget-polaroid-j .pj-image img {
+    position: absolute; /* 移出文档流:任何尺寸导入图都不参与布局、永不撑卡(跨浏览器含 iOS Safari) */
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -706,6 +719,9 @@ body.dark-mode .widget-polaroid-j {
    =================================================== */
 .widget-polaroid {
     position: relative;
+    min-width: 0;
+    min-height: 0; /* 同拍立得:容器约束,防图片原始尺寸把卡撑大(iOS) */
+    box-sizing: border-box;
     padding: 10px;
     background: var(--bg-card, #fffaf3);
     box-shadow: 0 2px 12px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05);
@@ -722,6 +738,8 @@ body.dark-mode .widget-polaroid {
     z-index: 2;
     width: 100%;
     height: 100%;
+    min-width: 0;
+    min-height: 0; /* 链中间层,同 pj-frame */
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -731,6 +749,8 @@ body.dark-mode .widget-polaroid {
     position: relative;
     width: 100%;
     aspect-ratio: 1;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
     border-radius: 6px;
     border: 1.5px dashed currentColor;
@@ -740,6 +760,8 @@ body.dark-mode .polaroid-image {
     background: rgba(0,0,0,0.25);
 }
 .polaroid-image img {
+    position: absolute; /* 同 pj-image:移出文档流防大图撑卡(本框已有 aspect-ratio 兜底,此为双保险) */
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -3003,6 +3025,29 @@ body.dark-mode .widget-clock {
     line-height: 1;
 }
 
+/* 周边商品图：行内生成按钮 + 缩略图 */
+.goods-img-btn { display: inline-flex; align-items: center; justify-content: center; }
+.goods-img-btn svg { display: block; width: 14px; height: 14px; }
+.goods-img-btn:disabled { opacity: 0.45; cursor: default; }
+.goods-img-btn.generating svg { animation: goods-img-spin 0.9s linear infinite; }
+@keyframes goods-img-spin { to { transform: rotate(360deg); } }
+.goods-row-body { display: flex; gap: 8px; align-items: flex-start; }
+.goods-thumb {
+    width: 46px; height: 58px; flex-shrink: 0;
+    object-fit: cover; border-radius: 6px;
+    background: var(--bg-tertiary, #ececf0);
+    border: 1px solid var(--border-light, #e6e6ea);
+    cursor: zoom-in;
+}
+
+/* 周边弹窗分区小标题（AI 辅助 / 商品信息 / 柄图·设计） */
+.goods-sec-h {
+    font-size: 11px; font-weight: 700; letter-spacing: .04em;
+    color: var(--text-secondary, #888);
+    margin: 4px 0 8px; padding-bottom: 4px;
+    border-bottom: 1px solid var(--border-light, #e6e6ea);
+}
+
 .plot-entry-preview {
     font-size: 12px;
     color: var(--text-secondary);
@@ -4740,6 +4785,7 @@ details.tl>span {
 .wb-toolbar {
     display: flex;
     justify-content: center;
+    gap: 8px;
     padding: 10px 16px;
     border-bottom: 1px solid var(--border-light, #e6e6ea);
 }
@@ -4748,7 +4794,8 @@ details.tl>span {
     align-items: center;
     justify-content: center;
     gap: 7px;
-    width: 100%;
+    flex: 1;
+    min-width: 0;
     padding: 10px 14px;
     font-size: 14px;
     font-weight: 600;
@@ -4760,6 +4807,7 @@ details.tl>span {
 }
 .wb-toolbar-btn:active { opacity: 0.6; }
 .wb-toolbar-btn svg { width: 18px; height: 18px; }
+.wb-toolbar-btn.danger { color: var(--danger-color); border-color: var(--danger-color); }
 
 /* ===== 世界书 同名导入弹窗 ===== */
 .wb-modal-overlay {

@@ -76,6 +76,31 @@
 }
 .nico-video-card:active { transform: scale(0.97); }
 
+/* PV投稿：生成中タスクの占位卡（Task 8） */
+.nico-gencard { cursor: default; }
+.nico-gencard:active { transform: none; }
+.nico-gencard-thumb { background: #333; }
+/* 骨架アニメ：純色の透明度脈動（グラデーションのスイープは使わない — 無渐变ルール） */
+.nico-gencard-skeleton { animation: nico-gencard-pulse 1.6s ease-in-out infinite; }
+@keyframes nico-gencard-pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.85; }
+}
+.nico-gencard-error { border: 2px solid #dc3545; }
+.nico-gencard-error-msg {
+    font-size: 11px;
+    color: #ff8f8f;
+    line-height: 1.4;
+    margin-bottom: 6px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.nico-gencard-status { font-size: 11px; color: #999; }
+.nico-gencard-actions { display: flex; gap: 6px; }
+.nico-gencard-actions .glass-btn { flex: 1; }
+
 /* サムネイル */
 .nico-thumbnail {
     position: relative;
@@ -98,6 +123,14 @@
     font-weight: 600;
     padding: 1px 4px;
     border-radius: 3px;
+}
+/* リアルPV動画の非同期サムネ（Task 8。src="" の間は透明 = 下の hash色+SVG がそのまま見える） */
+.nico-thumb-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 /* 動画情報 */
@@ -148,6 +181,7 @@
 .nico-rank-num.silver { color: #c0c0c0; }
 .nico-rank-num.bronze { color: #cd7f32; }
 .nico-ranking-thumb {
+    position: relative;
     width: 100px;
     aspect-ratio: 16/9;
     background: #333;
@@ -157,6 +191,7 @@
     justify-content: center;
     font-size: 24px;
     flex-shrink: 0;
+    overflow: hidden;
 }
 .nico-ranking-info { flex: 1; min-width: 0; }
 .nico-ranking-title {
@@ -210,6 +245,19 @@
 /* プレイヤーエリア */
 .nico-player-area {
     position: relative;
+}
+/* リアルPV動画プレイヤー（Task 8） */
+.nico-player-real video {
+    width: 100%;
+    display: block;
+    background: #000;
+}
+.nico-player-error {
+    padding: 40px 20px;
+    text-align: center;
+    color: #999;
+    font-size: 13px;
+    background: #0d0d0d;
 }
 .nico-player-emoji {
     position: absolute;
@@ -443,6 +491,15 @@
     overflow: hidden;
     border-bottom: 1px solid #333;
 }
+/* リアル動画の上に重ねる弾幕層（Task 8）：動画コントロールを塞がないよう pointer-events を切る */
+.nico-danmaku-overlay {
+    position: absolute;
+    inset: 0;
+    height: auto;
+    background: transparent;
+    border-bottom: none;
+    pointer-events: none;
+}
 .nico-danmaku-track .nico-danmaku-emoji {
     position: absolute;
     top: 50%;
@@ -648,6 +705,7 @@
     align-items: center;
 }
 .nico-list-thumb {
+    position: relative;
     width: 110px;
     aspect-ratio: 16/9;
     border-radius: 4px;
@@ -752,6 +810,188 @@
 }
 .nico-gen-btn:hover { background: #444 !important; }
 .nico-gen-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* PV投稿モーダル（Seedance動画生成） — 固定ダークUIはニコニコ既存モーダルの配色を継承 */
+.nico-pv-modal {
+    max-width: 420px;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+.nico-pv-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+    padding-right: 2px;
+    margin-bottom: 14px;
+}
+.nico-pv-row { display: flex; gap: 10px; }
+.nico-pv-field { display: flex; flex-direction: column; gap: 6px; }
+.nico-pv-field-half { flex: 1; min-width: 0; }
+.nico-pv-label {
+    font-size: 12px;
+    color: #aaa;
+    font-weight: 600;
+}
+.nico-pv-textarea {
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 13px;
+    color: #e0e0e0;
+    resize: vertical;
+    min-height: 90px;
+    font-family: inherit;
+}
+.nico-pv-textarea:focus { outline: none; border-color: #666; }
+.nico-pv-select {
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: #e0e0e0;
+    width: 100%;
+}
+.nico-pv-select:disabled { opacity: 0.4; }
+.nico-pv-hint {
+    font-size: 11px;
+    color: #888;
+    margin: 0;
+    line-height: 1.4;
+}
+.nico-pv-ai-btn {
+    align-self: flex-start;
+    background: #333 !important;
+    color: #e0e0e0 !important;
+    border: 1px solid #444 !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    width: auto !important;
+}
+.nico-pv-ai-btn:hover { background: #444 !important; }
+.nico-pv-ai-btn:disabled { opacity: 0.5; }
+.nico-pv-btn-icon { display: inline-flex; width: 14px; height: 14px; flex-shrink: 0; }
+.nico-pv-btn-icon svg { width: 100%; height: 100%; }
+
+.nico-pv-ref-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.nico-pv-ref-row.disabled { opacity: 0.4; pointer-events: none; }
+.nico-pv-ref-thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
+.nico-pv-ref-thumb {
+    position: relative;
+    width: 56px;
+    height: 56px;
+    border-radius: 6px;
+    background-color: #333;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+}
+.nico-pv-ref-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #000;
+    border: 1px solid #555;
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+}
+.nico-pv-ref-remove svg { width: 10px; height: 10px; }
+.nico-pv-ref-add {
+    width: 56px;
+    height: 56px;
+    border-radius: 6px;
+    background: #333;
+    border: 1px dashed #555;
+    color: #888;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.nico-pv-ref-add svg { width: 20px; height: 20px; }
+.nico-pv-ref-add:disabled { opacity: 0.4; cursor: default; }
+
+.nico-pv-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #e0e0e0;
+    cursor: pointer;
+}
+.nico-pv-audio-field { justify-content: center; }
+
+.nico-pv-actions { flex-direction: row !important; }
+.nico-pv-actions .nico-modal-close { flex: 1; }
+.nico-pv-submit-btn {
+    flex: 1;
+    background: #e8530e !important;
+    color: #fff !important;
+    border: 1px solid #e8530e !important;
+}
+.nico-pv-submit-btn:hover { background: #c94509 !important; }
+.nico-pv-submit-btn:disabled { opacity: 0.4; }
+
+/* PV参考画像ピッカー（Pixivイラストギャラリーから選択） */
+.nico-pv-gallery-overlay { z-index: 1001; }
+.nico-pv-gallery-modal {
+    max-width: 380px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+.nico-pv-gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    overflow-y: auto;
+    padding: 4px 0 14px;
+}
+.nico-pv-gallery-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    background-color: #333;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid transparent;
+    cursor: pointer;
+}
+.nico-pv-gallery-item.selected { border-color: #e8530e; }
+.nico-pv-gallery-check {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #e8530e;
+    color: #fff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.nico-pv-gallery-item.selected .nico-pv-gallery-check { display: flex; }
+.nico-pv-gallery-check svg { width: 11px; height: 11px; }
 
 /* 空状態 */
 .nico-empty {

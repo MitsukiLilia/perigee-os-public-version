@@ -426,6 +426,7 @@ const Twitter = {
 
         // 生成済み画像をロード
         this._loadGeneratedImages(container);
+        this._loadNicoThumbs(container);
     },
 
     // 「以前のツイートを見る」：扩大渲染窗口、增量渲染更早的时间线项（数据本就全在）
@@ -821,6 +822,7 @@ const Twitter = {
         ${this._renderQuotedTweetHtml(tweet)}
         ${tweet.poll ? this._renderPoll(tweet) : ''}
         ${this._renderPixivLinkCard(tweet)}
+        ${this._renderNicoLinkCard(tweet)}
         ${(typeof Wandoro !== 'undefined') ? Wandoro._renderGatedLinkCard(tweet) : ''}
         ${tlBlock}
         <div class="tw-card-footer">
@@ -859,10 +861,14 @@ const Twitter = {
                 if (r.status === 'rejected') console.warn(`[Twitter refresh] ${_genLabels[i]} failed:`, r.reason);
             });
             this.renderTimeline();
-            const _failedCount = _results.filter(r => r.status === 'rejected').length;
-            if (_failedCount === _results.length) {
+            // fandomEvent/notifications/wandoro は内部で try/catch して恒に fulfilled になる（reject しない）ため、
+            // 失敗判定は実際に reject し得る npcTweets/fanTweets/trends の3枠だけで見る。全6枠で見ると
+            // 常に非rejected枠が残り「全滅」に到達できず、真の全滅時でも成功トーストが出てしまっていた。
+            const _realGenIdx = [0, 1, 3];
+            const _realFailed = _realGenIdx.map(i => _results[i]).filter(r => r.status === 'rejected');
+            if (_realFailed.length === _realGenIdx.length) {
                 // 全ジェネレーター失敗 = APIキー失効/ネット全断など本当の異常のみ通知
-                const _firstErr = _results.find(r => r.status === 'rejected')?.reason;
+                const _firstErr = _realFailed[0]?.reason;
                 Utils.showToast(I18n.t('t.tw_refresh_failed', '更新失敗：') + (_firstErr?.message || ''));
             } else {
                 Utils.showToast(I18n.t('t.tw_timeline_updated', '✓ タイムラインを更新しました'));
@@ -979,6 +985,7 @@ const Twitter = {
             if (!npc) return;
             quotePool.push({
                 tweetId: tw.id, isNpc,
+                npcId: npc.id,
                 npcName: npc.name || npc.role,
                 npcRole: npc.role || '',
                 content: tw.content,
@@ -1003,7 +1010,7 @@ const Twitter = {
         const shortIdMap = new Map();
         const quoteListLines = quoteCandidates.map((q, i) => {
             const sid = `T${(i + 1).toString().padStart(2, '0')}`;
-            shortIdMap.set(sid, { realId: q.tweetId, isNpc: q.isNpc });
+            shortIdMap.set(sid, { realId: q.tweetId, isNpc: q.isNpc, npcId: q.npcId });
             const tag = q.isUserAuthored ? '【ユーザー投稿】' : '';
             const snippet = q.content.replace(/\n/g, ' ').slice(0, 80) + (q.content.length > 80 ? '…' : '');
             return `[${sid}] ${Utils.timeAgo(q.ts)}｜${q.npcName}（${q.npcRole}）${tag}: ${snippet}`;
@@ -1142,8 +1149,8 @@ ${typeof Utils !== 'undefined' ? Utils.getEventContextPrompt(3) : ''}`;
                 const sidMatch = quoteIdRaw.match(/T\d+/i);
                 const sid = sidMatch ? sidMatch[0].toUpperCase() : '';
                 const lookup = shortIdMap.get(sid);
-                if (lookup) {
-                    // 引用元の発信者が自分自身の場合はスキップ（QUOTEを無効化してNEW扱い）
+                // 引用元の発信者が自分自身の場合はスキップ（QUOTEを無効化してNEW扱い）
+                if (lookup && lookup.npcId !== npc.id) {
                     quotedTweetId = lookup.realId;
                     quotedTweetIsNpc = !!lookup.isNpc;
                 }
@@ -1611,7 +1618,9 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             ${tweet.image.description ? `<span class="tw-image-desc tw-image-desc-overlay">${this._esc(tweet.image.description)}</span>` : ''}
            </div>`) : ''}
     ${this._renderQuotedTweetHtml(tweet)}
+    ${tweet.poll ? this._renderPoll(tweet) : ''}
     ${this._renderPixivLinkCard(tweet)}
+    ${this._renderNicoLinkCard(tweet)}
     ${(typeof Wandoro !== 'undefined') ? Wandoro._renderGatedLinkCard(tweet) : ''}
     ${opTl}
     <div class="tw-thread-time">${this._formatDate(tweet.timestamp)}</div>
@@ -1667,6 +1676,7 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 
         // 生成済み画像をロード
         this._loadGeneratedImages(content);
+        this._loadNicoThumbs(content);
 
         // 同步 composer 头像（按当前身份）
         this._syncReplyComposerAvatar();
@@ -1942,8 +1952,8 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
         } catch (e) {
             Utils.showToast(I18n.t('t.tw_gen_failed', '生成失敗：') + e.message);
             console.error('[Twitter Gen]', e);
-            this._removeReplySkeletons();
         } finally {
+            this._removeReplySkeletons();
             if (btn) { btn.disabled = false; btn.textContent = I18n.t('tw.gen_more_replies', '＋ リプライを読み込む'); }
         }
     },
@@ -2272,16 +2282,22 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             audio.preload = 'metadata';
             audio.src = objUrl;
             audio.onloadedmetadata = () => {
+                clearTimeout(timer);
                 const d = audio.duration;
                 if (blobOrUrl instanceof Blob) URL.revokeObjectURL(objUrl);
                 resolve(isFinite(d) ? d : 0);
             };
             audio.onerror = () => {
+                clearTimeout(timer);
                 if (blobOrUrl instanceof Blob) URL.revokeObjectURL(objUrl);
                 reject(new Error('audio load failed'));
             };
             // 5s 超时
-            setTimeout(() => { try { audio.src = ''; } catch {} resolve(0); }, 5000);
+            const timer = setTimeout(() => {
+                if (blobOrUrl instanceof Blob) URL.revokeObjectURL(objUrl);
+                try { audio.src = ''; } catch {}
+                resolve(0);
+            }, 5000);
         });
     },
 
@@ -2678,12 +2694,17 @@ CONTENT: [本文]`;
 </div>`;
     },
 
-    // 图片加载失败 → 从推文删除（用户要求保持美观）
+    // 图片加载失败：url 型外链多为离线等瞬时原因 → 仅提示不删数据；
+    // local 型内嵌 dataURL 本身损坏才是确定性问题 → 走删除清理路径
     _handleBrokenUserImage(tweetId, isNpc) {
         const t = this._ensureData();
         const arr = isNpc ? (t.npcTweets || []) : (t.tweets || []);
         const tweet = arr.find(tw => tw.id === tweetId);
         if (!tweet || !tweet.userImage) return;
+        if (tweet.userImage.type === 'url') {
+            Utils.showToast(I18n.t('t.tw_image_load_failed', '画像を読み込めません'), 3000);
+            return;
+        }
         delete tweet.userImage;
         Utils.saveData();
         this._refreshTwitterViews();
@@ -2757,19 +2778,34 @@ CONTENT: [本文]`;
             if (oldId) this._updateAudioPlayerUI(oldId);
         }
 
-        // 加载并播放
+        // 取音频源：本地型从 IDB 取 blob，确实取不到（确定性损坏）才走删除清理路径
         let objUrl = null;
-        try {
-            let src;
-            if (tweet.userAudio.type === 'local') {
+        let src;
+        if (tweet.userAudio.type === 'local') {
+            let blob = null;
+            try {
                 if (typeof TTSEngine === 'undefined') throw new Error('audioStore unavailable');
-                const blob = await TTSEngine.getAudio(tweet.userAudio.audioId);
-                if (!blob) throw new Error('audio not found');
-                objUrl = URL.createObjectURL(blob);
-                src = objUrl;
-            } else {
-                src = tweet.userAudio.url;
+                blob = await TTSEngine.getAudio(tweet.userAudio.audioId);
+            } catch (e) {
+                // IDB 读取抛错可能是瞬时故障（隐私模式/数据库被占用），不能当确定性损坏删数据
+                console.error('[Audio]', e);
+                Utils.showToast(I18n.t('t.tw_audio_play_failed_msg', '音声を再生できません：') + e.message, 4000);
+                return;
             }
+            if (!blob) {
+                // IDB 干净地返回空 = blob 确实已丢失，才走删除清理路径
+                Utils.showToast(I18n.t('t.tw_audio_load_failed', '音声を読み込めません'), 3000);
+                this._handleBrokenUserAudio(tweetId, isNpc);
+                return;
+            }
+            objUrl = URL.createObjectURL(blob);
+            src = objUrl;
+        } else {
+            src = tweet.userAudio.url;
+        }
+
+        // 加载并播放：失败多为瞬时原因（解码不支持/离线加载/播放权限过期），仅提示不删数据
+        try {
             const audio = new Audio(src);
             audio._objUrl = objUrl;
             audio.preload = 'metadata';
@@ -2787,8 +2823,10 @@ CONTENT: [本文]`;
                 // 旧 audio 残留事件不应该误删新数据
                 if (this._activeTwAudio !== audio) return;
                 if (audio._objUrl) URL.revokeObjectURL(audio._objUrl);
+                this._activeTwAudio = null;
+                this._activeTwAudioId = null;
                 Utils.showToast(I18n.t('t.tw_audio_load_failed', '音声を読み込めません'), 3000);
-                this._handleBrokenUserAudio(tweetId, isNpc);
+                this._updateAudioPlayerUI(tweetId);
             });
             audio.addEventListener('loadedmetadata', () => this._updateAudioPlayerUI(tweetId));
             await audio.play();
@@ -2797,7 +2835,11 @@ CONTENT: [本文]`;
             if (objUrl) URL.revokeObjectURL(objUrl);
             console.error('[Audio]', e);
             Utils.showToast(I18n.t('t.tw_audio_play_failed_msg', '音声を再生できません：') + e.message, 4000);
-            this._handleBrokenUserAudio(tweetId, isNpc);
+            if (this._activeTwAudioId === tweetId) {
+                this._activeTwAudio = null;
+                this._activeTwAudioId = null;
+            }
+            this._updateAudioPlayerUI(tweetId);
         }
     },
 
@@ -3097,7 +3139,7 @@ ${taskList}
             const npc = handleToNpc.get(handle);
             if (!npc || !r.content) return;
             const offset = (i + 1) * (30000 + Math.random() * 60000); // 30s-90s 错峰
-            const timestamp = baseTime - offset;
+            const timestamp = Math.max(tweet.timestamp + 1000, baseTime + offset);
             if (r.type === 'QUOTE') {
                 t.npcTweets = t.npcTweets || [];
                 t.npcTweets.push({
@@ -3233,6 +3275,7 @@ ${taskList}
         if (active === 'twitter-thread') this.renderThread?.();
         if (active === 'twitter-notif') this.renderNotifications?.();
         if (active === 'twitter-user-profile') this.renderUserProfile?.();
+        if (active === 'twitter-npc-profile') this.renderNpcProfile?.();
     },
 
     // 手动触发：从某条用户推 → 立即生成关係者反応
@@ -3332,6 +3375,10 @@ ${taskList}
         // 顺手清掉本地音频 blob
         if (tweet && tweet.userAudio && tweet.userAudio.type === 'local' && tweet.userAudio.audioId && typeof TTSEngine !== 'undefined') {
             TTSEngine.removeAudio(tweet.userAudio.audioId).catch(() => {});
+        }
+        // 顺手清掉生成图 blob（NPC art 推）
+        if (tweet?.image?.generatedImageId && typeof IllustGallery !== 'undefined') {
+            IllustGallery.remove(tweet.image.generatedImageId).catch(() => {});
         }
         if (isNpc) {
             t.npcTweets = (t.npcTweets || []).filter(tw => tw.id !== tweetId);
@@ -3544,6 +3591,14 @@ ${formHtml}`;
 
         // 删账号 + 关联推文
         t.personalAccounts = t.personalAccounts.filter(a => a.id !== acc.id);
+        // 顺手清掉这批被删推文里的本地音频 blob（否则批量删账号会留下孤儿 blob）
+        if (typeof TTSEngine !== 'undefined') {
+            (t.tweets || []).forEach(tw => {
+                if (tw.postedAsAccountId === editId && tw.userAudio?.type === 'local' && tw.userAudio.audioId) {
+                    TTSEngine.removeAudio(tw.userAudio.audioId).catch(() => {});
+                }
+            });
+        }
         t.tweets = (t.tweets || []).filter(tw => tw.postedAsAccountId !== editId);
 
         // 如果当前 active 也被删，回退到第一个
@@ -3654,6 +3709,8 @@ ${formHtml}`;
 
     openDm(npcId) {
         this.currentDmNpcId = npcId;
+        this.currentDmMode = 'npc';
+        this.currentInboxDmId = null;
         Navigation.goTo('twitter-dm');
     },
 
@@ -3844,6 +3901,14 @@ ${lines}
 
     _esc(s) {
         return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    },
+
+    // 用于拼进单引号 onclick JS 字符串字面量（如 onclick="Foo('${...}')"）的值。
+    // 仅靠 _esc 的 HTML 实体转义不够：浏览器解析 onclick 属性时先做 HTML 实体解码、
+    // 再把解码后的文本当 JS 源码解析，所以单引号若编码成 &#39; 会在解码后变回裸 '
+    // 重新击穿 JS 字符串边界；必须写成字面 \\ 和 \' 才能在两层解析后仍保持转义。
+    _escJsAttr(s) {
+        return this._esc(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     },
 
     // ===== 角标更新 =====
@@ -4583,7 +4648,7 @@ CONTENT: [DMテキスト、自然な日本語で2〜4文]
             return;
         }
         body.innerHTML = `<div class="tw-search-section-title">${I18n.t('tw.search_current_trends', 'いまトレンド')}</div>` +
-            trends.map((tr, i) => `<div class="tw-trend-item tw-trend-clickable" onclick="Twitter._searchFromTrend('${this._esc(tr.tag)}')">
+            trends.map((tr, i) => `<div class="tw-trend-item tw-trend-clickable" onclick="Twitter._searchFromTrend('${this._escJsAttr(tr.tag)}')">
     <div class="tw-trend-rank">${i + 1}</div>
     <div class="tw-trend-info">
         <div class="tw-trend-tag">${this._esc(tr.tag)}</div>
@@ -4810,7 +4875,7 @@ TRANSLATION: [中国語（簡体字）翻訳、1行]
         tweet.poll.options[optIdx].votes = (tweet.poll.options[optIdx].votes || 0) + 1;
         tweet.poll.totalVotes = tweet.poll.options.reduce((s, o) => s + (o.votes || 0), 0);
         Utils.saveData();
-        this.renderTimeline();
+        this._refreshTwitterViews();
     },
 
     // スレッドグルーピング（タイムライン表示用）
@@ -4876,15 +4941,18 @@ TRANSLATION: [中国語（簡体字）翻訳、1行]
     },
 
     // 世界書からキャラクター外見情報を抽出（推文全文 + IMAGE_DESC で照合）
-    _extractCharacterAppearance(tweetContent, imageDesc) {
+    // excludeNames: 已有预存外貌 tag 的角色名 —— 其条目（title 精确匹配）不再塞给 LLM，省 token
+    _extractCharacterAppearance(tweetContent, imageDesc, excludeNames) {
         const wbIds = Utils.getActiveWorldBookIds();
         if (wbIds.length === 0) return '';
+        const excluded = excludeNames || [];
 
         const allEntries = [];
         wbIds.forEach(wbId => {
             const book = (AppState.data.worldBooks || []).find(b => b.id === wbId);
             if (book && book.entries) {
                 book.entries.filter(e => e.enabled !== false).forEach(e => {
+                    if (excluded.includes((e.title || '').trim())) return;
                     allEntries.push({ title: e.title, keys: e.keys || [], content: e.content });
                 });
             }
@@ -4905,7 +4973,8 @@ TRANSLATION: [中国語（簡体字）翻訳、1行]
 
     // 推文内容 + IMAGE_DESC + キャラ外見 → 英語プロンプト生成
     async _buildImagePrompt(tweetContent, imageDesc) {
-        const charAppearance = this._extractCharacterAppearance(tweetContent, imageDesc);
+        const storedChars = PixivIllust.getStoredCharTags();
+        const charAppearance = this._extractCharacterAppearance(tweetContent, imageDesc, storedChars.map(c => c.name));
 
         const systemPrompt = `You are a prompt engineer for anime image generation (NovelAI V4.5).
 Convert the given tweet content and image description into English Danbooru-style tags.
@@ -4930,7 +4999,7 @@ Rules:
 - For original characters, use only visual descriptors
 - IMPORTANT: If characters are mentioned in the tweet or character database, they MUST appear prominently in the illustration — never generate background-only/scenery-only images when characters are referenced
 - Do NOT include negative prompt tags
-- Keep each section under 40 words`;
+- Keep each section under 40 words${PixivIllust.fixedCharPromptSection(storedChars)}`;
 
         const userMsg = `Tweet content (for context): ${tweetContent || imageDesc}
 Image description: ${imageDesc}
@@ -4940,22 +5009,12 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
 
         try {
             const raw = await Utils.callChatAPI([{ role: 'user', content: userMsg }], systemPrompt);
-            const result = raw.trim();
-
-            // [SCENE]/[CHAR] 構造化フォーマットを解析
-            const sceneMatch = result.match(/\[SCENE\]\s*(.+?)(?=\[CHAR|\n*$)/s);
-            const charMatches = [...result.matchAll(/\[CHAR\d*\]\s*(.+?)(?=\[CHAR|\n*$)/gs)];
-
-            if (sceneMatch && charMatches.length > 0) {
-                // 複数キャラ：char_captions を使用
-                const scene = sceneMatch[1].trim().replace(/\n/g, ', ');
-                const chars = charMatches.map(m => m[1].trim().replace(/\n/g, ', '));
-                console.log(`[Twitter ImageGen] Multi-char prompt: scene="${scene.substring(0,50)}..." chars=${chars.length}`);
-                return { positive: scene, negative: '', charCaptions: chars };
+            // [SCENE]/[CHAR] 解析 + 预存外貌 tag 合并（共用逻辑）
+            const parsed = PixivIllust.parseTagPromptOutput(raw, storedChars);
+            if (parsed.charCaptions.length > 0) {
+                console.log(`[Twitter ImageGen] Multi-char prompt: scene="${parsed.positive.substring(0,50)}..." chars=${parsed.charCaptions.length}`);
             }
-
-            // 単一キャラ：フラットタグ
-            return { positive: result, negative: '', charCaptions: [] };
+            return { positive: parsed.positive, negative: '', charCaptions: parsed.charCaptions };
         } catch (e) {
             console.error('[Twitter ImageGen] Prompt build failed:', e);
             return null;
@@ -4971,7 +5030,8 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
 
         const config = AppState.data.imageApiConfig;
         const naiSettings = AppState.data.novelaiSettings || {};
-        const artTweets = tweets.filter(tw => tw.image && tw.image.type === 'art' && !tw.image.generatedImageId);
+        this._generatingTweetImages = this._generatingTweetImages || new Set();   // per-tweet 在途标记（in-memory、不入存档），防连续刷新对同一批推重复发起生图
+        const artTweets = tweets.filter(tw => tw.image && tw.image.type === 'art' && !tw.image.generatedImageId && !this._generatingTweetImages.has(tw.id));
         console.log(`[Twitter ImageGen] Found ${artTweets.length} art tweets out of ${tweets.length} total (types: ${tweets.map(tw => tw.image?.type || 'none').join(', ')})`);
         if (artTweets.length === 0) return;
 
@@ -4981,6 +5041,7 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
             : '1024x768';
 
         for (const tweet of artTweets) {
+            this._generatingTweetImages.add(tweet.id);
             try {
                 const prompt = await this._buildImagePrompt(tweet.content, tweet.image.description);
                 if (!prompt) continue;
@@ -4988,23 +5049,23 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
                 let blobs = [];
                 switch (config.provider) {
                     case 'openai':
-                        blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'gpt-image':
-                        blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'openrouter':
                         blobs = await PixivIllust.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'stabilityai':
-                        blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'novelai':
                         blobs = await PixivIllust.generateWithNovelAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'midjourney':
                     case 'custom':
-                        blobs = await PixivIllust.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await PixivIllust.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                 }
 
@@ -5027,6 +5088,8 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
                 }
             } catch (e) {
                 console.error('[Twitter ImageGen] Failed for tweet:', tweet.id, e);
+            } finally {
+                this._generatingTweetImages.delete(tweet.id);
             }
         }
     },
@@ -5141,7 +5204,7 @@ CATEGORY: [episode/character/goods/event/fandom]
         }
 
         const catIcon = { episode: this._svg.tv, character: this._svg.sparkles, goods: this._svg.shopping, event: this._svg.tent, fandom: this._svg.chat };
-        const items = trends.map((tr, i) => `<div class="tw-trend-item tw-trend-clickable" onclick="Twitter._searchFromTrend('${this._esc(tr.tag)}')">
+        const items = trends.map((tr, i) => `<div class="tw-trend-item tw-trend-clickable" onclick="Twitter._searchFromTrend('${this._escJsAttr(tr.tag)}')">
     <div class="tw-trend-rank">${i + 1}</div>
     <div class="tw-trend-info">
         <div class="tw-trend-tag">${this._esc(tr.tag)}</div>
@@ -6744,6 +6807,100 @@ ${tabContent}`;
         } finally {
             this._generatingPromo.delete(tweetId);
         }
+    },
+
+    // ===== Seedance PV：官方宣传推文 + nico 链接卡片（app 内跳转） =====
+    // VideoGen._onSucceeded から呼ばれる（tweetAccountId が null/'' の場合は呼び出し側で弾く）。
+    // task.tweetAccountId: officialNpcs の npc.id | 'AUTO_CREATE'
+    // pk: VideoGen.parsePackaging の結果 or _onSucceeded 側の占位フォールバック（tweetText/officialHandle/officialName は null あり得る）
+    // video: Niconico.addRealVideo の返り値（id/title/videoBlobId 持ち）
+    postOfficialPVTweet(task, pk, video) {
+        const t = this._ensureData();
+        if (!AppState.data.broadcast.officialNpcs) AppState.data.broadcast.officialNpcs = [];
+        const npcs = AppState.data.broadcast.officialNpcs;
+
+        let npc = null;
+        if (task.tweetAccountId === 'AUTO_CREATE') {
+            // 包装 LLM が起こした handle（無ければ既定値）で公式Twitter NPC を新規作成。
+            // 条目形態は forum.saveNpc の公式Twitter 保存と同構：{id, role, name, handle}、name は空
+            //（公式アカウントは中の人名を持たない — Task 6 の語義。表示は handle/role フォールバック）。
+            // role は現在言語の「公式Twitter」i18n 値 — Forum._isOfficialTwitterRole は三語とも substring 命中。
+            const handle = String(pk.officialHandle || '').replace(/^@+/, '').replace(/[^A-Za-z0-9_]/g, '').slice(0, 20) || 'anime_official';
+            npc = { id: Utils.generateId(), role: I18n.t('forum.role_official_twitter'), name: '', handle };
+            npcs.push(npc);
+            task.tweetAccountId = npc.id;   // 回填：以後この task は実 NPC を指す
+        } else {
+            npc = npcs.find(n => n.id === task.tweetAccountId);
+            if (!npc) return;   // NPC 已删 → 静默不发推（沉浸感铁律：不弹错误）
+        }
+
+        // 推文条目：官方推文の現場 schema = npcTweets + source:'staff' + npcId（_generateNpcTweets :1072 と同構）。
+        // nicoVideoId が PV 宣伝カードの唯一フラグ（_renderNicoLinkCard が拾う）。
+        const eng = this._genEngagement('staff');
+        t.npcTweets = t.npcTweets || [];
+        t.npcTweets.push({
+            id: Utils.generateId(),
+            source: 'staff',
+            npcId: npc.id,
+            content: pk.tweetText || (video.title + ' 公開！'),
+            image: null,
+            translation: null,
+            mentionsNpcHandle: null,
+            quotedTweetId: null,
+            quotedTweetIsNpc: false,
+            afterPlotId: null,
+            nicoVideoId: video.id,   // ← nico リンクカード（横条卡+跳转）用
+            timestamp: Date.now(),
+            replies: [],
+            likes: eng.likes,
+            retweets: eng.retweets,
+            savedToForumId: null
+        });
+        Utils.saveData();
+        this._refreshTwitterViews();   // 推特前台时就地刷新（内部で active screen 判定、非前台は no-op）
+    },
+
+    // nico リンクカード：tweet.nicoVideoId が実在の niconico 動画を指す時だけ描画。
+    // 動画已删 → カード自体不渲染（pixiv 小説カード _resolvePixivNovelId の存在性校验と同じ流儀、死卡防止）。
+    // 横条卡 = 左サムネ（thumb blob 非同期充填、無ければ hash 色块）+ 右タイトル2行 + 灰字 nicovideo.jp
+    _renderNicoLinkCard(tweet) {
+        if (!tweet || !tweet.nicoVideoId) return '';
+        const v = (AppState.data.niconicoData?.videos || []).find(x => x.id === tweet.nicoVideoId);
+        if (!v) return '';
+        // hash 色块（niconico._hashColor と同式）— サムネ到着前の背景 / 抽帧失败时的兜底
+        let h = 0;
+        const str = v.title || '';
+        for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+        const bg = `hsl(${Math.abs(h) % 360}, 32%, 42%)`;
+        const thumbImg = v.videoBlobId ? `<img src="" data-nico-thumb-id="${this._esc(v.videoBlobId)}" class="tw-nico-thumb-img" alt="">` : '';
+        return `<div class="tw-nico-link-card" onclick="event.stopPropagation();Twitter._openNicoVideo('${this._esc(v.id)}')" role="link" tabindex="0">
+            <div class="tw-nico-thumb" style="background:${bg};">${this._svg.tv}${thumbImg}</div>
+            <div class="tw-nico-meta">
+                <div class="tw-nico-title">${this._esc(v.title)}</div>
+                <div class="tw-nico-domain">nicovideo.jp</div>
+            </div>
+        </div>`;
+    },
+
+    // サムネ非同期充填：data-nico-thumb-id 持ちの <img> に VideoGen の thumb blob URL を入れる
+    //（thumb 無し = 抽帧失败は何もしない → hash 色块のまま。niconico._loadVideoThumbs と同じ流儀）
+    async _loadNicoThumbs(container) {
+        if (!container || typeof VideoGen === 'undefined') return;
+        const imgs = container.querySelectorAll('img.tw-nico-thumb-img[data-nico-thumb-id]');
+        for (const img of imgs) {
+            const blobId = img.dataset.nicoThumbId;
+            if (!blobId) continue;
+            try {
+                const url = await VideoGen.getUrl('thumb:' + blobId);
+                if (url) img.src = url;
+            } catch (e) { /* 読み込み失敗は無視、hash 色块のまま */ }
+        }
+    },
+
+    // カード点击 → niconico 詳情（openVideo が currentVideoId 設定 + 各プレイヤー停止 + goTo('niconico-detail')）
+    _openNicoVideo(videoId) {
+        if (typeof Niconico === 'undefined' || !Niconico.openVideo) return;
+        Niconico.openVideo(videoId);
     },
 
     _renderFanPreview() {

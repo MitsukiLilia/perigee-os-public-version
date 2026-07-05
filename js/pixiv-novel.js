@@ -151,6 +151,11 @@ const PixivNovel = {
 
     // ===== v2.70.0 LLM 种子播种（无 UI、无 toast）=====
     async _seedDoujinWriters(count = 5) {
+        // twitterData 默认结构里没有 fanFriends（只在进推特页的 Twitter._ensureData() 里补建）
+        // pixiv 页不保证 Twitter 已初始化，这里就地兜底，避免裸访问导致每次白烧一次 LLM 调用
+        if (!AppState.data.twitterData) AppState.data.twitterData = {};
+        if (!AppState.data.twitterData.fanFriends) AppState.data.twitterData.fanFriends = [];
+
         const settings = this._ensureWritingStyles();  // v2.123.0：确保 pixivData + 默认文风就绪（推特预热可能早于 pixiv.init）
         const styles = (settings.writingStyles || []).filter(s => s.enabled);
         if (styles.length === 0) return;  // 没有可用 style、跳过
@@ -348,8 +353,13 @@ ${count}人分繰り返してください。`;
             return;
         }
         row.style.display = 'flex';
+        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        // onclick 参数需在 HTML 属性转义之外，再做 JS 字符串层转义（反斜杠先于单引号）：
+        // 浏览器解析 onclick 属性值时会先做 HTML 实体解码，再把解码后的文本当 JS 源码解析，
+        // 所以单引号必须写成字面 \' 而不是 &#39;，否则解码后又变回裸引号击穿字符串
+        const _jsAttrEsc = s => _esc(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         row.innerHTML = tags.slice(0, 15).map(t =>
-            `<span class="pixiv-tag-chip${this.filterTag === t ? ' active' : ''}" onclick="PixivNovel.toggleTag('${t.replace(/'/g, "\\'")}')">#${t.replace(/^#/, '')}</span>`
+            `<span class="pixiv-tag-chip${this.filterTag === t ? ' active' : ''}" onclick="PixivNovel.toggleTag('${_jsAttrEsc(t)}')">#${_esc(t.replace(/^#/, ''))}</span>`
         ).join('');
     },
 
@@ -1271,6 +1281,19 @@ ${count}人分繰り返してください。`;
         if (!chapter) return;
 
         const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        // <details> 译文折叠块白名单清洗：LLM 正文属不可信输入，格式漂移/幻觉可能在块内夹带 img/onerror 等标签。
+        // 先整体转义（起点变成纯文本），再只把 details/summary/span/br 这四个折叠机制自用的标签换回真实标签——
+        // 未列入白名单的标签、以及白名单标签上的任何属性（除 details 自带的 class="tl" 折叠样式钩子）一律保持转义原样显示。
+        const _sanitizeDetailsBlock = html => {
+            const ALLOWED_TAGS = new Set(['details', 'summary', 'span', 'br']);
+            return _esc(html).replace(/&lt;(\/?)([a-zA-Z][a-zA-Z0-9]*)([^&]*)&gt;/g, (full, slash, name, attrs) => {
+                const tag = name.toLowerCase();
+                if (!ALLOWED_TAGS.has(tag)) return full; // 非白名单标签：保持转义文本，不被解析成 HTML
+                if (slash) return `</${tag}>`;
+                if (tag === 'details') return /class\s*=\s*['"]?tl['"]?/i.test(attrs) ? `<details class="tl">` : `<details>`;
+                return `<${tag}>`;
+            });
+        };
         // v2.74.1: 写 chapterBody（不动 pixivReaderContent 滚动容器自身、保留 infoDiv 兄弟节点）
         const content = document.getElementById('pixivChapterBody');
         const text = chapter.content || '';
@@ -1286,9 +1309,12 @@ ${count}人分繰り返してください。`;
         const isSerialAI = novel.isSerial && !novel.isUserCreated;
         // v2.74.2 Phase 2: 章节 AI 摘要从阅读器正文移除（chapter.synopsis 数据字段保留、AI 续章仍读）
         // 用户可通过顶部 📄 文档 icon 在「作品详情」modal 内查看各章摘要
-        // 完結後メロン書籍化ボタン
+        // 完結後メロン書籍化ボタン（書籍化済みなら頒布ページへ誘導・重複生成を防ぐ）
+        const bookedProduct = (isCompleted && novel.isSerial && novel.melonbooksProductId)
+            ? ((AppState.data.melonbooksData && AppState.data.melonbooksData.products) || []).find(p => p.id === novel.melonbooksProductId)
+            : null;
         const melonBtn = (isCompleted && novel.isSerial)
-            ? `<button class="glass-btn" onclick="PixivNovel.publishToMelonbooks('${novel.id}')" style="background:#e8530e;color:#fff;">${I18n.t('pixiv.btn_publish_melon', '🍈 メロンで書籍化')}</button>`
+            ? `<button class="glass-btn" onclick="PixivNovel.publishToMelonbooks('${novel.id}')" style="background:#e8530e;color:#fff;">${bookedProduct ? I18n.t('pixiv.btn_view_melon', 'メロンの頒布ページへ') : I18n.t('pixiv.btn_publish_melon', 'メロンで書籍化')}</button>`
             : '';
         // 完結ボタン（連載の最終話 & 未完結時のみ）
         const completeBtn = (isLastChapter && !isCompleted && novel.isSerial && novel.chapters.length >= 2)
@@ -1372,7 +1398,7 @@ ${count}人分繰り返してください。`;
         content.innerHTML = `
             <div class="pixiv-chapter-text">
                 ${paragraphs.map(p => {
-            if (p.trimStart().startsWith('<details')) return `<p>${p}</p>`;
+            if (p.trimStart().startsWith('<details')) return `<p>${_sanitizeDetailsBlock(p)}</p>`;
             // 先按 <br> 拆段，分别转义文本，再拼回 <br>（保留段内换行）
             return `<p>${p.split('<br>').map(seg => _esc(seg)).join('<br>')}</p>`;
         }).join('')}
@@ -1589,22 +1615,25 @@ Full chapter text. Do NOT repeat the title. Start immediately.
                 createdAt: Date.now()
             };
 
+            // 生成期间用户可能已切到别的小说：novelId 是发起时捕获的目标小说，
+            // this.currentNovelId 是当前屏幕正在看的小说，两者不一致时跳过 UI 尾巴（下标/重渲），只落盘+提示
+            const stillOnThisNovel = novelId === this.currentNovelId;
             if (isReroll) {
                 // 保留原章节 id 和创建时间，只替换内容
                 if (rerollIdx >= novel.chapters.length) throw new Error('章节索引越界，请重试');
                 newChapterData.id = novel.chapters[rerollIdx].id;
                 newChapterData.createdAt = novel.chapters[rerollIdx].createdAt;
                 novel.chapters[rerollIdx] = newChapterData;
-                this.currentChapterIdx = rerollIdx;
+                if (stillOnThisNovel) this.currentChapterIdx = rerollIdx;
             } else {
                 novel.chapters.push(newChapterData);
-                this.currentChapterIdx = novel.chapters.length - 1;
+                if (stillOnThisNovel) this.currentChapterIdx = novel.chapters.length - 1;
             }
 
             novel.updatedAt = Date.now();
             this._recordNovelAngle({ title: chapterTitle, tags: novel.tags || [] });
             Utils.saveData();
-            this.renderReader();
+            if (stillOnThisNovel) this.renderReader();
             Utils.showToast(isReroll ? I18n.t('t.pixiv_rewrite_done', {n: chapterNum}) : I18n.t('t.pixiv_chapter_done', {n: chapterNum}));
         } catch (e) {
             Utils.showToast(I18n.t('t.pixiv_gen_failed', '生成失败: ') + e.message);
@@ -1616,28 +1645,26 @@ Full chapter text. Do NOT repeat the title. Start immediately.
         }
     },
 
-    // ===== 删除章节 =====
+    // ===== 删除章节：级联截断（同酒馆 truncate）=====
+    // 删第 N 章 = 删第 N 章及其后所有章节（含各自摘要）。后续章节是接着本章写的，
+    // 单删中间章会让剧情断裂，所以连同其后一起截掉。删前 confirm 明确告知会连带几章。
     deleteChapter(novelId, chapterIdx) {
         const data = AppState.data.pixivData;
         const novel = (data.novels || []).find(n => n.id === novelId);
         if (!novel || !novel.chapters || novel.chapters.length === 0) return;
+        if (chapterIdx < 0 || chapterIdx >= novel.chapters.length) return;
         const chapterTitle = novel.chapters[chapterIdx]?.title || I18n.t('pixiv.chapter_n', {n: chapterIdx + 1});
-        if (!confirm(I18n.t('pixiv.confirm_delete_chapter', {title: chapterTitle}))) return;
-        novel.chapters.splice(chapterIdx, 1);
-        // 重排 chapterNum
-        novel.chapters.forEach((ch, i) => { ch.chapterNum = i + 1; });
-
-        // 削除された章の後に synopsis を持つ章があるか確認
-        const hasLaterSynopses = novel.chapters.slice(chapterIdx).some(ch => ch.synopsis);
-        if (hasLaterSynopses && novel.chapters.length > 0) {
-            const clearSynopses = confirm(I18n.t('pixiv.confirm_clear_synopses', '削除されたチャプターの後のチャプターにはAIの記憶（あらすじ）が含まれています。\n削除された内容が参照されている可能性があるため、後続チャプターのあらすじをクリアしますか？\n（次の章を生成する際にAIが自動的に新しいあらすじを作成します）'));
-            if (clearSynopses) {
-                novel.chapters.slice(chapterIdx).forEach(ch => { ch.synopsis = ''; });
-            }
-        }
-
+        const after = novel.chapters.length - chapterIdx - 1;   // 其后还有几章会被连带删除
+        const msg = after > 0
+            ? I18n.t('pixiv.confirm_truncate_chapter', {title: chapterTitle, n: after})
+            : I18n.t('pixiv.confirm_delete_chapter', {title: chapterTitle});
+        if (!confirm(msg)) return;
+        novel.chapters = novel.chapters.slice(0, chapterIdx);   // 截断：本章及其后全部移除（含摘要）
+        novel.chapters.forEach((ch, i) => { ch.chapterNum = i + 1; });   // 重排（前段不变，保险）
+        // 截断必然把结局章一并删掉，若原为完结状态则回退到连载中，否则续写/重写/完结按钮被 !completed 挡死
+        if (novel.completed) { novel.completed = false; novel.completedAt = null; }
         novel.updatedAt = Date.now();
-        // 如果删的是当前章或当前章越界，跳到前一章
+        // 当前章越界 → 跳到最后保留的一章
         if (this.currentChapterIdx >= novel.chapters.length) {
             this.currentChapterIdx = Math.max(0, novel.chapters.length - 1);
         }
@@ -2869,7 +2896,7 @@ ${autoPerspectiveInstruction}
 
         const chapter = novel.chapters[this.currentChapterIdx || 0];
         // 去除翻译标签，但保留换行
-        let content = chapter.content || '';
+        let content = chapter?.content || '';
         // 将<br>标签转换为换行符
         content = content.replace(/<br\s*\/?>/gi, '\n');
         // 移除所有 details 标签及其内容（翻译）
@@ -2938,6 +2965,7 @@ ${autoPerspectiveInstruction}
             return;
         }
 
+        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         container.innerHTML = styles.map(style => `
             <div class="pixiv-style-preset ${style.enabled ? '' : 'disabled'}" data-style-id="${style.id}">
                 <div class="preset-header">
@@ -2946,7 +2974,7 @@ ${autoPerspectiveInstruction}
                                ${style.enabled ? 'checked' : ''}
                                onchange="PixivNovel.toggleStyleEnabled('${style.id}')"
                                style="width: auto;">
-                        <strong style="font-size: 14px;">${style.name}</strong>
+                        <strong style="font-size: 14px;">${_esc(style.name)}</strong>
                     </label>
                     <div class="preset-actions" style="display: flex; gap: 6px;">
                         <button onclick="PixivNovel.editStyle('${style.id}')"
@@ -2955,10 +2983,10 @@ ${autoPerspectiveInstruction}
                                 class="glass-btn mini danger" style="margin: 0;">${I18n.t('btn.delete', '删除')}</button>
                     </div>
                 </div>
-                <p class="preset-desc" style="font-size: 13px; color: #666; margin: 5px 0 5px 24px;">${style.description || ''}</p>
+                <p class="preset-desc" style="font-size: 13px; color: #666; margin: 5px 0 5px 24px;">${_esc(style.description)}</p>
                 <details style="margin-left: 24px; margin-top: 5px;">
                     <summary style="font-size: 12px; color: #999; cursor: pointer;">${I18n.t('pixiv.view_rules', '查看规则')}</summary>
-                    <pre style="font-size: 12px; color: #666; margin: 5px 0; white-space: pre-wrap; line-height: 1.4;">${style.rules}</pre>
+                    <pre style="font-size: 12px; color: #666; margin: 5px 0; white-space: pre-wrap; line-height: 1.4;">${_esc(style.rules)}</pre>
                 </details>
             </div>
         `).join('');
@@ -3528,7 +3556,7 @@ ${autoPerspectiveInstruction}
         }
 
         const chapter = novel.chapters[this.currentChapterIdx || 0];
-        let content = chapter.content || '';
+        let content = chapter?.content || '';
         content = content.replace(/<br\s*\/?>/gi, '\n');
         content = content.replace(/<details[^>]*>[\s\S]*?<\/details>/gi, '');
         content = content.replace(/<[^>]+>/g, '');
@@ -3607,6 +3635,20 @@ ${autoPerspectiveInstruction}
         if (typeof Melonbooks === 'undefined') { Utils.showToast(I18n.t('t.pixiv_melon_unavailable', 'メロンブックスが利用できません')); return; }
 
         const m = Melonbooks._ensureData();
+
+        // 既に書籍化済みなら、その頒布ページへ移動（重複生成を防ぐ）
+        if (novel.melonbooksProductId) {
+            const existingProduct = (m.products || []).find(p => p.id === novel.melonbooksProductId);
+            if (existingProduct) {
+                Utils.showToast(I18n.t('t.pixiv_already_booked', '既にメロンブックスで書籍化されています'));
+                Melonbooks.currentProductId = existingProduct.id;
+                Navigation.goTo('melonbooks-detail');
+                return;
+            }
+            // 紐付け先の商品が削除済み → リセットして再生成を許可
+            novel.melonbooksProductId = null;
+        }
+
         const totalWords = (novel.chapters || []).reduce((s, c) => s + (c.wordCount || 0), 0);
         const pageCount = Math.max(1, Math.round(totalWords / 800));
 
@@ -3631,6 +3673,7 @@ ${autoPerspectiveInstruction}
             createdAt: Date.now()
         };
         m.products.push(product);
+        novel.melonbooksProductId = product.id;
         Utils.saveData();
         if (typeof Utils !== 'undefined' && Utils.emitEvent) {
             Utils.emitEvent('doujin_published', 'melonbooks', { title: `書籍化「${novel.title}」`, summary: `全${novel.chapters.length}話・${totalWords.toLocaleString()}文字` });
@@ -3646,15 +3689,30 @@ ${autoPerspectiveInstruction}
         const m = Melonbooks._ensureData();
         const product = (m.products || []).find(p => p.id === productId);
         if (!product) return;
-        const circle = (m.circles || []).find(c => c.id === product.circleId);
 
         const data = AppState.data.pixivData;
         if (!data.novels) data.novels = [];
 
+        // 既に小説化済みなら、その連載へ移動（重複生成を防ぐ）
+        if (product.pixivNovelId) {
+            const existingNovel = data.novels.find(n => n.id === product.pixivNovelId);
+            if (existingNovel) {
+                Utils.showToast(I18n.t('t.melon_already_novelized', '既にPixivで連載化されています'));
+                this.currentNovelId = existingNovel.id;
+                this.currentChapterIdx = 0;
+                Navigation.goTo('pixiv-reader');
+                return;
+            }
+            // 紐付け先の連載が削除済み → 関連付けをリセットして再生成を許可
+            product.pixivNovelId = null;
+        }
+
+        const circle = (m.circles || []).find(c => c.id === product.circleId);
+
         const novel = {
             id: Utils.generateId(),
             title: product.title || '無題',
-            author: circle ? circle.author : (circle ? circle.name : '匿名'),
+            author: circle ? (circle.author || circle.name) : '匿名',
             tags: (product.tags || []).slice(0, 5),
             coverGradient: this.generateCoverGradient(),
             writingStyleId: null,

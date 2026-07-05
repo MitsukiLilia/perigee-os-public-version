@@ -47,9 +47,9 @@ const StrawberryIcons = {
         if (!c.dataset.iconDefault) c.dataset.iconDefault = c.innerHTML;
         c.innerHTML = `<img src="assets/icons/strawberry/${this.ICONS[appId]}" alt="${appId}" draggable="false">`;
       } else if (c.dataset.iconDefault) {
-        // 离开草莓主题：恢复原始 SVG；但若目标是夜空/手帐，交给它们接管（三方守卫对称）
+        // 离开草莓主题：恢复原始 SVG；但若目标是夜空/手帐/雪国，交给它们接管（四方守卫对称）
         const t = document.documentElement.dataset.theme;
-        if (t !== 'night-sky' && t !== 'journal') {
+        if (t !== 'night-sky' && t !== 'journal' && t !== 'snow-country') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

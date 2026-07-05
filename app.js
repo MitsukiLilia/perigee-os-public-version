@@ -207,6 +207,7 @@ const Navigation = {
             if (screenId === 'settings-api') {
                 APISettings.init();
                 if (typeof ImageAPISettings !== 'undefined') ImageAPISettings.init();
+                if (typeof VideoAPISettings !== 'undefined') VideoAPISettings.init();
                 if (typeof TTSSettings !== 'undefined') TTSSettings.init();
                 if (typeof WeiboApiSettings !== 'undefined') WeiboApiSettings.init();
             }
@@ -433,9 +434,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof RainEngine !== 'undefined') RainEngine.init(); // 夏雨 canvas 真雨（自管生命周期）
         if (typeof GlassRainEngine !== 'undefined') GlassRainEngine.init(); // 夏雨 WebGL 折射玻璃（主力，自管生命周期）
         if (typeof StarfieldEngine !== 'undefined') StarfieldEngine.init(); // 夜空 canvas 星空（自管生命周期）
+        if (typeof SnowEngine !== 'undefined') SnowEngine.init(); // 雪国 WebGL 飘雪（安卓/Chrome 主力，自管生命周期）
+        if (typeof SnowEngine2D !== 'undefined') SnowEngine2D.init(); // 雪国 Canvas 2D 飘雪（iOS 兜底，WebGL 不可用时接管）
         if (typeof IconCustomizer !== 'undefined') IconCustomizer.init();
         if (typeof Widgets !== 'undefined') Widgets.init();
         if (typeof Decorations !== 'undefined') Decorations.init();
+        if (typeof VideoGen !== 'undefined') VideoGen.init(); // Seedance PV 任务恢复轮询（自管生命周期）
         if (typeof DesktopRenderer !== 'undefined') DesktopRenderer.render();
         if (typeof DesktopEdit !== 'undefined') DesktopEdit.init();
         if (typeof LiquidGlass !== 'undefined') LiquidGlass.init(); // 夏雨真折射玻璃（仅 Chromium，自管 CSS 分流）

@@ -545,15 +545,15 @@
                         <label data-i18n="broadcast.production_name">作品名</label>
                         <input id="broadcastProductionName" type="text" placeholder="如：某作品（用于微博作品超话）" data-i18n-placeholder="broadcast.production_name_placeholder">
                     </div>
-                    <!-- v2.139.0: CP 参考立绘（仅 gpt-image-2 生图读取，保人物一致性；NAI 与文字创作不受影响） -->
-                    <div style="border-top:1px solid var(--border);margin:8px 0 0;padding-top:10px;">
-                        <label data-i18n="broadcast.cp_ref_title" style="display:block;font-size:13px;font-weight:600;color:var(--text-primary);padding:0 0 4px;">参考立绘（gpt-image 生图）</label>
+                    <!-- v2.139.0: CP 参考立绘（gpt-image-2 作参考图）；v2.173.0: 立绘下方外貌 tag（NovelAI 生图拼接用） -->
+                    <div style="border-top:1px solid var(--border-medium);margin:8px 0 0;padding-top:10px;">
+                        <label data-i18n="broadcast.cp_ref_title" style="display:block;font-size:13px;font-weight:600;color:var(--text-primary);padding:0 0 4px;">参考立绘与外貌 tag</label>
                         <p class="card-hint" data-i18n="broadcast.cp_ref_hint" style="font-size:12px;color:var(--text-tertiary);padding:0 0 10px;line-height:1.6;">
-                            上传主角 A / B 的立绘后，用 gpt-image-2 生成 pixiv 插画 / 推特配图 / melon 封面时，会作为参考图保持人物一致性。使用 NovelAI 或写小说、剧情等文字创作时不受影响。
+                            上传主角 A / B 的立绘：gpt-image 生图时作为参考图保持人物一致；配合支持图片的文字模型（如 Gemini），可点「AI 生成」从立绘识别出 NovelAI 用的外貌 tag。预存外貌 tag 后，推特配图 / melon 封面 / pixiv 插画生图会直接拼接使用（人物外貌全图一致），不再每次检索世界书；留空则照旧走世界书。tag 随时可手动修改。
                         </p>
                         <div style="display:flex;gap:12px;">
                             <div style="flex:1;min-width:0;">
-                                <div style="position:relative;width:100%;aspect-ratio:3/4;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:rgba(128,128,128,0.08);">
+                                <div style="position:relative;width:100%;aspect-ratio:3/4;border:1px solid var(--border-medium);border-radius:8px;overflow:hidden;background:rgba(128,128,128,0.08);">
                                     <img id="broadcastCpRefAPreview" alt="" style="display:none;width:100%;height:100%;object-fit:cover;">
                                     <div id="broadcastCpRefAPlaceholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;gap:6px;color:var(--text-tertiary);">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:26px;height:26px;opacity:0.6;">
@@ -565,13 +565,18 @@
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:13px;height:13px;"><path d="M18 6 6 18M6 6l12 12"/></svg>
                                     </button>
                                 </div>
-                                <label style="display:block;margin-top:6px;text-align:center;font-size:12px;padding:6px 0;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text-secondary);">
+                                <label style="display:block;margin-top:6px;text-align:center;font-size:12px;padding:6px 0;border:1px solid var(--border-medium);border-radius:6px;cursor:pointer;color:var(--text-secondary);">
                                     <span data-i18n="broadcast.cp_ref_a">主角 A 立绘</span>
                                     <input id="broadcastCpRefAInput" type="file" accept="image/*" style="display:none;">
                                 </label>
+                                <textarea id="broadcastCpTagsA" rows="3" placeholder="外貌 tag，如：1boy, black hair, red eyes…" data-i18n-placeholder="broadcast.cp_tags_placeholder" style="width:100%;margin-top:8px;padding:8px;border:1px solid var(--border-medium);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:12px;line-height:1.5;resize:vertical;box-sizing:border-box;font-family:inherit;outline:none;"></textarea>
+                                <button id="broadcastCpTagsAGen" type="button" style="display:flex;align-items:center;justify-content:center;gap:5px;width:100%;margin-top:6px;font-size:12px;padding:6px 0;border:1px solid var(--border-medium);border-radius:6px;cursor:pointer;color:var(--text-secondary);background:transparent;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"/></svg>
+                                    <span data-i18n="broadcast.cp_tags_gen">AI 生成外貌 tag</span>
+                                </button>
                             </div>
                             <div style="flex:1;min-width:0;">
-                                <div style="position:relative;width:100%;aspect-ratio:3/4;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:rgba(128,128,128,0.08);">
+                                <div style="position:relative;width:100%;aspect-ratio:3/4;border:1px solid var(--border-medium);border-radius:8px;overflow:hidden;background:rgba(128,128,128,0.08);">
                                     <img id="broadcastCpRefBPreview" alt="" style="display:none;width:100%;height:100%;object-fit:cover;">
                                     <div id="broadcastCpRefBPlaceholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;gap:6px;color:var(--text-tertiary);">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:26px;height:26px;opacity:0.6;">
@@ -583,10 +588,15 @@
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="width:13px;height:13px;"><path d="M18 6 6 18M6 6l12 12"/></svg>
                                     </button>
                                 </div>
-                                <label style="display:block;margin-top:6px;text-align:center;font-size:12px;padding:6px 0;border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text-secondary);">
+                                <label style="display:block;margin-top:6px;text-align:center;font-size:12px;padding:6px 0;border:1px solid var(--border-medium);border-radius:6px;cursor:pointer;color:var(--text-secondary);">
                                     <span data-i18n="broadcast.cp_ref_b">主角 B 立绘</span>
                                     <input id="broadcastCpRefBInput" type="file" accept="image/*" style="display:none;">
                                 </label>
+                                <textarea id="broadcastCpTagsB" rows="3" placeholder="外貌 tag，如：1boy, black hair, red eyes…" data-i18n-placeholder="broadcast.cp_tags_placeholder" style="width:100%;margin-top:8px;padding:8px;border:1px solid var(--border-medium);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:12px;line-height:1.5;resize:vertical;box-sizing:border-box;font-family:inherit;outline:none;"></textarea>
+                                <button id="broadcastCpTagsBGen" type="button" style="display:flex;align-items:center;justify-content:center;gap:5px;width:100%;margin-top:6px;font-size:12px;padding:6px 0;border:1px solid var(--border-medium);border-radius:6px;cursor:pointer;color:var(--text-secondary);background:transparent;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"/></svg>
+                                    <span data-i18n="broadcast.cp_tags_gen">AI 生成外貌 tag</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1524,6 +1534,15 @@
                         <div class="theme-card-name" data-i18n="appr.theme_strawberry">草莓蛋糕 / Strawberry Cake</div>
                         <div class="theme-card-desc" data-i18n="appr.theme_strawberry_desc">奶油白 · 莓红 · 甜蜜</div>
                     </button>
+                    <button type="button" class="theme-card" data-theme-id="snow-country">
+                        <div class="theme-card-swatches">
+                            <span class="theme-card-swatch" style="background:#eef3f8"></span>
+                            <span class="theme-card-swatch" style="background:#6d8fb2"></span>
+                            <span class="theme-card-swatch" style="background:#cfe0ef"></span>
+                        </div>
+                        <div class="theme-card-name" data-i18n="appr.theme_snow">雪国 / Snow Country</div>
+                        <div class="theme-card-desc" data-i18n="appr.theme_snow_desc">冷蓝白 · 冰磨砂 · 飘雪</div>
+                    </button>
                 </div>
             </div>
 
@@ -1712,6 +1731,8 @@
                         <option value="google">Google AI Studio</option>
                         <option value="claude">Claude API</option>
                         <option value="deepseek">DeepSeek API</option>
+                        <option value="openrouter">OpenRouter</option>
+                        <option value="pioneer">Pioneer</option>
                     </select>
                     <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="api.mode_note">* 选择API类型后，部分配置将自动简化</p>
                 </div>
@@ -1871,6 +1892,10 @@
                     <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                         <input type="checkbox" id="imageGenMelonbooks" checked> <span data-i18n="api.imggen_melon">メロンブックス（同人誌表紙）</span>
                     </label>
+                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <input type="checkbox" id="imageGenGoods"> <span data-i18n="api.imggen_goods">官方周边（商品图）</span>
+                    </label>
+                    <p style="font-size:10px; color:#999; margin:0 0 0 26px;" data-i18n="api.imggen_goods_note">* 周边商品图建议用 gpt-image / OpenRouter，才能用 CP 立绘保人物一致</p>
                 </div>
 
                 <!-- NovelAI 专属设置 -->
@@ -1949,6 +1974,33 @@
                 </div>
 
                 <button id="saveImageApiBtn" class="glass-btn primary" data-i18n="api.save_image">Save Image API Settings</button>
+            </div>
+
+            <!-- Video Generation API (Seedance PV) -->
+            <div class="settings-card" id="videoApiSettingsCard">
+                <div class="card-header" data-i18n="settings.video_api_header">视频生成 API</div>
+
+                <div class="setting-row">
+                    <label>Worker URL</label>
+                    <input type="text" id="videoApiWorkerUrl" placeholder="https://your-worker.workers.dev">
+                    <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="settings.video_api_worker_note">* 部署好的 Cloudflare Worker 地址（转发火山方舟 Seedance API，不含路径）</p>
+                </div>
+
+                <div class="setting-row">
+                    <label>API Key</label>
+                    <input type="password" id="videoApiKey" placeholder="输入火山方舟 API Key" data-i18n-placeholder="settings.video_api_key_ph">
+                </div>
+
+                <div class="setting-row">
+                    <label>Model</label>
+                    <div style="display:flex; gap:5px;">
+                        <select id="videoApiModel" style="flex:1;"></select>
+                        <button id="videoApiFetchModelsBtn" class="glass-btn small" style="width:auto; margin:0;" data-i18n="settings.video_api_fetch_models">拉取模型列表</button>
+                    </div>
+                    <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="settings.video_api_fetch_note">* 点击拉取会用 Worker + Key 请求模型列表，过滤出 Seedance 系列模型；失败则保留内置列表</p>
+                </div>
+
+                <button id="saveVideoApiBtn" class="glass-btn primary" data-i18n="settings.video_api_save">保存视频生成 API 设置</button>
             </div>
 
             <!-- TTS 语音朗读设置 -->
@@ -2501,13 +2553,27 @@
             <button class="nav-btn" id="addEntryBtn" style="color:var(--accent-color); font-weight:600;">+</button>
         </div>
         <div class="wb-toolbar">
+            <button class="wb-toolbar-btn" onclick="WorldBook.renameBook()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 20h9"/>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+                </svg>
+                <span data-i18n="t.wb_btn_rename">重命名</span>
+            </button>
             <button class="wb-toolbar-btn" onclick="WorldBook.exportBook(WorldBook.currentBookId)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                     <polyline points="17 8 12 3 7 8"/>
                     <line x1="12" y1="3" x2="12" y2="15"/>
                 </svg>
-                导出这本世界书
+                <span data-i18n="t.wb_btn_export">导出</span>
+            </button>
+            <button class="wb-toolbar-btn danger" onclick="WorldBook.deleteBook()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+                <span data-i18n="t.wb_btn_delete">删除</span>
             </button>
         </div>
         <div class="settings-scroll" id="worldBookEntriesList"></div>
@@ -3690,17 +3756,9 @@
         <div class="app-header glass">
             <button class="nav-btn back-btn" data-back="melonbooks">‹</button>
             <h1 id="melonDetailTitle" data-i18n="melon.header_detail">商品詳細</h1>
-            <button class="nav-btn" onclick="Melonbooks.toggleFavorite(Melonbooks.currentProductId)" style="font-size:18px;">♥</button>
+            <button id="melonFavBtn" class="nav-btn melon-fav-btn" onclick="Melonbooks.toggleFavorite(Melonbooks.currentProductId)" style="font-size:18px;">♥</button>
         </div>
         <div id="melonDetailContent" class="settings-scroll" style="padding:12px;"></div>
-        <div class="melon-detail-bar">
-            <button class="glass-btn" onclick="Melonbooks.addToCart(Melonbooks.currentProductId)" style="background:#e8530e;color:#fff;" data-i18n="melon.add_to_cart">カートに入れる</button>
-            <button class="glass-btn" onclick="Melonbooks.shareToLine(Melonbooks.currentProductId)" style="background:#06c755;color:#fff;" data-i18n="melon.share_to_line">LINEで共有</button>
-            <button class="glass-btn" onclick="PixivNovel.createFromProduct(Melonbooks.currentProductId)" data-i18n="melon.create_pixiv_novel">Pixivで小説化</button>
-            <button class="glass-btn" onclick="Melonbooks.cycleStatus(Melonbooks.currentProductId)" data-i18n="melon.change_status">状態変更</button>
-            <button class="glass-btn" onclick="Melonbooks.bindToNextPlot(Melonbooks.currentProductId)" data-i18n="melon.bind_next_plot">次話に紐付け</button>
-            <button class="glass-btn danger-text" onclick="Melonbooks.deleteProduct(Melonbooks.currentProductId)" data-i18n="melon.delete_product">削除</button>
-        </div>
     </div>
 
     <!-- メロンブックス サークルページ -->
@@ -4122,7 +4180,7 @@
                 </select>
             </div>
 
-            <div style="margin-bottom:12px;">
+            <div id="magazineThemeSection" style="margin-bottom:12px;">
                 <label style="display:block; font-size:13px; color:var(--text-secondary); margin-bottom:4px;"
                     id="magazineThemeLabel" data-i18n="mag.theme_label">テーマ・方向性（必須）</label>
                 <textarea id="magazineThemeInput" rows="3" placeholder="例：役作りのこだわり、現場の雰囲気、キャラへの思い入れなど"
@@ -4293,6 +4351,7 @@
             </select>
             <!-- AI 生成方案（仅 goods 类别显示） -->
             <div id="goodsAiSection" style="display:none; margin-bottom:10px;">
+                <div class="goods-sec-h" data-i18n="forum.goods_sec_ai">AI 辅助生成</div>
                 <div style="display:flex; gap:8px; margin-bottom:8px; align-items:center;">
                     <label style="font-size:12px; color:#888; white-space:nowrap;" data-i18n="forum.goods_pool_label">周边构成</label>
                     <select id="goodsPoolType" style="flex:1; font-size:12px;">
@@ -4318,6 +4377,12 @@
             </div>
             <!-- 周边结构化字段（仅 goods 类别显示） -->
             <div id="goodsFieldsSection" style="display:none; margin-bottom:10px;">
+                <div class="goods-sec-h" data-i18n="forum.goods_sec_info">商品信息（在 Mercari 出售）</div>
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); margin-bottom:6px; cursor:pointer;">
+                    <input type="checkbox" id="goodsBlindBox" onchange="Forum._toggleBlindBox()" style="width:auto; margin:0;">
+                    <span data-i18n="forum.goods_blind_label">盲抽套组（一番くじ/ブラインド・全员随机）</span>
+                </label>
+                <div id="goodsBlindHint" style="display:none; font-size:11px; color:var(--text-tertiary); background:var(--bg-tertiary, rgba(0,0,0,.04)); border-radius:6px; padding:6px 8px; margin-bottom:8px; line-height:1.5;" data-i18n="forum.goods_blind_hint">盲盒请把全部登场角色都加进「关联角色」（点【全选】一键加入声优已绑定的角色；没配声优的冷门角色，手动输入名字追加即可）。定价填整盒价，单抽价会按角色数自动算出——这样冷门角色款会在 Mercari 被贱卖，还原大毒池。</div>
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:3px;" data-i18n="forum.goods_name_label">周边名</label>
                 <input type="text" id="goodsName" placeholder="例：○○亚克力立牌" data-i18n-placeholder="forum.goods_name_placeholder" style="margin-bottom:8px;">
                 <div style="display:flex; gap:8px; margin-bottom:8px;">
@@ -4333,8 +4398,9 @@
                         </select>
                     </div>
                     <div style="flex:1;">
-                        <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:3px;" data-i18n="forum.goods_price_label">定价（円）</label>
-                        <input type="number" id="goodsPrice" min="0" placeholder="0" style="width:100%;">
+                        <label id="goodsPriceLabel" style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:3px;" data-i18n="forum.goods_price_label">定价（円）</label>
+                        <input type="number" id="goodsPrice" min="0" placeholder="0" style="width:100%;" oninput="Forum._updateBlindPreview()">
+                        <div id="goodsBlindPreview" style="display:none; font-size:11px; color:var(--accent-color, #c8a2c8); margin-top:3px;"></div>
                     </div>
                 </div>
                 <div style="display:flex; gap:8px; margin-bottom:8px;">
@@ -4358,7 +4424,10 @@
                 <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:3px;" data-i18n="forum.goods_source_label">来源（联动场合，可空）</label>
                 <input type="text" id="goodsSource" list="goodsSourceList" placeholder="○○ 咖啡 / ○○展…" data-i18n-placeholder="forum.goods_source_placeholder" style="margin-bottom:8px;">
                 <datalist id="goodsSourceList"></datalist>
-                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:5px;" data-i18n="forum.goods_chars_label">关联角色（可多选）</label>
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:5px;">
+                    <label style="font-size:12px; color:var(--text-secondary);" data-i18n="forum.goods_chars_label">关联角色（可多选）</label>
+                    <button type="button" id="goodsCharSelectAll" onclick="Forum._selectAllGoodsChars()" class="glass-btn small" style="display:none; width:auto; flex-shrink:0; font-size:11px; padding:2px 8px;" data-i18n="forum.goods_chars_select_all">全选登场角色</button>
+                </div>
                 <div id="goodsCharChips" class="chips-container"></div>
                 <div style="display:flex; gap:6px; margin-top:6px;">
                     <input type="text" id="goodsCharInput" list="goodsCharList" placeholder="选择或输入角色名" data-i18n-placeholder="forum.goods_chars_placeholder" style="flex:1;">
@@ -4402,13 +4471,14 @@
                     <div id="officialInfoNpcCheckboxes" class="npc-checkbox-group"></div>
                 </div>
             </div>
+            <input type="text" id="officialInfoTitle" placeholder="情报标题（可选，留空则自动截取内容前几字）" data-i18n-placeholder="forum.info_title_placeholder">
+            <div id="goodsContentHeader" class="goods-sec-h" style="display:none;" data-i18n="forum.goods_sec_pattern">柄图 · 设计（这件周边画的是什么，也用于生图）</div>
+            <textarea id="officialInfoContent" rows="6" placeholder="情报内容（粘贴访谈摘要、活动公告、推特内容等）..." data-i18n-placeholder="forum.info_content_placeholder"></textarea>
             <label style="font-size:12px; color:#888; display:block; margin-bottom:5px;" data-i18n="forum.publish_timing_label">发布时间点（在哪段剧情之后？）</label>
             <select id="officialInfoAfterPlot" style="width:100%; margin-bottom:10px;">
                 <option value="" data-i18n="forum.before_all_plots">所有剧情之前 / 时机不明</option>
                 <!-- 由 showOfficialInfoModal() 动态填充 -->
             </select>
-            <input type="text" id="officialInfoTitle" placeholder="情报标题（可选，留空则自动截取内容前几字）" data-i18n-placeholder="forum.info_title_placeholder">
-            <textarea id="officialInfoContent" rows="6" placeholder="情报内容（粘贴访谈摘要、活动公告、推特内容等）..." data-i18n-placeholder="forum.info_content_placeholder"></textarea>
             <div class="modal-actions">
                 <button id="officialInfoCancelBtn" class="glass-btn" data-i18n="btn.cancel">取消</button>
                 <button id="officialInfoSaveBtn" class="glass-btn primary" data-i18n="btn.save">保存</button>
@@ -4500,6 +4570,7 @@
                 <button class="glass-btn small" style="flex:1;" onclick="DataExport.toggleAll(false)">全不选</button>
             </div>
             <div id="dataModuleList" style="max-height:50vh; overflow-y:auto; border-top:1px solid var(--border-light); border-bottom:1px solid var(--border-light); padding:8px 0;"></div>
+            <div id="dataModuleDepHint" style="display:none; margin-top:10px; padding:9px 11px; border-radius:8px; background:var(--bg-elevated); border:1px solid var(--border-light); border-left:3px solid var(--accent-color); font-size:12px; line-height:1.65; color:var(--text-secondary);"></div>
             <div class="modal-actions" style="margin-top:14px;">
                 <button class="glass-btn" onclick="DataExport.closeModal()" data-i18n="btn.cancel">取消</button>
                 <button id="dataModuleConfirmBtn" class="glass-btn primary" onclick="DataExport.confirmModal()" data-i18n="btn.confirm">确认</button>
@@ -4524,6 +4595,7 @@
     </div>
 
     <!-- v2.136.0: 原总结管理弹窗 #summaryModal 已移除，内容下放为放送局「总结」Tab 的一级内容（见 data-tab="summary" 面板内的 #summaryModalBody） -->
+
 
     <!-- 加载模块化JavaScript文件（按依赖顺序） -->
     <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
@@ -4569,6 +4641,7 @@
     <script src="js/magazine.js"></script>
     <script src="js/melonbooks.js"></script>
     <script src="js/mercari.js"></script>
+    <script src="js/video-gen.js"></script>
     <script src="js/niconico.js"></script>
     <script src="js/pixiv-illust.js"></script>
     <script src="js/travel.js"></script>
@@ -4580,7 +4653,10 @@
     <script src="js/constellation-icons.js"></script>
     <script src="js/journal-icons.js"></script>
     <script src="js/strawberry-icons.js"></script>
+    <script src="js/snow-icons.js"></script>
     <script src="js/starfield.js"></script>
+    <script src="js/snow.js"></script>
+    <script src="js/snow-2d.js"></script>
     <script src="js/desktop-edit.js"></script>
     <script src="app.js?v=2.43.0"></script> <!-- 主应用入口，最后加载 -->
 </body>

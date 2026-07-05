@@ -72,7 +72,8 @@ const Melonbooks = {
         palette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.4 0 2-.9 2-1.8 0-.5-.2-.9-.5-1.2-.3-.4-.5-.8-.5-1.3 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="8" cy="10" r="1.1"/><circle cx="12" cy="7.5" r="1.1"/><circle cx="16" cy="10" r="1.1"/></svg>',
         event: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V9l7-5 7 5v12"/><path d="M10 21v-6h4v6"/></svg>',
         cart: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9.5" cy="20" r="1.4"/><circle cx="17" cy="20" r="1.4"/><path d="M3 4h2.2l2.6 11.5h9.4L19 7.5H6"/></svg>',
-        trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4.5a5 5 0 0 1-10 0V4z"/><path d="M7 6.2H4.2v1.6a3 3 0 0 0 3 3M17 6.2h2.8v1.6a3 3 0 0 1-3 3"/><path d="M9.5 16h5M10.5 20h3M12 16.2v3.6"/></svg>'
+        trophy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v4.5a5 5 0 0 1-10 0V4z"/><path d="M7 6.2H4.2v1.6a3 3 0 0 0 3 3M17 6.2h2.8v1.6a3 3 0 0 1-3 3"/><path d="M9.5 16h5M10.5 20h3M12 16.2v3.6"/></svg>',
+        comment: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H9l-4.5 4V6a1 1 0 0 1 1-1z"/><path d="M8 10h8M8 13h5"/></svg>'
     },
     get _STATUS_LABELS() {
         return {
@@ -370,6 +371,8 @@ const Melonbooks = {
         const isFav = (m.favorites || []).includes(p.id);
         const titleEl = document.getElementById('melonDetailTitle');
         if (titleEl) titleEl.textContent = p.title || I18n.t('melon.header_detail', '商品詳細');
+        const favBtn = document.getElementById('melonFavBtn');
+        if (favBtn) favBtn.classList.toggle('active', isFav);
 
         const content = document.getElementById('melonDetailContent');
         if (!content) return;
@@ -380,6 +383,9 @@ const Melonbooks = {
         const status = p.status || 'on_sale';
         const statusLabel = this._STATUS_LABELS[status] || status;
         const statusColor = this._STATUS_COLORS[status] || '#198754';
+        const inCart = (m.cart || []).some(c => c.productId === p.id);
+        const pixivData = AppState.data.pixivData;
+        const linkedNovel = p.pixivNovelId ? ((pixivData && pixivData.novels) || []).find(n => n.id === p.pixivNovelId) : null;
 
         content.innerHTML = `
         <div class="melon-detail-cover${p.generatedCoverId ? ' melon-cover-generated' : ''}"${p.generatedCoverId ? ` onclick="Melonbooks._viewFullCover('${p.generatedCoverId}')"` : ''}>
@@ -391,14 +397,15 @@ const Melonbooks = {
         </div>
 
         <div class="melon-detail-info-card">
-            <div class="melon-detail-status-row">
-                <span class="melon-status-badge-lg" style="background:${statusColor}">${statusLabel}</span>
-                ${p.statusPlotId ? `<span class="melon-status-hint">${I18n.t('melon.status_hint_plot', '剧情更新で状態が変わります')}</span>` : ''}
-            </div>
             <h2 class="melon-detail-product-title">${this._escHtml(p.title)}</h2>
             <div class="melon-detail-circle" onclick="Melonbooks.openCircle('${p.circleId}')">
                 ${circle ? `<span class="melon-circle-avatar-sm" style="background:${circle.avatarColor || '#e8530e'}">${this._escHtml(circle.avatarLetter || circle.name.charAt(0))}</span>` : ''}
                 <span>${this._escHtml(circle ? circle.name : I18n.t('melon.author_unknown', '不明'))}</span>
+            </div>
+            <div class="melon-stock-row">
+                <span class="melon-stock-label">${I18n.t('melon.stock_label', '発売状態')}</span>
+                <span class="melon-stock-status" style="color:${statusColor}"><span class="melon-stock-dot"></span>${statusLabel}</span>
+                ${p.statusPlotId ? `<span class="melon-status-hint">${I18n.t('melon.status_hint_plot', '剧情更新で状態が変わります')}</span>` : ''}
             </div>
 
             <div class="melon-detail-specs">
@@ -419,6 +426,22 @@ const Melonbooks = {
             ${p.sampleTextTl ? `<details class="tw-tl-block" style="margin-top:6px;"><summary class="tw-tl-btn">${I18n.t('melon.tl_label', '訳')}</summary><div class="tw-tl-content">${this._escHtml(p.sampleTextTl)}</div></details>` : ''}
             </div>
         </div>` : ''}
+
+        <div class="melon-detail-section melon-detail-actions">
+            <h3 class="melon-section-title">${I18n.t('melon.action_group_purchase', '購入')}</h3>
+            <button class="glass-btn" onclick="Melonbooks.addToCart('${p.id}')" style="background:${inCart ? 'var(--bg-secondary)' : 'var(--melon-accent)'};color:${inCart ? 'var(--text-secondary)' : '#fff'};">${inCart ? I18n.t('melon.in_cart', 'カートに追加済み') : I18n.t('melon.add_to_cart', 'カートに入れる')}</button>
+            <button class="glass-btn" onclick="Melonbooks.shareToLine('${p.id}')" style="background:#06c755;color:#fff;">${I18n.t('melon.share_to_line', 'LINEで共有')}</button>
+        </div>
+
+        <div class="melon-detail-section melon-detail-actions">
+            <h3 class="melon-section-title">${I18n.t('melon.action_group_manage', '管理')}</h3>
+            <div class="melon-action-list">
+                <button class="melon-action-row" onclick="Melonbooks.cycleStatus('${p.id}')"><span>${I18n.t('melon.change_status', '状態変更')}</span><span class="melon-action-chevron">›</span></button>
+                <button class="melon-action-row" onclick="Melonbooks.bindToNextPlot('${p.id}')"><span>${I18n.t('melon.bind_next_plot', '次話に紐付け')}</span><span class="melon-action-chevron">›</span></button>
+                <button class="melon-action-row" onclick="PixivNovel.createFromProduct('${p.id}')"><span>${linkedNovel ? I18n.t('melon.view_pixiv_serial', 'Pixiv連載を見る') : I18n.t('melon.create_pixiv_novel', 'Pixivで小説化')}</span><span class="melon-action-chevron">›</span></button>
+                <button class="melon-action-row danger" onclick="Melonbooks.deleteProduct('${p.id}')"><span>${I18n.t('melon.delete_product', '削除')}</span><span class="melon-action-chevron">›</span></button>
+            </div>
+        </div>
 
         ${sameCircle.length > 0 ? `
         <div class="melon-detail-section">
@@ -819,12 +842,16 @@ ${existingTitles || '（なし）'}
             Utils.emitEvent('doujin_published', 'melonbooks', { title: `新刊${count}冊入荷`, summary: titles });
         }
 
+        if (count === 0) {
+            Utils.showToast(I18n.t('t.melon_product_no_match', 'サークル名の一致に失敗し、商品を生成できませんでした'));
+            return;
+        }
+
         Utils.showToast(I18n.t('t.melon_product_done', { n: count }));
         this.switchTab('new', true);
 
         // 非同期で表紙画像を生成（renderの後に実行）
-        const newProducts = (m.products || []).slice(-count);
-        this._generateProductCovers(newProducts);
+        this._generateProductCovers(m.products.slice(-count));
     },
 
     // ===== AI生成: イベント =====
@@ -961,7 +988,8 @@ ${circleInfo.join('\n')}
     "size": "A5|B5",
     "rating": "all|R18",
     "tags": ["タグ1", "タグ2"],
-    "sampleText": "あらすじ（50〜100字）"
+    "sampleText": "あらすじ（50〜100字）",
+    "sampleTextTl": "sampleTextの中国語（簡体字）翻訳"
   }
 ]
 
@@ -1001,6 +1029,7 @@ ${circleInfo.join('\n')}
                 rating: p.rating === 'R18' ? 'R18' : 'all',
                 tags: Array.isArray(p.tags) ? p.tags.slice(0, 5) : [],
                 sampleText: p.sampleText || '',
+                sampleTextTl: p.sampleTextTl || null,
                 isNew: true,
                 status: 'preorder',
                 statusPlotId: null,
@@ -1020,6 +1049,8 @@ ${circleInfo.join('\n')}
             Utils.showToast(I18n.t('t.melon_event_newbooks_done', { n: count }));
             // refresh event page to show products
             if (AppState.currentScreen === 'melonbooks-event') this.renderEventPage();
+            // 非同期で表紙画像を生成（通常の新刊生成と同じ流程、_generateProducts と同型）
+            this._generateProductCovers(m.products.slice(-count));
         }
     },
 
@@ -1141,7 +1172,7 @@ ${existingFeatures || '（なし）'}
                     <div class="melon-feature-item-title">${this._escHtml(p.title)}</div>
                     <div class="melon-feature-item-circle">${this._escHtml(circle ? circle.name : '')}</div>
                     <div class="melon-feature-item-price">${this._escHtml(p.price || '')}</div>
-                    ${comment ? `<div class="melon-feature-comment">💬 ${this._escHtml(comment)}</div>` : ''}
+                    ${comment ? `<div class="melon-feature-comment"><span class="melon-feature-comment-icon">${this._SVG.comment}</span>${this._escHtml(comment)}</div>` : ''}
                 </div>
             </div>`;
         }).join('')}`;
@@ -1149,6 +1180,8 @@ ${existingFeatures || '（なし）'}
 
     deleteFeature(id) {
         const m = this._ensureData();
+        const target = (m.features || []).find(f => f.id === id);
+        if (!confirm(I18n.t('melon.confirm_delete_feature', { title: target ? (target.title || '') : '' }))) return;
         m.features = (m.features || []).filter(f => f.id !== id);
         Utils.saveData();
         Utils.showToast(I18n.t('t.melon_feature_deleted', '特集を削除しました'));
@@ -1238,15 +1271,26 @@ ${productList}
 
     deleteProduct(id) {
         const m = this._ensureData();
+        const target = (m.products || []).find(x => x.id === id);
+        if (!confirm(I18n.t('melon.confirm_delete_product', { title: target ? (target.title || '') : '' }))) return;
         m.products = (m.products || []).filter(p => p.id !== id);
         m.favorites = (m.favorites || []).filter(f => f !== id);
+        // 顺手清掉生成封面 blob（对齐 twitter.js/forum.js/pixiv-illust.js 的删除路径清理惯例）
+        if (target?.generatedCoverId && typeof IllustGallery !== 'undefined') {
+            IllustGallery.remove(target.generatedCoverId).catch(() => {});
+        }
+        // カート内の亡霊項目も削除（残ると削除も表示もできない不可視カートアイテムになる）
+        m.cart = (m.cart || []).filter(c => c.productId !== id);
         Utils.saveData();
+        this._updateCartBadge();
         Utils.showToast(I18n.t('t.melon_product_deleted', '商品を削除しました'));
         Navigation.goTo('melonbooks');
     },
 
     deleteCircle(id) {
         const m = this._ensureData();
+        const target = (m.circles || []).find(c => c.id === id);
+        if (!confirm(I18n.t('melon.confirm_delete_circle', { name: target ? (target.name || '') : '' }))) return;
         m.circles = (m.circles || []).filter(c => c.id !== id);
         // 関連商品のcircleIdをnullに
         (m.products || []).forEach(p => { if (p.circleId === id) p.circleId = null; });
@@ -1259,6 +1303,8 @@ ${productList}
 
     deleteEvent(id) {
         const m = this._ensureData();
+        const target = (m.events || []).find(e => e.id === id);
+        if (!confirm(I18n.t('melon.confirm_delete_event', { name: target ? (target.name || '') : '' }))) return;
         m.events = (m.events || []).filter(e => e.id !== id);
         // 関連商品のeventIdをnullに
         (m.products || []).forEach(p => { if (p.eventId === id) p.eventId = null; });
@@ -1409,49 +1455,6 @@ ${productList}
 
     // ===== 商品ステータス管理 =====
 
-    // 剧情更新时自动推进商品状态（从 Forum.addPlotEntry 调用或 init 时检查）
-    checkStatusTransitions() {
-        const m = this._ensureData();
-        const forumData = AppState.data.forumData || {};
-        const plotProgress = AppState.data.broadcast.plotProgress || [];
-        if (plotProgress.length === 0) return;
-
-        const latestPlotId = plotProgress[plotProgress.length - 1]?.id;
-        if (!latestPlotId) return;
-
-        let changed = false;
-        (m.products || []).forEach(p => {
-            if (!p.statusPlotId || p.statusPlotId !== latestPlotId) return;
-
-            // 状态推进规则：upcoming → preorder → on_sale
-            const transitions = { upcoming: 'preorder', preorder: 'on_sale' };
-            const nextStatus = transitions[p.status];
-            if (nextStatus) {
-                p.status = nextStatus;
-                p.statusPlotId = null; // 清除绑定，等待下次手动绑定
-                changed = true;
-            }
-        });
-
-        // 即売会关联商品：即売会が終了(closed)した時、関連商品を自动で通販に
-        (m.events || []).forEach(ev => {
-            if (ev.phase === 'closed') {
-                (m.products || []).forEach(p => {
-                    if (p.eventId === ev.id && p.status === 'on_sale') {
-                        p.status = 'mail_order';
-                        changed = true;
-                    }
-                });
-            }
-        });
-
-        if (changed) {
-            Utils.saveData();
-            // 如果当前在 melonbooks 页面，刷新显示
-            if (AppState.currentScreen === 'melonbooks') this._renderCurrentTab();
-        }
-    },
-
     // 手动切换商品状态
     cycleStatus(productId) {
         const m = this._ensureData();
@@ -1533,6 +1536,13 @@ ${productList}
         // 副作用②：closed に進んだ時に closedAtPlotCount を記録（終了余韻ウィンドウ判定用）
         if (ev.phase === 'closed') {
             ev.closedAtPlotCount = (((AppState.data.broadcast && AppState.data.broadcast.plotProgress) || []).length);
+            // 副作用③：即売会終了時、関連商品を自動で通販に移行
+            const m = this._ensureData();
+            (m.products || []).forEach(p => {
+                if (p.eventId === ev.id && p.status === 'on_sale') {
+                    p.status = 'mail_order';
+                }
+            });
         }
         return true;
     },
@@ -1639,6 +1649,9 @@ ${productList}
         const tags = (product.tags || []).join(', ');
 
         // 世界書からキャラ外見抽出（タイトル + あらすじ + タグで照合）
+        // 预存外貌 tag の角色条目（title 精确匹配）は除外 —— 外貌は代码层で拼接、省 token
+        const storedChars = PixivIllust.getStoredCharTags();
+        const storedNames = storedChars.map(c => c.name);
         const searchText = `${product.title} ${product.sampleText || ''} ${tags}`;
         const wbIds = Utils.getActiveWorldBookIds();
         let charAppearance = '';
@@ -1646,6 +1659,7 @@ ${productList}
             const book = (AppState.data.worldBooks || []).find(b => b.id === wbId);
             if (book && book.entries) {
                 book.entries.filter(e => e.enabled !== false).forEach(e => {
+                    if (storedNames.includes((e.title || '').trim())) return;
                     const titleMatch = e.title && searchText.includes(e.title);
                     const keyMatch = (e.keys || []).some(k => k && searchText.includes(k));
                     if (titleMatch || keyMatch) {
@@ -1678,7 +1692,7 @@ Rules:
 - Include quality tags: masterpiece, best quality, amazing quality
 - IMPORTANT: If characters are mentioned in the synopsis or character database, they MUST appear prominently in the illustration — never generate background-only/scenery-only images when characters are referenced
 - Do NOT include negative prompt tags
-- Keep each section under 40 words`;
+- Keep each section under 40 words${PixivIllust.fixedCharPromptSection(storedChars)}`;
 
         const userMsg = `Doujinshi info:
 Title: ${product.title}
@@ -1692,18 +1706,9 @@ Generate cover illustration tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple
 
         try {
             const raw = await Utils.callChatAPI([{ role: 'user', content: userMsg }], systemPrompt);
-            const result = raw.trim();
-
-            const sceneMatch = result.match(/\[SCENE\]\s*(.+?)(?=\[CHAR|\n*$)/s);
-            const charMatches = [...result.matchAll(/\[CHAR\d*\]\s*(.+?)(?=\[CHAR|\n*$)/gs)];
-
-            if (sceneMatch && charMatches.length > 0) {
-                const scene = sceneMatch[1].trim().replace(/\n/g, ', ');
-                const chars = charMatches.map(m => m[1].trim().replace(/\n/g, ', '));
-                return { positive: scene, negative: '', charCaptions: chars };
-            }
-
-            return { positive: result, negative: '', charCaptions: [] };
+            // [SCENE]/[CHAR] 解析 + 预存外貌 tag 合并（共用逻辑）
+            const parsed = PixivIllust.parseTagPromptOutput(raw, storedChars);
+            return { positive: parsed.positive, negative: '', charCaptions: parsed.charCaptions };
         } catch (e) {
             console.error('[Melonbooks ImageGen] Prompt build failed:', e);
             return null;
@@ -1734,23 +1739,23 @@ Generate cover illustration tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple
                 let blobs = [];
                 switch (config.provider) {
                     case 'openai':
-                        blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'gpt-image':
-                        blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'openrouter':
                         blobs = await PixivIllust.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'stabilityai':
-                        blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'novelai':
                         blobs = await PixivIllust.generateWithNovelAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'midjourney':
                     case 'custom':
-                        blobs = await PixivIllust.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await PixivIllust.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                 }
 

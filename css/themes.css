@@ -936,3 +936,182 @@
 [data-theme="strawberry"] .page-dots .dot.active {
     background: #d96b7a;
 }
+
+/* ============================================================
+   雪国主题（snow-country）— 北海道清雪 · 冷蓝白基调 · 桌面专属 override
+   《情书》般的清冷留白。图标 = 冰磨砂玻璃托盘（纯 CSS backdrop-filter，
+   iPhone/WebKit 也通吃，不走夏雨那套 Chromium-only 的 url(#lg-*) 折射），
+   飘雪由 js/snow.js 在本主题下画（自管生命周期）。
+   背景 = 占位冷调雪色渐变，待换 snow-country-bg.webp（北海道清池雪景照片）。
+   只动 #desktop（图标 / widget / 状态栏 / 页码点），仿真 app 内部不碰。
+   ============================================================ */
+[data-theme="snow-country"] {
+    --bg-base: #eef3f8;
+    --bg-secondary: #e9f0f6;
+    --bg-elevated: #f3f7fb;
+    --bg-card: #ffffff;
+    --glass-panel: rgba(255, 255, 255, 0.80);
+    --glass-border: rgba(176, 202, 224, 0.55);
+    --bg-hover: rgba(109, 143, 178, 0.08);
+    --accent-color: #6d8fb2;
+    --accent-soft: #a9c4dc;
+    --accent-shadow: rgba(109, 143, 178, 0.28);
+    --text-primary: #33465a;
+    --text-secondary: #6d8198;
+    --text-tertiary: #9fb1c2;
+    --border-light: #e3ecf3;
+    --border-medium: #d4e1eb;
+    --border-dark: #c3d4e0;
+    --bubble-me: #6d8fb2;
+    --bubble-me-text: #ffffff;
+    --bubble-ai: #e9f0f6;
+    --bubble-ai-text: #33465a;
+    --summary-bg: #cfe0ef;
+    --summary-text: #33465a;
+    --icon-bg: var(--accent-color);
+    /* 桌面图标 = 冰磨砂玻璃托盘：半透冷白让背景隐约透出 + backdrop-filter 起雾 + 冰蓝描边 */
+    --app-icon-bg: rgba(236, 244, 251, 0.42);
+    --app-icon-color: rgba(51, 70, 90, 0.78);
+    /* 壁纸：作者 GPT 生成的北海道清池雪景照片（雾感清冷、中央留白、底部针叶林+小屋+结冰湖面）。
+       照片是本主题灵魂，飘雪 shader 叠在其上。用户填 URL 时 applyWallpaper 的 inline backgroundImage 优先级更高自动覆盖。
+       底垫一层冷调渐变作图片未就绪/加载失败时的兜底。 */
+    --wallpaper-gradient: url('assets/textures/snow-country-bg.webp') center / cover no-repeat,
+        linear-gradient(180deg, #cfdeed 0%, #dde9f3 34%, #eef4fa 60%, #e2ecf4 82%, #d7e3ee 100%);
+    --icon-gradient-1: linear-gradient(135deg, #6d8fb2 0%, #93b3d0 100%);
+    --icon-gradient-2: linear-gradient(135deg, #a9c4dc 0%, #cbddec 100%);
+    /* 状态栏和桌面文字：浅雪背景上用深冷蓝（对比足够、过 AA） */
+    --desktop-text: #33465a;
+    --danger-color: #e0585b;
+    --success-color: #4fb286;
+    --warning-color: #e0a44c;
+}
+
+/* 图标 = 手绘雪国水彩贴纸(webp)，自带白模切边 + 落雪 + 雪花，由 js/snow-icons.js 注入。
+   .app-icon 退成透明托盘（去掉冰玻璃卡背景/边框/磨砂），投影用 img 的 drop-shadow
+   贴合贴纸 alpha 轮廓而非方框（与草莓/手帐同机制，四方守卫对称）。
+   APP_REGISTRY 21 个 app 全部有贴纸、无 SVG 兜底，故可整块透明。 */
+[data-theme="snow-country"] .app-icon {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: visible;
+}
+[data-theme="snow-country"] .app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 4px rgba(98, 130, 165, 0.24));
+    pointer-events: none;
+}
+
+/* ============================================================
+   雪国组件 · B 冰磨砂方向
+   卡面霜玻璃 + 冰蓝细描边 + 冷蓝内辉 + 顶沿一缕霜光。
+   覆盖：时钟 / 音乐黑胶 / 相册 / 拍立得。各组件 base 各自设过 bg,
+   故一并列进选择器覆盖。结构化分组,以后整块 clone 给别的主题改配色即可。
+   ============================================================ */
+[data-theme="snow-country"] .widget-card,
+[data-theme="snow-country"] .widget-clock,
+[data-theme="snow-country"] .widget-vinyl,
+[data-theme="snow-country"] .widget-polaroid,
+[data-theme="snow-country"] .widget-polaroid-j {
+    background: linear-gradient(155deg, rgba(255,255,255,.66), rgba(223,237,248,.40));
+    border: 1px solid rgba(176,202,224,.6);
+    box-shadow:
+        0 6px 20px rgba(98,130,165,.16),
+        inset 0 1px 1px rgba(255,255,255,.9),
+        inset 0 0 24px rgba(169,196,220,.18);
+    /* ⚠ iOS Safari:backdrop-filter 模糊去糊照片壁纸,GPU 开销随半径暴涨,blur≥~12 会把
+       整个 #desktop 合成冲白(只剩独立雪 canvas)。夏雨同款照片壁纸用 blur(6) 稳;雪国
+       v2.162.1 的 blur(10) 也行、但我 v2.163 加到 14 就过线白屏。对齐夏雨降到 6、留安全余量。 */
+    backdrop-filter: blur(6px) saturate(120%);
+    -webkit-backdrop-filter: blur(6px) saturate(120%);
+}
+/* 顶沿一缕霜光高光（纯 gradient，iOS 安全·非白屏因；白屏真凶=WebGL 雪 canvas，v2.164.0 已修） */
+[data-theme="snow-country"] .widget-card::after {
+    content: "";
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 1.5px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.95), transparent);
+    z-index: 4;
+    pointer-events: none;
+}
+
+/* 时钟时间染冷蓝 */
+[data-theme="snow-country"] .widget-clock .clock-time-wide,
+[data-theme="snow-country"] .widget-clock .clock-time-small {
+    color: var(--accent-color);
+}
+
+/* 时钟当 hero：宽条时间放大到 48px(base 44),meta 层次微调 */
+[data-theme="snow-country"] .widget-clock.clock-wide .clock-time-wide {
+    font-size: 48px;
+    letter-spacing: -2px;
+}
+[data-theme="snow-country"] .widget-clock .clock-weekday {
+    color: var(--accent-color);
+    opacity: .9;
+}
+
+/* 音乐：进度条 fill 用冷蓝 accent(控件 SVG 已用 currentColor=accent) */
+[data-theme="snow-country"] .vinyl-progress-fill {
+    background: var(--accent-color);
+}
+/* 拍立得：手账胶带由暖棕改冷蓝;手写说明改冷墨色 */
+[data-theme="snow-country"] .widget-polaroid-j .pj-tape {
+    background: rgba(169,196,220,.6);
+}
+[data-theme="snow-country"] .widget-polaroid-j .pj-caption {
+    color: var(--text-primary);
+}
+
+/* 装饰雪国化：藏掉暖系的蝴蝶结/爱心(与冰主题违和),换成冷蓝小雪花;
+   原有 4 角小星(spark)保留作辅助雪光(currentColor 已是冷蓝)。 */
+[data-theme="snow-country"] .polaroid-bow-top,
+[data-theme="snow-country"] .polaroid-bow-corner,
+[data-theme="snow-country"] .polaroid-bow-deco,
+[data-theme="snow-country"] .vinyl-bow-top,
+[data-theme="snow-country"] .vinyl-bow-corner,
+[data-theme="snow-country"] .polaroid-heart,
+[data-theme="snow-country"] .vinyl-heart {
+    display: none;
+}
+/* 每个组件右上角一枚 6 角雪花（::before；::after 已给霜光线占用）。
+   data-uri SVG 小图(15px)纹理开销可忽略、bisect 已证非 iOS 白屏因；当前卡 backdrop-filter 已是 blur(6) 安全档。 */
+[data-theme="snow-country"] .widget-clock::before,
+[data-theme="snow-country"] .widget-vinyl::before,
+[data-theme="snow-country"] .widget-polaroid::before,
+[data-theme="snow-country"] .widget-polaroid-j::before {
+    content: "";
+    position: absolute;
+    top: 9px; right: 11px;
+    width: 15px; height: 15px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a9c4dc' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M12 2v20M2 12h20M5 5l14 14M19 5L5 19'/%3E%3Cpath d='M12 6l-2 2M12 6l2 2M12 18l-2-2M12 18l2-2M6 12l2-2M6 12l2 2M18 12l-2-2M18 12l-2 2'/%3E%3C/svg%3E") center/contain no-repeat;
+    opacity: .7;
+    z-index: 4;
+    pointer-events: none;
+}
+/* 拍立得顶部有胶带,雪花挪到左上避让 */
+[data-theme="snow-country"] .widget-polaroid-j::before {
+    right: auto; left: 10px;
+}
+
+/* 相册(photo):雪国下去掉虚线缝线、改干净大圆角相框(作者偏好 mockup 那版利落感)。
+   纯照片不加标题——带文字说明的用拍立得(polaroid-j 自带 caption),两组件职责分开。 */
+[data-theme="snow-country"] .widget-polaroid .polaroid-image {
+    border: none;
+    border-radius: 14px;
+    box-shadow: inset 0 0 0 1px rgba(176,202,224,.45);
+    background: linear-gradient(135deg, rgba(205,221,238,.55), rgba(232,240,247,.55));
+}
+
+/* 页码点：冷蓝 */
+[data-theme="snow-country"] .page-dots .dot {
+    background: rgba(109, 143, 178, 0.32);
+}
+[data-theme="snow-country"] .page-dots .dot.active {
+    background: #6d8fb2;
+}

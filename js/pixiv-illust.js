@@ -41,7 +41,7 @@ const PixivIllust = {
 
         grid.innerHTML = illustrations.map((img, idx) => `
             <div class="pixiv-illust-card${img.isFavorite ? ' is-favorite' : ''}" onclick="PixivIllust.viewImage(${idx})">
-                <img src="${urlMap[img.id] || ''}" alt="${img.prompt || 'Generated image'}">
+                <img src="${urlMap[img.id] || ''}" alt="${Utils.escHtml(img.prompt || 'Generated image')}">
                 <div class="pixiv-illust-overlay">
                     <button class="pixiv-illust-fav-btn${img.isFavorite ? ' active' : ''}"
                         onclick="event.stopPropagation(); PixivIllust.toggleFavorite(${idx})"
@@ -110,15 +110,65 @@ const PixivIllust = {
         }
     },
 
+    // ===== v2.173.0: 预存外貌 tag（放送局立绘下方维护）——四个生图模块共用逻辑 =====
+    // 有预存 tag 的角色，LLM 的 [CHAR] 段只写姿势/表情/情绪，外貌 tag 由代码层拼接（字节级固定，跨图一致 + 省 token）
+
+    // 取预存角色列表 [{name, tags}]；未配置 / Broadcast 未加载 → []（各消费点走老路，行为不变）
+    getStoredCharTags() {
+        if (typeof Broadcast === 'undefined' || !Broadcast.getCPAppearanceTags) return [];
+        return Broadcast.getCPAppearanceTags();
+    },
+
+    // system prompt 附加段：声明固定外貌角色名单 + [CHARn|名前] 标记规则
+    fixedCharPromptSection(storedChars) {
+        if (!storedChars || storedChars.length === 0) return '';
+        const names = storedChars.map(c => `- ${c.name}`).join('\n');
+        return `
+
+FIXED-APPEARANCE CHARACTERS:
+The following characters have pre-approved appearance tags managed OUTSIDE this prompt (prepended to their section automatically after you answer):
+${names}
+
+Special rules for these characters ONLY (override the general rules above):
+- If ANY of them appears in the image, ALWAYS use the structured [SCENE]/[CHAR] format — even when there is only ONE character
+- Write their marker as [CHAR1|name], with the character's name EXACTLY as listed above (e.g. [CHAR1|${storedChars[0].name}])
+- In their [CHAR] section output ONLY: pose, expression, emotion, gaze direction, and scene-specific clothing (only when the scene clearly requires an outfit different from their usual one)
+- Do NOT output their gender / hair / eyes / base appearance tags — those are prepended automatically
+- Characters NOT in the list follow the general rules (full appearance tags)`;
+    },
+
+    // LLM 出力の [SCENE]/[CHAR1|名前] 解析 + 预存 tag 合并；旧格式 [CHAR1]（无名字）兼容。
+    // 名字 trim 后精确匹配（不做子串模糊匹配，防 ユウ↔ユウキ 误匹配，同 getCPRefImages 约定）
+    parseTagPromptOutput(raw, storedChars) {
+        const result = (raw || '').trim();
+        const sceneMatch = result.match(/\[SCENE\]\s*(.+?)(?=\[CHAR|\n*$)/s);
+        const charMatches = [...result.matchAll(/\[CHAR\d*(?:\s*[|:：]\s*([^\]]*))?\]\s*(.+?)(?=\[CHAR|\n*$)/gs)];
+        if (!sceneMatch || charMatches.length === 0) {
+            return { positive: result, charCaptions: [] };
+        }
+        const scene = sceneMatch[1].trim().replace(/\n/g, ', ');
+        const list = storedChars || [];
+        const chars = charMatches.map(m => {
+            const name = (m[1] || '').trim();
+            const content = (m[2] || '').trim().replace(/\n/g, ', ');
+            const stored = name ? list.find(c => c.name === name) : null;
+            return stored ? [stored.tags, content].filter(Boolean).join(', ') : content;
+        });
+        return { positive: scene, charCaptions: chars };
+    },
+
     // 世界書からキャラ外見抽出（推特と同じロジック）
-    _extractCharacterAppearance(desc) {
+    // excludeNames: 已有预存外貌 tag 的角色名 —— 其外貌条目（title 精确匹配）不再塞给 LLM，省 token
+    _extractCharacterAppearance(desc, excludeNames) {
         const wbIds = Utils.getActiveWorldBookIds();
         if (wbIds.length === 0) return '';
+        const excluded = excludeNames || [];
         const matched = [];
         wbIds.forEach(wbId => {
             const book = (AppState.data.worldBooks || []).find(b => b.id === wbId);
             if (book && book.entries) {
                 book.entries.filter(e => e.enabled !== false).forEach(e => {
+                    if (excluded.includes((e.title || '').trim())) return;
                     if (e.title && desc.includes(e.title)) {
                         matched.push(`【${e.title}】${e.content}`);
                     }
@@ -130,7 +180,8 @@ const PixivIllust = {
 
     // AI辅助：自然言語 → 生図プロンプト変換
     async _buildAIPrompt(desc) {
-        const charAppearance = this._extractCharacterAppearance(desc);
+        const storedChars = this.getStoredCharTags();
+        const charAppearance = this._extractCharacterAppearance(desc, storedChars.map(c => c.name));
 
         const systemPrompt = `You are a prompt engineer for anime image generation (NovelAI V4.5).
 Convert the user's natural language description into English Danbooru-style tags.
@@ -152,7 +203,7 @@ Rules:
 - For original characters, use only visual descriptors
 - Include composition, scene, emotion, and quality tags (masterpiece, best quality, amazing quality)
 - Do NOT include negative prompt tags
-- Keep each section under 40 words`;
+- Keep each section under 40 words${this.fixedCharPromptSection(storedChars)}`;
 
         const userMsg = `Description: ${desc}
 ${charAppearance ? `\nCharacter appearance database:\n${charAppearance}` : ''}
@@ -161,17 +212,8 @@ Generate image tags:`;
 
         try {
             const raw = await Utils.callChatAPI([{ role: 'user', content: userMsg }], systemPrompt);
-            const result = raw.trim();
-
-            const sceneMatch = result.match(/\[SCENE\]\s*(.+?)(?=\[CHAR|\n*$)/s);
-            const charMatches = [...result.matchAll(/\[CHAR\d*\]\s*(.+?)(?=\[CHAR|\n*$)/gs)];
-
-            if (sceneMatch && charMatches.length > 0) {
-                const scene = sceneMatch[1].trim().replace(/\n/g, ', ');
-                const chars = charMatches.map(m => m[1].trim().replace(/\n/g, ', '));
-                return { positive: scene, negative: '', charCaptions: chars };
-            }
-            return { positive: result, negative: '', charCaptions: [] };
+            const parsed = this.parseTagPromptOutput(raw, storedChars);
+            return { positive: parsed.positive, negative: '', charCaptions: parsed.charCaptions };
         } catch (e) {
             console.error('[PixivIllust AI] Prompt build failed:', e);
             return null;
@@ -206,23 +248,23 @@ Generate image tags:`;
                 let blobs = [];
                 switch (config.provider) {
                     case 'openai':
-                        blobs = await this.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await this.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'gpt-image':
-                        blobs = await this._gptImage(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await this._gptImage(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'openrouter':
                         blobs = await this.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'stabilityai':
-                        blobs = await this.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await this.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'novelai':
                         blobs = await this.generateWithNovelAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                     case 'midjourney':
                     case 'custom':
-                        blobs = await this.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config);
+                        blobs = await this.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
                         break;
                 }
                 await this._saveAndRenderBlobs(blobs, prompt.positive, '', imgSize);
@@ -314,10 +356,18 @@ Generate image tags:`;
 
     // ===== 各提供商：统一返回 Blob[] =====
 
-    async generateWithOpenAI(positivePrompt, negativePrompt, imageSize, imageCount, config) {
+    // charCaptions 合回 positive（OpenAI/gpt-image/StabilityAI/Custom 无原生 char caption 通道，格式同 generateWithOpenRouter 的 charSection）
+    _mergeCharCaptions(positivePrompt, charCaptions) {
+        if (!charCaptions || charCaptions.length === 0) return positivePrompt;
+        const charSection = charCaptions.map((c, i) => `Character ${i + 1}: ${c}`).join('\n');
+        return `${positivePrompt}\n\nThis image MUST include all ${charCaptions.length} of these characters together in the same scene:\n${charSection}`;
+    },
+
+    async generateWithOpenAI(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
+        const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
         const finalPrompt = negativePrompt ?
-            `${positivePrompt} (avoid: ${negativePrompt})` :
-            positivePrompt;
+            `${scenePrompt} (avoid: ${negativePrompt})` :
+            scenePrompt;
 
         const response = await fetch(`${config.url}/v1/images/generations`, {
             method: 'POST',
@@ -335,8 +385,9 @@ Generate image tags:`;
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error?.message || 'API request failed');
+            // 反代/网关超时可能返回非 JSON 错误页（HTML 502 等），裸 .json() 会把真实错误吞成 SyntaxError
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || `HTTP ${response.status}`);
         }
 
         const data = await response.json();
@@ -348,10 +399,11 @@ Generate image tags:`;
     // 关键差异：① 不发 quality（'standard' 是 DALL-E 专属值，gpt-image 只认 low/medium/high/auto，发了会报错）
     //          ② 返回 b64_json（gpt-image 不返回 CDN url），直接转 Blob，无需二次 fetch CDN（也就绕开了 CDN 跨域）
     //          ③ 不发 response_format / background（gpt-image 不支持这两个参数）
-    async generateWithGptImage(positivePrompt, negativePrompt, imageSize, imageCount, config) {
+    async generateWithGptImage(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
+        const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
         const finalPrompt = negativePrompt ?
-            `${positivePrompt} (avoid: ${negativePrompt})` :
-            positivePrompt;
+            `${scenePrompt} (avoid: ${negativePrompt})` :
+            scenePrompt;
 
         const response = await fetch(`${config.url}/v1/images/generations`, {
             method: 'POST',
@@ -389,10 +441,11 @@ Generate image tags:`;
     // 关键差异：① multipart/form-data，参考图字段名 image[]（可多张）；② 不要手设 Content-Type，让浏览器自动带 boundary
     //          ③ 不发 input_fidelity（gpt-image-2 对输入图自动高保真，发了会报错）④ size 沿用各入口原值（gpt-image-2 接受任意满足约束的尺寸）
     //          ⑤ 返回同 generations：data[].b64_json → Blob（复用 base64ToBlob），下游零改
-    async generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs) {
+    async generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs, charCaptions) {
+        const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
         const finalPrompt = negativePrompt ?
-            `${positivePrompt} (avoid: ${negativePrompt})` :
-            positivePrompt;
+            `${scenePrompt} (avoid: ${negativePrompt})` :
+            scenePrompt;
 
         const fd = new FormData();
         fd.append('model', config.model || 'gpt-image-2');
@@ -428,18 +481,20 @@ Generate image tags:`;
 
     // gpt-image 分流：CP 设了参考立绘 → edits 端点（保人物一致）；否则 → 现有纯文生图 generations。
     // 四个生图入口（pixiv AI/手动、twitter、melon）的 case 'gpt-image' 都走这里，逻辑单一来源。
-    async _gptImage(positivePrompt, negativePrompt, imageSize, imageCount, config) {
+    // charCaptions（可选）: AI 辅助モード结构化输出的人物描述，转发给下游合回 positive（同 generateWithOpenRouter 处理）。
+    // refCharNames（可选）: 周边商品生图按关联角色过滤 CP 立绘；其余入口不传 → 取全部（行为不变）。
+    async _gptImage(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames) {
         let refBlobs = [];
         try {
             if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
-                refBlobs = await Broadcast.getCPRefImages();
+                refBlobs = await Broadcast.getCPRefImages(refCharNames);
             }
         } catch (e) {
             refBlobs = [];
         }
         return (refBlobs && refBlobs.length > 0)
-            ? this.generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs)
-            : this.generateWithGptImage(positivePrompt, negativePrompt, imageSize, imageCount, config);
+            ? this.generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs, charCaptions)
+            : this.generateWithGptImage(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions);
     },
 
     // OpenRouter 生图：与 OpenAI Images API 是两套完全不同的协议，故独立成函数（绝不碰 NAI / DALL-E / gpt-image）。
@@ -449,7 +504,8 @@ Generate image tags:`;
     //          ④ 返回在 choices[0].message.images[].image_url.url（base64 data URL）→ 解析成 Blob
     //          ⑤ chat completions 无 n 参数 → imageCount>1 时并发多次请求各取首图
     // 默认模型 openai/gpt-5.4-image-2（OpenRouter 路由的 GPT Image 2，作者要的参考图人物一致性）；用户可在设置改任意 OpenRouter 生图模型（Gemini nano banana 等）。
-    async generateWithOpenRouter(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
+    // refCharNames（可选）: 周边商品生图按关联角色过滤 CP 立绘；其余入口不传 → 取全部（行为不变）。
+    async generateWithOpenRouter(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames) {
         // AI 辅助多角色时 positivePrompt 只剩 [SCENE] 场景、各角色外观在 charCaptions（同 NovelAI 处理）。
         // 必须把角色描述合回 prompt + 明确「这 N 个角色都要同时出现」，否则 OpenRouter 只收到场景、易塌成单角色。
         let scenePrompt = positivePrompt;
@@ -465,7 +521,7 @@ Generate image tags:`;
         let refDataUrls = [];
         try {
             if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
-                const refBlobs = await Broadcast.getCPRefImages();
+                const refBlobs = await Broadcast.getCPRefImages(refCharNames);
                 if (refBlobs && refBlobs.length > 0) {
                     // 单张失败只丢该张（对齐 broadcast.getCPRefImages 的 .catch(()=>null) 风格），不整组丢
                     refDataUrls = (await Promise.all(refBlobs.map(b => this.blobToDataUrl(b).catch(() => null)))).filter(Boolean);
@@ -610,7 +666,8 @@ Generate image tags:`;
         });
     },
 
-    async generateWithStabilityAI(positivePrompt, negativePrompt, imageSize, imageCount, config) {
+    async generateWithStabilityAI(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
+        const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
         const [width, height] = imageSize.split('x').map(Number);
 
         const results = [];
@@ -623,7 +680,7 @@ Generate image tags:`;
                 },
                 body: JSON.stringify({
                     text_prompts: [
-                        { text: positivePrompt, weight: 1 },
+                        { text: scenePrompt, weight: 1 },
                         ...(negativePrompt ? [{ text: negativePrompt, weight: -1 }] : [])
                     ],
                     cfg_scale: 7,
@@ -635,8 +692,9 @@ Generate image tags:`;
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Stability AI request failed');
+                // 反代/网关超时可能返回非 JSON 错误页（HTML 502 等），裸 .json() 会把真实错误吞成 SyntaxError
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.message || `HTTP ${response.status}`);
             }
 
             const data = await response.json();
@@ -648,7 +706,8 @@ Generate image tags:`;
         return results;
     },
 
-    async generateWithCustomAPI(positivePrompt, negativePrompt, imageSize, imageCount, config) {
+    async generateWithCustomAPI(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
+        const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
         const response = await fetch(config.url, {
             method: 'POST',
             headers: {
@@ -656,7 +715,7 @@ Generate image tags:`;
                 'Authorization': `Bearer ${config.key}`
             },
             body: JSON.stringify({
-                prompt: positivePrompt,
+                prompt: scenePrompt,
                 negative_prompt: negativePrompt,
                 size: imageSize,
                 n: imageCount,
@@ -884,7 +943,7 @@ Generate image tags:`;
             <div class="modal-window" style="max-width:90vw; max-height:90vh; padding:0; background:transparent; position:relative;">
                 <img src="${modalUrl}" style="max-width:100%; max-height:80vh; border-radius:8px; display:block;" alt="Generated image">
                 <div style="display:flex; gap:8px; padding:10px 0 0; justify-content:center;">
-                    <button onclick="PixivIllust._shareIllustToForum(${index})"
+                    <button onclick="PixivIllust._shareIllustToForum('${img.id}')"
                         style="background:rgba(0,0,0,0.6); color:white; border:none; border-radius:20px; padding:6px 16px; font-size:13px; cursor:pointer;">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:4px;"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>${I18n.t('pixiv_illust.btn_share_forum', '分享到论坛')}
                     </button>
@@ -905,9 +964,11 @@ Generate image tags:`;
     },
 
     // ===== 分享插画到论坛 =====
-    async _shareIllustToForum(index) {
+    // 按 id 而非数组下标查找：viewImage 弹窗打开期间若有后台生图完成，
+    // 新图会 unshift 到数组头部导致下标漂移，改用 id 避免分享错图（与 IllustGallery 本就以 id 为键一致）
+    async _shareIllustToForum(id) {
         const illustrations = AppState.data.pixivData.illustrations || [];
-        const img = illustrations[index];
+        const img = illustrations.find(i => i.id === id);
         if (!img) return;
 
         try {

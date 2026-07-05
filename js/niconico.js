@@ -80,7 +80,17 @@ const Niconico = {
         // 削除（ゴミ箱）
         trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13M10 11v6M14 11v6"/></svg>',
         // 空状态：テレビ（新着なし）
-        tv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 3l4 4 4-4"/><path d="M11 11.5v5l4-2.5z" fill="currentColor" stroke="none"/></svg>'
+        tv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 3l4 4 4-4"/><path d="M11 11.5v5l4-2.5z" fill="currentColor" stroke="none"/></svg>',
+        // PV投稿メニュー（カチンコ）
+        clapper: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="9" width="18" height="12" rx="2"/><path d="M3 9l1.5-4.5L19 3l1 4z"/><path d="M7 4.5 9 9M12.5 4l2 4.5"/></svg>',
+        // 追加（+）
+        plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>',
+        // 削除/閉じる（×）
+        close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+        // 選択済み（チェック）
+        check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>',
+        // AIおまかせ（きらめき）
+        sparkle: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z"/></svg>'
     },
     // 排名前三的奖牌色（金/银/铜 — 语义色、非渐变，按 SVG 规范允许的例外）
     _MEDAL_COLORS: ['#ffd700', '#c0c0c0', '#cd7f32'],
@@ -95,9 +105,26 @@ const Niconico = {
     },
 
     // 動画サムネ占位 HTML（hash 色背景 + 中性 video SVG、emoji 廃止）
+    // videoBlobId 持ちのリアルPV動画は thumb: blob を非同期で重ねる（_loadVideoThumbs 参照）、無ければ hash色+SVGのまま
     _thumbPlaceholder(v, cls) {
         const bg = this._hashColor((v && v.title) || '');
-        return `<div class="${cls}" style="background:${bg}"><span class="nico-thumb-icon">${this._SVG.video}</span></div>`;
+        const thumbImg = (v && v.videoBlobId) ? `<img src="" data-nico-thumb-id="${this._escHtml(v.videoBlobId)}" class="nico-thumb-img" alt="">` : '';
+        return `<div class="${cls}" style="background:${bg}"><span class="nico-thumb-icon">${this._SVG.video}</span>${thumbImg}</div>`;
+    },
+
+    // リアルPV動画のサムネを非同期で埋める（Task 8）：data-nico-thumb-id 持ちの <img> を container 内から拾って getUrl
+    // thumb blob が無い（抽帧失敗 or 通常のAI生成動画）場合は何もしない → hash色+SVGのまま自然にフォールバック
+    async _loadVideoThumbs(container) {
+        if (!container || typeof VideoGen === 'undefined') return;
+        const imgs = container.querySelectorAll('img[data-nico-thumb-id]');
+        for (const img of imgs) {
+            const blobId = img.dataset.nicoThumbId;
+            if (!blobId) continue;
+            try {
+                const url = await VideoGen.getUrl('thumb:' + blobId);
+                if (url) img.src = url;
+            } catch (e) { /* 読み込み失敗は無視、hash色のまま */ }
+        }
     },
 
     // ===== データ初期化 =====
@@ -146,8 +173,11 @@ const Niconico = {
     renderNewVideos(container) {
         const n = this._ensureData();
         const videos = (n.videos || []).slice().reverse();
+        // PV投稿の生成中タスクを占位卡として最前に挿入（Task 8）
+        const genTasks = (typeof VideoGen !== 'undefined' ? VideoGen.tasks() : []).slice().reverse();
+        const genCardsHtml = genTasks.map(t => this._renderGenCard(t)).join('');
 
-        if (videos.length === 0) {
+        if (videos.length === 0 && genTasks.length === 0) {
             container.innerHTML = `
                 <div class="nico-empty">
                     <div class="empty-state-icon">${this._SVG.tv}</div>
@@ -159,17 +189,21 @@ const Niconico = {
 
         container.innerHTML = `
             <div class="nico-video-grid">
+                ${genCardsHtml}
                 ${videos.map(v => this._renderVideoCard(v)).join('')}
             </div>`;
+        this._loadVideoThumbs(container);
     },
 
     _renderVideoCard(v) {
         const channel = this._getChannel(v.channelId);
         const inMylist = (this._ensureData().mylist || []).includes(v.id);
+        const thumbImg = v.videoBlobId ? `<img src="" data-nico-thumb-id="${this._escHtml(v.videoBlobId)}" class="nico-thumb-img" alt="">` : '';
         return `
         <div class="nico-video-card" onclick="Niconico.openVideo('${v.id}')">
             <div class="nico-thumbnail" style="background:${this._hashColor(v.title || '')}">
                 <span class="nico-thumb-icon">${this._SVG.video}</span>
+                ${thumbImg}
                 <span class="nico-duration">${this._escHtml(v.duration || '0:00')}</span>
                 ${inMylist ? `<span class="nico-mylist-badge">${I18n.t('nico.mylist_badge', 'マイリスト')}</span>` : ''}
             </div>
@@ -227,6 +261,7 @@ const Niconico = {
                     </div>`;
                 }).join('')}
             </div>`;
+        this._loadVideoThumbs(container);
     },
 
     // ===== マイリストタブ =====
@@ -260,6 +295,7 @@ const Niconico = {
                         </div>
                     </div>`).join('')}
             </div>`;
+        this._loadVideoThumbs(container);
     },
 
     // ===== チャンネルタブ =====
@@ -361,6 +397,7 @@ const Niconico = {
         this.currentVideoId = id;
         this._stopDanmaku();
         this._stopAudioDrama();
+        this._stopRealPlayer();
         Navigation.goTo('niconico-detail');
     },
 
@@ -368,6 +405,11 @@ const Niconico = {
         const n = this._ensureData();
         const v = (n.videos || []).find(x => x.id === this.currentVideoId);
         if (!v) { Navigation.goTo('niconico'); return; }
+
+        // 真プレイヤーの再生位置を退避（Task 8）：addComment/toggleMylist等はこの関数を丸ごと呼び直す既存の刷新習慣で、
+        // 何もしないと再生中の真動画が毎回 0:00 に巻き戻ってしまう。同じ動画への再描画に限り currentTime/再生状態を持ち越す
+        const prevPlayer = document.getElementById('nicoRealPlayer');
+        this._pendingPlayerState = prevPlayer ? { time: prevPlayer.currentTime || 0, playing: !prevPlayer.paused && !prevPlayer.ended } : null;
 
         const titleEl = document.getElementById('nicoDetailTitle');
         if (titleEl) titleEl.textContent = v.title || I18n.t('nico.detail_title_default', '動画');
@@ -391,13 +433,7 @@ const Niconico = {
             .slice(0, 5);
 
         content.innerHTML = `
-        <div class="nico-player-area">
-            <div class="nico-danmaku-track" id="nicoDanmakuTrack">
-                <div class="nico-danmaku-placeholder">${I18n.t('nico.player_hint', '▶ クリックで弾幕再生')}</div>
-            </div>
-            <div class="nico-player-emoji">${this._SVG.video}</div>
-            <div class="nico-player-overlay" onclick="Niconico.startDanmaku('${v.id}')"></div>
-        </div>
+        ${this._renderPlayerArea(v)}
 
         <div class="nico-detail-info">
             <h2 class="nico-detail-title">${this._escHtml(v.title)}</h2>
@@ -438,6 +474,10 @@ const Niconico = {
                 <button class="glass-btn nico-action-btn" onclick="Niconico.shareToLine('${v.id}')" style="background:#06c755;color:#fff;">
                     ${I18n.t('nico.btn_share_line', 'LINEで共有')}
                 </button>
+                ${v.videoBlobId ? `
+                <button class="glass-btn nico-action-btn danger-text" onclick="Niconico.deleteVideo('${v.id}')">
+                    <span class="nico-btn-icon">${this._SVG.trash}</span>${I18n.t('nico.pv_btn_delete_video', '削除')}
+                </button>` : ''}
             </div>
         </div>
 
@@ -479,6 +519,9 @@ const Niconico = {
                 if (e.key === 'Enter') this.addComment(v.id);
             };
         }
+
+        if (v.videoBlobId) this._loadRealPlayer(v);   // Task 8：真動画の src を非同期で埋める
+        this._loadVideoThumbs(content);                // 関連動画欄のサムネ
     },
 
     // ===== チャンネルページ =====
@@ -518,6 +561,7 @@ const Niconico = {
         ${videos.length > 0
             ? `<div class="nico-video-grid">${videos.map(v => this._renderVideoCard(v)).join('')}</div>`
             : `<div class="nico-empty"><div class="empty-state-text">${I18n.t('nico.empty_no_videos', 'まだ動画がありません')}</div></div>`}`;
+        this._loadVideoThumbs(content);
     },
 
     // ===== 生成メニュー =====
@@ -531,6 +575,10 @@ const Niconico = {
             <div class="nico-modal">
                 <div class="nico-modal-title">${I18n.t('nico.menu_title', '生成メニュー')}</div>
                 <div class="nico-modal-buttons">
+                    <button class="glass-btn nico-gen-btn" onclick="Niconico._pvMenuEntry()">
+                        <span class="nico-gen-icon">${this._SVG.clapper}</span> ${I18n.t('nico.pv_menu_label', 'PV投稿（動画生成）')}
+                        <small>${I18n.t('nico.pv_menu_desc', 'Seedanceで動画を生成して投稿')}</small>
+                    </button>
                     <button class="glass-btn nico-gen-btn" onclick="Niconico._doGenerate('channels')">
                         <span class="nico-gen-icon">${this._SVG.antenna}</span> ${I18n.t('nico.menu_channel', 'チャンネル生成')}
                         <small>${I18n.t('nico.menu_channel_desc', '投稿者チャンネルを自動生成')}</small>
@@ -566,6 +614,559 @@ const Niconico = {
             console.error('[Niconico] Generation error:', e);
             Utils.showToast(I18n.t('t.nico_gen_error', '⚠️ 生成エラー: ') + e.message, 4000);
         }
+    },
+
+    // ===== PV投稿（Seedance動画生成） =====
+    _pvRefImgIds: [],        // 本次投稿表单里已选的参考图 id（会话级、非持久）
+    _pvGallerySelection: [], // 画廊选择器内的临时选择（点「決定」才回写 _pvRefImgIds）
+    _pvSubmitting: false,
+
+    // 生成メニュー「PV投稿」项：未配置 videoApiConfig 时不开表单、引导去设置
+    _pvMenuEntry() {
+        this.closeGenerateModal();
+        const cfg = (typeof VideoGen !== 'undefined') ? VideoGen.config() : {};
+        if (!cfg.workerUrl || !cfg.key) {
+            Utils.showToast(I18n.t('nico.pv_need_config', 'まず設定で動画生成APIを設定してください'));
+            Navigation.goTo('settings-api');
+            setTimeout(() => {
+                document.getElementById('videoApiSettingsCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 200);
+            return;
+        }
+        this.showPVModal();
+    },
+
+    _pvModelInfo(id) {
+        const models = (typeof VideoGen !== 'undefined' && VideoGen.MODELS) ? VideoGen.MODELS : [];
+        return models.find(m => m.id === id) || models[0] || { id: '', ref: false, audio: false };
+    },
+
+    _pvDurationOptionsHtml() {
+        let html = '';
+        for (let s = 4; s <= 15; s++) {
+            html += `<option value="${s}" ${s === 10 ? 'selected' : ''}>${I18n.t('nico.pv_duration_unit', { n: s })}</option>`;
+        }
+        return html;
+    },
+
+    showPVModal() {
+        const n = this._ensureData();
+        this._pvRefImgIds = [];
+        this._pvGallerySelection = [];
+        this._pvSubmitting = false;
+
+        const cfg = VideoGen.config();
+        const models = VideoGen.MODELS || [];
+        const defaultModel = models.some(m => m.id === cfg.model) ? cfg.model : ((models[0] && models[0].id) || '');
+
+        const channels = n.channels || [];
+        const hasChannels = channels.length > 0;
+        const lastChId = n.lastPvChannelId;
+        const channelOptionsHtml = hasChannels
+            ? channels.map(c => `<option value="${c.id}" ${c.id === lastChId ? 'selected' : ''}>${this._escHtml(c.name)}</option>`).join('')
+            : `<option value="">${I18n.t('nico.pv_channel_empty_option', 'チャンネルがありません')}</option>`;
+
+        const officialNpcs = ((AppState.data.broadcast && AppState.data.broadcast.officialNpcs) || [])
+            .filter(np => typeof Forum !== 'undefined' && Forum._isOfficialTwitterRole(np.role));
+        const tweetOptions = [];
+        if (officialNpcs.length > 0) {
+            officialNpcs.forEach(np => {
+                const label = np.handle ? ('@' + np.handle) : (np.name || np.role);
+                tweetOptions.push(`<option value="${np.id}">${this._escHtml(label)}</option>`);
+            });
+        } else {
+            tweetOptions.push(`<option value="AUTO_CREATE">${I18n.t('nico.pv_tweet_auto_create', '公式アカウントを自動作成')}</option>`);
+        }
+        tweetOptions.push(`<option value="">${I18n.t('nico.pv_tweet_none', 'ツイートしない')}</option>`);
+
+        const modelOptionsHtml = models.map(m => `<option value="${m.id}" ${m.id === defaultModel ? 'selected' : ''}>${this._escHtml(m.label)}</option>`).join('');
+
+        const html = `
+        <div class="nico-modal-overlay" id="nicoPvModal" onclick="if(event.target===this)Niconico._closePVModal()">
+            <div class="nico-modal nico-pv-modal">
+                <div class="nico-modal-title">${I18n.t('nico.pv_modal_title', 'PV投稿（動画生成）')}</div>
+                <div class="nico-pv-body">
+                    <div class="nico-pv-field">
+                        <label class="nico-pv-label">${I18n.t('nico.pv_prompt_label', 'PVスクリプト')}</label>
+                        <textarea id="nicoPvPrompt" class="nico-pv-textarea" rows="5" placeholder="${I18n.t('nico.pv_prompt_placeholder', 'カット割り・セリフ・雰囲気を書く（「」内のセリフが読み上げられます）')}"></textarea>
+                        <button class="glass-btn nico-pv-ai-btn" id="nicoPvAiWriteBtn" onclick="Niconico._pvAiWrite()">
+                            <span class="nico-pv-btn-icon">${this._SVG.sparkle}</span><span id="nicoPvAiWriteLabel">${I18n.t('nico.pv_ai_write_btn', 'AIにおまかせ')}</span>
+                        </button>
+                    </div>
+
+                    <div class="nico-pv-field">
+                        <label class="nico-pv-label">${I18n.t('nico.pv_ref_label', '参考画像（0〜9枚）')}</label>
+                        <div class="nico-pv-ref-row" id="nicoPvRefRow">
+                            <div class="nico-pv-ref-thumbs" id="nicoPvRefThumbs"></div>
+                            <button class="nico-pv-ref-add" id="nicoPvRefAddBtn" onclick="Niconico._pvOpenGalleryPicker()" title="${I18n.t('nico.pv_ref_add_title', '画像を追加')}">${this._SVG.plus}</button>
+                        </div>
+                        <p class="nico-pv-hint" id="nicoPvRefHint" style="display:none;">${I18n.t('nico.pv_ref_disabled_hint', 'このモデルは参考画像に対応していません')}</p>
+                    </div>
+
+                    <div class="nico-pv-row">
+                        <div class="nico-pv-field nico-pv-field-half">
+                            <label class="nico-pv-label">${I18n.t('nico.pv_model_label', 'モデル')}</label>
+                            <select id="nicoPvModel" class="nico-pv-select" onchange="Niconico._pvOnModelChange()">${modelOptionsHtml}</select>
+                        </div>
+                        <div class="nico-pv-field nico-pv-field-half">
+                            <label class="nico-pv-label">${I18n.t('nico.pv_resolution_label', '解像度')}</label>
+                            <select id="nicoPvResolution" class="nico-pv-select"></select>
+                        </div>
+                    </div>
+
+                    <div class="nico-pv-row">
+                        <div class="nico-pv-field nico-pv-field-half">
+                            <label class="nico-pv-label">${I18n.t('nico.pv_duration_label', '長さ')}</label>
+                            <select id="nicoPvDuration" class="nico-pv-select">${this._pvDurationOptionsHtml()}</select>
+                        </div>
+                        <div class="nico-pv-field nico-pv-field-half nico-pv-audio-field">
+                            <label class="nico-pv-checkbox-label">
+                                <input type="checkbox" id="nicoPvAudio" checked>
+                                ${I18n.t('nico.pv_audio_label', '音声を生成')}
+                            </label>
+                            <p class="nico-pv-hint" id="nicoPvAudioHint" style="display:none;">${I18n.t('nico.pv_audio_disabled_hint', 'このモデルは音声に対応していません')}</p>
+                        </div>
+                    </div>
+
+                    <div class="nico-pv-field">
+                        <label class="nico-pv-label">${I18n.t('nico.pv_channel_label', '投稿チャンネル')}</label>
+                        <select id="nicoPvChannel" class="nico-pv-select" ${!hasChannels ? 'disabled' : ''}>${channelOptionsHtml}</select>
+                        ${!hasChannels ? `<p class="nico-pv-hint">${I18n.t('nico.pv_channel_empty_hint', 'まずチャンネルを生成してください')}</p>` : ''}
+                    </div>
+
+                    <div class="nico-pv-field">
+                        <label class="nico-pv-label">${I18n.t('nico.pv_tweet_label', '告知ツイート')}</label>
+                        <select id="nicoPvTweetAccount" class="nico-pv-select">${tweetOptions.join('')}</select>
+                    </div>
+                </div>
+                <div class="nico-modal-buttons nico-pv-actions">
+                    <button class="glass-btn nico-modal-close" onclick="Niconico._closePVModal()">${I18n.t('nico.menu_close', '閉じる')}</button>
+                    <button class="glass-btn nico-pv-submit-btn" id="nicoPvSubmitBtn" onclick="Niconico._pvSubmit()" ${!hasChannels ? 'disabled' : ''}>${I18n.t('nico.pv_submit_btn', '投稿する')}</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        this._pvOnModelChange();
+        this._pvRenderRefThumbs();
+    },
+
+    _closePVModal() {
+        document.getElementById('nicoPvModal')?.remove();
+    },
+
+    // モデル切替：分辨率(4k限定2.0旗舰)/参考図可否/有声可否の三点連動
+    _pvOnModelChange() {
+        const modelSel = document.getElementById('nicoPvModel');
+        if (!modelSel) return;
+        const model = this._pvModelInfo(modelSel.value);
+
+        const resSel = document.getElementById('nicoPvResolution');
+        if (resSel) {
+            const prevRes = resSel.value;
+            const is4kModel = model.id === 'doubao-seedance-2-0-260128';
+            const resOptions = ['480p', '720p', '1080p'].concat(is4kModel ? ['4k'] : []);
+            resSel.innerHTML = resOptions.map(r => `<option value="${r}">${r}</option>`).join('');
+            resSel.value = resOptions.includes(prevRes) ? prevRes : '720p';
+        }
+
+        const refRow = document.getElementById('nicoPvRefRow');
+        const refAddBtn = document.getElementById('nicoPvRefAddBtn');
+        const refHint = document.getElementById('nicoPvRefHint');
+        if (refRow) refRow.classList.toggle('disabled', !model.ref);
+        if (refAddBtn) refAddBtn.disabled = !model.ref;
+        if (refHint) refHint.style.display = model.ref ? 'none' : 'block';
+
+        const audioCb = document.getElementById('nicoPvAudio');
+        const audioHint = document.getElementById('nicoPvAudioHint');
+        if (audioCb) {
+            const wasDisabled = audioCb.disabled;
+            audioCb.disabled = !model.audio;
+            if (!model.audio) audioCb.checked = false;          // 不支持音声的模型强制取消勾选
+            else if (wasDisabled) audioCb.checked = true;       // 从禁用状态恢复 → 回到默认开（两个有声模型间切换保留用户手动勾选）
+        }
+        if (audioHint) audioHint.style.display = model.audio ? 'none' : 'block';
+    },
+
+    // 参考図サムネ行の再描画（_pvRefImgIds が真値、選択は禁用時も保持——切回2.0系不丢）
+    async _pvRenderRefThumbs() {
+        const wrap = document.getElementById('nicoPvRefThumbs');
+        if (!wrap) return;
+        const ids = this._pvRefImgIds || [];
+        if (ids.length === 0) { wrap.innerHTML = ''; return; }
+        const items = await Promise.all(ids.map(async id => ({ id, url: await IllustGallery.getUrl(id) })));
+        const wrap2 = document.getElementById('nicoPvRefThumbs');   // 渲染中弹窗可能已被关闭
+        if (!wrap2) return;
+        wrap2.innerHTML = items.map(it => `
+            <div class="nico-pv-ref-thumb" style="background-image:url('${it.url || ''}')">
+                <button class="nico-pv-ref-remove" onclick="event.stopPropagation();Niconico._pvRemoveRefImg('${it.id}')" title="${I18n.t('nico.pv_ref_remove_title', '削除')}">${this._SVG.close}</button>
+            </div>`).join('');
+    },
+
+    _pvRemoveRefImg(id) {
+        this._pvRefImgIds = (this._pvRefImgIds || []).filter(x => x !== id);
+        this._pvRenderRefThumbs();
+    },
+
+    // ===== 参考画像ピッカー（Pixivイラストギャラリーから選択・最大9枚） =====
+    async _pvOpenGalleryPicker() {
+        const illusts = (AppState.data.pixivData && AppState.data.pixivData.illustrations) || [];
+        if (illusts.length === 0) {
+            Utils.showToast(I18n.t('nico.pv_gallery_empty', 'Pixivにイラストがありません'));
+            return;
+        }
+        this._pvGallerySelection = (this._pvRefImgIds || []).slice();
+
+        const html = `
+        <div class="nico-modal-overlay nico-pv-gallery-overlay" id="nicoPvGalleryModal" onclick="if(event.target===this)Niconico._closeGalleryPicker()">
+            <div class="nico-modal nico-pv-gallery-modal">
+                <div class="nico-modal-title">${I18n.t('nico.pv_gallery_title', '参考画像を選択（最大9枚）')}</div>
+                <div class="nico-pv-gallery-grid" id="nicoPvGalleryGrid"></div>
+                <div class="nico-modal-buttons nico-pv-actions">
+                    <button class="glass-btn nico-modal-close" onclick="Niconico._closeGalleryPicker()">${I18n.t('nico.menu_close', '閉じる')}</button>
+                    <button class="glass-btn nico-pv-submit-btn" onclick="Niconico._confirmGalleryPicker()">${I18n.t('nico.pv_gallery_confirm', '決定')}</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        await this._pvRenderGalleryGrid(illusts);
+    },
+
+    async _pvRenderGalleryGrid(illusts) {
+        const grid = document.getElementById('nicoPvGalleryGrid');
+        if (!grid) return;
+        const items = await Promise.all(illusts.map(async it => ({ it, url: await IllustGallery.getUrl(it.id) })));
+        const grid2 = document.getElementById('nicoPvGalleryGrid');
+        if (!grid2) return;
+        grid2.innerHTML = items.map(({ it, url }) => {
+            const selected = this._pvGallerySelection.includes(it.id);
+            return `
+            <div class="nico-pv-gallery-item ${selected ? 'selected' : ''}" data-illust-id="${it.id}" style="background-image:url('${url || ''}')" onclick="Niconico._pvToggleGalleryItem('${it.id}')">
+                <span class="nico-pv-gallery-check">${this._SVG.check}</span>
+            </div>`;
+        }).join('');
+    },
+
+    _pvToggleGalleryItem(id) {
+        const sel = this._pvGallerySelection;
+        const idx = sel.indexOf(id);
+        if (idx >= 0) {
+            sel.splice(idx, 1);
+        } else {
+            if (sel.length >= 9) { Utils.showToast(I18n.t('nico.pv_gallery_max_hint', '最大9枚まで選択できます')); return; }
+            sel.push(id);
+        }
+        const el = document.querySelector(`#nicoPvGalleryGrid [data-illust-id="${CSS.escape(id)}"]`);
+        if (el) el.classList.toggle('selected', sel.includes(id));
+    },
+
+    _confirmGalleryPicker() {
+        this._pvRefImgIds = (this._pvGallerySelection || []).slice();
+        this._closeGalleryPicker();
+        this._pvRenderRefThumbs();
+    },
+
+    _closeGalleryPicker() {
+        document.getElementById('nicoPvGalleryModal')?.remove();
+    },
+
+    // ===== AIにおまかせ：世界観からPV脚本を書く（_generateVideos と同じ注入三件套） =====
+    async _pvAiWrite() {
+        const textarea = document.getElementById('nicoPvPrompt');
+        if (!textarea) return;
+        const btn = document.getElementById('nicoPvAiWriteBtn');
+        const label = document.getElementById('nicoPvAiWriteLabel');
+        if (btn) btn.disabled = true;
+        if (label) label.textContent = I18n.t('nico.pv_ai_writing', '生成中…');
+
+        try {
+            const worldContext = (typeof Forum !== 'undefined' && Forum.getWorldContext) ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
+            const seedText = (textarea.value || '').trim();
+
+            const systemPrompt = `あなたは動画生成AI向けのプロンプトを書く創作アシスタントです。
+以下の作品世界に基づいて、ニコニコ動画に投稿する公式PV（プロモーション映像）用の生成プロンプトを書いてください。
+
+## 作品世界の情報
+${worldContext || '（世界観未設定 — キャラクター名・CP・ストーリーイベントなど具体的な作品情報を捏造しないこと。一般的なアニメPVとして生成すること）'}
+${Utils.PROMPTS.infoAccessRule()}
+${typeof Utils !== 'undefined' && Utils.getEventContextPrompt ? Utils.getEventContextPrompt(3) : ''}
+${seedText ? `\n## ユーザーが既に考えている方向性\n${seedText}\n` : ''}
+## 出力形式（厳守）
+説明文やタイトルを付けず、プロンプト本文のみを出力すること。
+
+## ルール
+- 全体で500字以内
+- 時系列に沿ったカットを複数並べ、画づくり・カメラワーク・色調・雰囲気を具体的に描写すること
+- セリフを入れる場合は必ず「」（鉤括弧）で囲むこと — 音声生成モデルはこの記号内のみを読み上げる
+- 作品世界のキャラクター・関係性・出来事を積極的に反映すること
+- 説明的な地の文ではなく、そのまま動画生成モデルに渡せる具体的な描写にすること
+- 🚫 設定にないストーリーを捏造するな`;
+
+            const messages = [{ role: 'user', content: 'PV生成プロンプトを書いてください。' }];
+            const raw = await Utils.callChatAPI(messages, systemPrompt);
+            textarea.value = (raw || '').trim();
+        } catch (e) {
+            console.error('[Niconico] PV AI write error:', e);
+            Utils.showToast(I18n.t('t.nico_gen_error', '⚠️ 生成エラー: ') + e.message, 4000);
+        } finally {
+            if (btn) btn.disabled = false;
+            if (label) label.textContent = I18n.t('nico.pv_ai_write_btn', 'AIにおまかせ');
+        }
+    },
+
+    // ===== 投稿提出 =====
+    async _pvSubmit() {
+        if (this._pvSubmitting) return;
+        const n = this._ensureData();
+
+        const promptEl = document.getElementById('nicoPvPrompt');
+        const prompt = (promptEl && promptEl.value || '').trim();
+        if (!prompt) {
+            Utils.showToast(I18n.t('nico.pv_prompt_required', 'PVスクリプトを入力してください'));
+            return;
+        }
+
+        const channelSel = document.getElementById('nicoPvChannel');
+        const channelId = channelSel ? channelSel.value : '';
+        if (!channelId) {
+            Utils.showToast(I18n.t('nico.pv_channel_empty_hint', 'まずチャンネルを生成してください'));
+            return;
+        }
+
+        const modelSel = document.getElementById('nicoPvModel');
+        const model = modelSel ? modelSel.value : ((VideoGen.MODELS[0] && VideoGen.MODELS[0].id) || '');
+        const modelInfo = this._pvModelInfo(model);
+        const resolution = (document.getElementById('nicoPvResolution') && document.getElementById('nicoPvResolution').value) || '720p';
+        const duration = parseInt(document.getElementById('nicoPvDuration')?.value, 10) || 10;
+        const generateAudio = modelInfo.audio ? !!(document.getElementById('nicoPvAudio') && document.getElementById('nicoPvAudio').checked) : false;
+        const refImgIds = modelInfo.ref ? (this._pvRefImgIds || []) : [];   // ref:false 模型不带参考图，但不清空已选（切回2.0还在）
+        const tweetSel = document.getElementById('nicoPvTweetAccount');
+        const tweetAccountId = (tweetSel && tweetSel.value) ? tweetSel.value : null;
+
+        const btn = document.getElementById('nicoPvSubmitBtn');
+        this._pvSubmitting = true;
+        if (btn) btn.disabled = true;
+        try {
+            await VideoGen.createTask({
+                prompt, refImgIds, model, resolution, duration,
+                generateAudio, channelId, tweetAccountId
+            });
+            n.lastPvChannelId = channelId;
+            Utils.saveData();
+            this._closePVModal();
+            Utils.showToast(I18n.t('nico.pv_toast_started', '生成開始！'));
+            this.refreshGenCard();   // 占位卡即时出现（不等第一次轮询）
+        } catch (e) {
+            console.error('[Niconico] PV submit error:', e);
+            Utils.showToast(I18n.t('t.nico_gen_error', '⚠️ 生成エラー: ') + e.message, 4000);
+        } finally {
+            this._pvSubmitting = false;
+            if (btn) btn.disabled = false;
+        }
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // PV投稿：占位卡 / 入库 / 真プレイヤー / 削除カスケード（Task 8）
+    // ═══════════════════════════════════════════════════════════
+
+    // VideoGen._notifyUI から呼ばれる。新着タブが前面にある時だけ再描画（前面じゃない時は静かに何もしない）
+    // task 引数の中身は使わない（粗暴に全リスト再描画——モジュールの既存の再描画慣習に倣う）
+    refreshGenCard(task) {
+        if (AppState.currentScreen !== 'niconico' || this.currentTab !== 'new') return;
+        const container = document.getElementById('niconicoContent');
+        if (!container) return;
+        this.renderNewVideos(container);
+    },
+
+    // 生成中タスクの占位卡：queued/running/downloading/paused は骨架アニメ、failed/expired は赤枠+再試行/削除
+    _renderGenCard(task) {
+        const isError = task.status === 'failed' || task.status === 'expired';
+        const statusText = this._pvStatusText(task.status);
+        const titleText = this._escHtml((task.prompt || '').slice(0, 24));
+
+        if (isError) {
+            return `
+            <div class="nico-video-card nico-gencard nico-gencard-error">
+                <div class="nico-thumbnail nico-gencard-thumb">
+                    <span class="nico-thumb-icon">${this._SVG.film}</span>
+                </div>
+                <div class="nico-video-info">
+                    <div class="nico-video-title">${titleText}</div>
+                    <div class="nico-gencard-error-msg">${this._escHtml(task.error || statusText)}</div>
+                    <div class="nico-gencard-actions">
+                        <button class="glass-btn mini" onclick="event.stopPropagation();Niconico._retryGenTask('${task.id}')">${I18n.t('nico.pv_btn_retry', '再試行')}</button>
+                        <button class="glass-btn mini danger-text" onclick="event.stopPropagation();Niconico._abandonGenTask('${task.id}')">${I18n.t('nico.pv_btn_discard', '削除')}</button>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        return `
+        <div class="nico-video-card nico-gencard">
+            <div class="nico-thumbnail nico-gencard-thumb nico-gencard-skeleton">
+                <span class="nico-thumb-icon">${this._SVG.film}</span>
+            </div>
+            <div class="nico-video-info">
+                <div class="nico-video-title">${titleText}</div>
+                <div class="nico-gencard-status">${statusText}</div>
+            </div>
+        </div>`;
+    },
+
+    _pvStatusText(status) {
+        switch (status) {
+            case 'queued': return I18n.t('nico.pv_status_queued', '順番待ち…');
+            case 'running': return I18n.t('nico.pv_status_running', '生成中…');
+            case 'downloading': return I18n.t('nico.pv_status_downloading', 'ダウンロード中…');
+            case 'paused': return I18n.t('nico.pv_status_paused', 'ネットワーク待ち');
+            case 'failed': return I18n.t('nico.pv_status_failed', '生成失敗');
+            case 'expired': return I18n.t('nico.pv_status_expired', '期限切れ');
+            default: return I18n.t('nico.pv_status_unknown', '状態不明');
+        }
+    },
+
+    async _retryGenTask(taskId) {
+        try {
+            await VideoGen.retryTask(taskId);
+            Utils.showToast(I18n.t('nico.pv_toast_retrying', '再試行しています…'));
+        } catch (e) {
+            Utils.showToast(String((e && e.message) || e));
+        }
+        this.refreshGenCard({ id: taskId });
+    },
+
+    async _abandonGenTask(taskId) {
+        if (!confirm(I18n.t('nico.pv_confirm_discard', 'この生成タスクを削除しますか？'))) return;
+        await VideoGen.abandonTask(taskId).catch(() => {});
+        this.refreshGenCard({ id: taskId });
+    },
+
+    // 真動画の入库（VideoGen._onSucceeded から呼ばれる）：_generateVideos の落库形态と同構にする
+    // task: VideoGen タスク / pk: packaging（LLM生成 or _onSucceeded 側の既定フォールバック）/ videoBlobId: 'vid-'+task.id
+    addRealVideo(task, pk, videoBlobId) {
+        const n = this._ensureData();
+        const ch = this._getChannel(task.channelId);
+        const videoId = Utils.generateId();
+        const duration = this._fmtDuration(task.duration);
+
+        const video = {
+            id: videoId,
+            title: pk.title || (task.prompt || '').slice(0, 20) || I18n.t('nico.detail_title_default', '動画'),
+            titleTl: pk.titleTl || null,
+            uploaderName: ch ? ch.name : I18n.t('nico.pv_default_uploader', '公式チャンネル'),
+            channelId: task.channelId || null,
+            genre: 'anime',
+            emoji: '🎬',
+            tags: pk.tags || [],
+            description: pk.description || '',
+            descTl: pk.descTl || null,
+            // views/commentCount/mylists は _generateVideos の落库形态（数値）に合わせる。pk側はLLM出力の文字列 or フォールバックの数値、どちらも parseInt で吸収
+            views: parseInt(pk.views, 10) || 1000,
+            commentCount: parseInt(pk.commentCount, 10) || 0,
+            mylists: parseInt(pk.mylists, 10) || 0,
+            duration,
+            uploadedAt: Date.now(),
+            videoBlobId,   // ← 真動画マーク（真プレイヤー判定・削除カスケードに使う）
+        };
+        n.videos.push(video);
+
+        // 弾幕/コメントは n.comments[videoId] に統合する（_generateVideos と同じ落库形态。v.danmaku という独立フィールドは持たない）
+        const allComments = [];
+        (pk.danmaku || []).forEach(text => {
+            if (!text) return;
+            allComments.push({
+                id: Utils.generateId(),
+                authorName: '',
+                text,
+                timestamp: this._randomTimestamp(duration),
+                color: this._DANMAKU_COLORS[Math.floor(Math.random() * this._DANMAKU_COLORS.length)]
+            });
+        });
+        (pk.comments || []).forEach(c => {
+            allComments.push({
+                id: Utils.generateId(),
+                authorName: (c && c.author) || I18n.t('nico.anonymous', '匿名'),
+                text: (c && c.text) || '',
+                timestamp: '',
+                color: null
+            });
+        });
+        if (allComments.length) n.comments[videoId] = allComments;
+
+        Utils.saveData();
+        if (AppState.currentScreen === 'niconico' && this.currentTab === 'new') this._renderCurrentTab();
+        return video;
+    },
+
+    // 動画詳細ページのプレイヤーエリア：videoBlobId 持ちは真プレイヤー、それ以外は既存の弾幕クリック再生プレースホルダー
+    _renderPlayerArea(v) {
+        if (v.videoBlobId) {
+            return `
+            <div class="nico-player-area nico-player-real">
+                <video id="nicoRealPlayer" controls playsinline webkit-playsinline preload="metadata" onplay="Niconico.startDanmaku('${v.id}')"></video>
+                <div class="nico-danmaku-track nico-danmaku-overlay" id="nicoDanmakuTrack"></div>
+            </div>`;
+        }
+        return `
+        <div class="nico-player-area">
+            <div class="nico-danmaku-track" id="nicoDanmakuTrack">
+                <div class="nico-danmaku-placeholder">${I18n.t('nico.player_hint', '▶ クリックで弾幕再生')}</div>
+            </div>
+            <div class="nico-player-emoji">${this._SVG.video}</div>
+            <div class="nico-player-overlay" onclick="Niconico.startDanmaku('${v.id}')"></div>
+        </div>`;
+    },
+
+    // 真動画の src を非同期で埋める。取得できない（IDB 真損壊）場合はエラー占位を出すが条目は削除しない（設計 §10）
+    _loadRealPlayer(v) {
+        const videoId = v.id;
+        const blobId = v.videoBlobId;
+        // renderVideoDetail が退避した再生位置（同じ動画への粗暴re-render対策。他の動画に切替時は null）
+        const pending = (this._pendingPlayerState && videoId === this.currentVideoId) ? this._pendingPlayerState : null;
+        this._pendingPlayerState = null;
+        VideoGen.getUrl(blobId).then(url => {
+            if (this.currentVideoId !== videoId) return;   // 別の動画に切替済み — 竞态防護
+            const videoEl = document.getElementById('nicoRealPlayer');
+            if (!videoEl) return;
+            if (url) {
+                videoEl.src = url;
+                if (window.AudioCoordinator) AudioCoordinator.register(videoEl);   // widget/Music Lab/audio-drama/LINE voice と同じ互斥に参加
+                if (pending && pending.time > 0) {
+                    const applyState = () => {
+                        try { videoEl.currentTime = pending.time; } catch (e) { }
+                        if (pending.playing) videoEl.play().catch(() => {});
+                    };
+                    if (videoEl.readyState >= 1) applyState();
+                    else videoEl.addEventListener('loadedmetadata', applyState, { once: true });
+                }
+            } else {
+                const area = videoEl.closest('.nico-player-area');
+                if (area) area.innerHTML = `<div class="nico-player-error">${this._escHtml(I18n.t('nico.pv_video_missing', '動画データが見つかりません（削除はされていません）'))}</div>`;
+            }
+        }).catch(() => {});
+    },
+
+    // PV投稿の実動画を削除（真動画のみ — 通常のAI生成動画には削除UIが無い）：blob をカスケード削除して孤児を残さない
+    async deleteVideo(videoId) {
+        const n = this._ensureData();
+        const v = (n.videos || []).find(x => x.id === videoId);
+        if (!v) return;
+        if (!confirm(I18n.t('nico.pv_confirm_delete_video', 'この動画を削除しますか？\n動画ファイルも削除されます。'))) return;
+
+        this._stopRealPlayer();   // blob を revoke する前に再生を止めておく
+
+        if (v.videoBlobId && typeof VideoGen !== 'undefined') {
+            await VideoGen.removeBlob(v.videoBlobId).catch(() => {});
+            await VideoGen.removeBlob('thumb:' + v.videoBlobId).catch(() => {});
+        }
+
+        n.videos = n.videos.filter(x => x.id !== videoId);
+        n.mylist = (n.mylist || []).filter(id => id !== videoId);
+        delete n.comments[videoId];
+
+        Utils.saveData();
+        this._stopDanmaku();
+        Utils.showToast(I18n.t('t.nico_deleted', '削除しました'));
+        Navigation.goTo('niconico');
     },
 
     // ===== AI生成: 動画 =====
@@ -1118,6 +1719,16 @@ ${existingComments || '（なし）'}
         this._updateSegHighlight();
     },
 
+    // リアルPV動画プレイヤーを止める（Task 8）：他の動画を開く前に呼ぶ。src を外すだけで
+    // VideoGen._urlCache の ObjectURL 自体は revoke しない（キャッシュはセッション中使い回す前提のため）
+    _stopRealPlayer() {
+        const videoEl = document.getElementById('nicoRealPlayer');
+        if (!videoEl) return;
+        try { videoEl.pause(); } catch (e) { }
+        videoEl.removeAttribute('src');
+        try { videoEl.load(); } catch (e) { }
+    },
+
     _stopAudioDrama() {
         if (this._audioPlayer) {
             try { this._audioPlayer.pause(); } catch (e) { }
@@ -1375,6 +1986,14 @@ ${existingComments || '（なし）'}
         const hr = Math.floor(min / 60);
         if (hr < 24) return I18n.t('nico.time_hour', { n: hr });
         return I18n.t('nico.time_day', { n: Math.floor(hr / 24) });
+    },
+
+    // 秒数 → 'M:SS'（PV投稿の task.duration は秒単位の数値。既存の duration 表記・_randomTimestamp と同じ形式に揃える）
+    _fmtDuration(sec) {
+        const s = Math.max(0, parseInt(sec, 10) || 0);
+        const m = Math.floor(s / 60);
+        const ss = String(s % 60).padStart(2, '0');
+        return `${m}:${ss}`;
     },
 
     _randomTimestamp(duration) {

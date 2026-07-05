@@ -26,14 +26,37 @@ const Broadcast = {
         };
     },
 
-    // v2.139.0: 取 CP 主角 A/B 的参考立绘 Blob[]（仅 gpt-image edits 生图用）。
+    // v2.139.0: 取 CP 主角 A/B 的参考立绘 Blob[]（仅 gpt-image edits / OpenRouter 生图用）。
     // 刻意独立于 getCP()——getCP() 给 pixiv 小说/lofter/mercari 等文本模块读名字，签名一字不改；生图取图走这里。
-    async getCPRefImages() {
+    // v2.146.0: 可选 charNames 过滤。不传（pixiv/twitter/melon 旧调用）→ 返回全部 CP 立绘，行为一字不变；
+    //          传数组（周边商品生图）→ 只取「出现在关联角色名单里」的 CP 主角立绘，避免单人周边被塞进另一位。
+    //          匹配用 trim 后精确相等，不做子串模糊匹配（防 ユウ↔ユウキ 这类误匹配）。
+    async getCPRefImages(charNames) {
         const s = (AppState.data.broadcast && AppState.data.broadcast.cpSettings) || {};
-        const ids = [s.cpCharARefId, s.cpCharBRefId].filter(Boolean);
+        let ids;
+        if (Array.isArray(charNames)) {
+            const wanted = charNames.map(n => String(n || '').trim()).filter(Boolean);
+            const match = cpName => { const c = String(cpName || '').trim(); return !!c && wanted.includes(c); };
+            ids = [
+                match(s.cpCharA) ? s.cpCharARefId : null,
+                match(s.cpCharB) ? s.cpCharBRefId : null
+            ].filter(Boolean);
+        } else {
+            ids = [s.cpCharARefId, s.cpCharBRefId].filter(Boolean);
+        }
         if (ids.length === 0 || typeof IllustGallery === 'undefined') return [];
         const blobs = await Promise.all(ids.map(id => IllustGallery.getBlob(id).catch(() => null)));
         return blobs.filter(Boolean);
+    },
+
+    // v2.173.0: 预存外貌 tag 访问器（NovelAI 系生图读取）。只返回「角色名与 tag 都非空」的条目；
+    // 生图模块经 PixivIllust.getStoredCharTags() 间接调用，未配置时返回 [] → 各模块走世界书检索老路
+    getCPAppearanceTags() {
+        const s = (AppState.data.broadcast && AppState.data.broadcast.cpSettings) || {};
+        return [
+            { name: (s.cpCharA || '').trim(), tags: (s.cpCharATags || '').trim() },
+            { name: (s.cpCharB || '').trim(), tags: (s.cpCharBTags || '').trim() }
+        ].filter(c => c.name && c.tags);
     },
 
     switchTab(tabName) {
@@ -115,6 +138,8 @@ const Broadcast = {
         }
         // v2.139.0: CP 参考立绘上传槽（仅 gpt-image-2 生图读取）
         this._initCpRefImages();
+        // v2.173.0: 外貌 tag 输入框 + AI 生成按钮
+        this._initCpTagsFields();
     },
 
     // v2.139.0: 参考立绘预览的 ObjectURL（重渲染前 revoke 防泄漏）
@@ -195,7 +220,7 @@ const Broadcast = {
         if (removeBtn) {
             removeBtn.onclick = async () => {
                 const id = (AppState.data.broadcast.cpSettings || {})[refIdKey];
-                if (id && typeof IllustGallery !== 'undefined') await IllustGallery.remove(id);
+                if (id && typeof IllustGallery !== 'undefined') { try { await IllustGallery.remove(id); } catch (e) {} }
                 if (AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings[refIdKey] = null;
                 Utils.saveData();
                 await refresh();
@@ -203,6 +228,108 @@ const Broadcast = {
         }
 
         refresh();
+    },
+
+    // ===== v2.173.0: 外貌 tag（NovelAI 生图用）=====
+    // 预存后生图时由代码层直接拼进 char_caption：外貌字节级固定（跨图一致）+ 不再每次发世界书原文（省 token）。
+    // 上传立绘 + 多模态文字模型 → 「AI 生成」一键识别；也可全手动填写/微调。
+
+    _initCpTagsFields() {
+        this._setupCpTagsField('a', 'cpCharATags', 'cpCharARefId');
+        this._setupCpTagsField('b', 'cpCharBTags', 'cpCharBRefId');
+    },
+
+    _setupCpTagsField(slot, tagsKey, refIdKey) {
+        const cap = slot.toUpperCase();
+        const area = document.getElementById(`broadcastCpTags${cap}`);
+        const genBtn = document.getElementById(`broadcastCpTags${cap}Gen`);
+        if (!area) return;
+        const s = AppState.data.broadcast.cpSettings || {};
+        area.value = s[tagsKey] || '';
+        area.oninput = () => {
+            if (!AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings = {};
+            AppState.data.broadcast.cpSettings[tagsKey] = area.value.trim();
+            Utils.saveData();
+        };
+        if (genBtn) genBtn.onclick = () => this._generateCpTags(slot, tagsKey, refIdKey, area, genBtn);
+    },
+
+    async _generateCpTags(slot, tagsKey, refIdKey, area, btn) {
+        const s = AppState.data.broadcast.cpSettings || {};
+        const refId = s[refIdKey];
+        const blob = (refId && typeof IllustGallery !== 'undefined')
+            ? await IllustGallery.getBlob(refId).catch(() => null)
+            : null;
+        if (!blob) {
+            Utils.showToast(I18n.t('bc.cp_tags_no_ref', '请先上传该角色的立绘'));
+            return;
+        }
+        const charName = ((slot === 'a' ? s.cpCharA : s.cpCharB) || '').trim();
+        const label = btn ? btn.querySelector('span') : null;
+        const origText = label ? label.textContent : '';
+        if (btn) btn.disabled = true;
+        if (label) label.textContent = I18n.t('bc.cp_tags_generating', '识别中…');
+        try {
+            const img = await this._blobToInlineImage(blob);
+            const systemPrompt = `You are a prompt engineer for anime image generation (NovelAI V4.5).
+Look at the character in the provided image and output ONLY their appearance as English Danbooru-style tags.
+
+Rules:
+- Output a single comma-separated tag line and nothing else — no markers, no explanations, no line breaks
+- The FIRST tag must be the gender tag (1girl or 1boy)
+- If you recognize this character from a well-known anime/manga/game, include their name tag right after the gender tag: character_name (series_name)
+- Then describe: hair (color, length, style), eyes (color), notable physical features, and the outfit shown in this image
+- Appearance ONLY — no pose, no expression, no background, no composition, no quality tags
+- Keep it under 40 words`;
+            const userMsg = `${charName ? `Character name: ${charName}\n` : ''}Generate appearance tags for this character:`;
+            const raw = await Utils.callChatAPI(
+                [{ role: 'user', content: userMsg, image: img }],
+                systemPrompt
+            );
+            const tags = (raw || '').trim().replace(/\n+/g, ', ');
+            if (!tags) throw new Error('empty result');
+            area.value = tags;
+            if (!AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings = {};
+            AppState.data.broadcast.cpSettings[tagsKey] = tags;
+            Utils.saveData();
+            Utils.showToast(I18n.t('bc.cp_tags_done', '外貌 tag 已生成，可手动微调'));
+        } catch (e) {
+            console.error('[Broadcast] CP tags generation failed:', e);
+            Utils.showToast(I18n.t('bc.cp_tags_failed', '生成失败：请确认当前文字模型支持图片输入'));
+        } finally {
+            if (btn) btn.disabled = false;
+            if (label) label.textContent = origText;
+        }
+    },
+
+    // 立绘 Blob → 最长边缩到 1024 的 JPEG base64（原图直发容易超请求体积上限）
+    async _blobToInlineImage(blob) {
+        const bmp = await createImageBitmap(blob);
+        try {
+            const MAX = 1024;
+            const scale = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+            const w = Math.max(1, Math.round(bmp.width * scale));
+            const h = Math.max(1, Math.round(bmp.height * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff';  // JPEG 无 alpha，透明底铺白避免变黑
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(bmp, 0, 0, w, h);
+            const jpeg = await new Promise((resolve, reject) => {
+                canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/jpeg', 0.9);
+            });
+            const dataUrl = await new Promise((resolve, reject) => {
+                const r = new FileReader();
+                r.onload = () => resolve(r.result);
+                r.onerror = () => reject(new Error('read failed'));
+                r.readAsDataURL(jpeg);
+            });
+            return { data: String(dataUrl).split(',')[1], mimeType: 'image/jpeg' };
+        } finally {
+            if (bmp.close) bmp.close();
+        }
     },
 
     // 把任意可解码图片重编码为 PNG Blob（统一 edits 端点输入格式；iPhone heic 在 Safari 可解码转码）

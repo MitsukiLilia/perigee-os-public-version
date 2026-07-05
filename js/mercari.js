@@ -29,6 +29,17 @@ const Mercari = {
     return [...set].sort();
   },
 
+  // 行情榜 / 搜索 chip 的角色全集 = 声优绑定角色 ∪ 盲盒填入的角色（含没配声优的冷门角色）
+  _allMarketChars() {
+    const set = new Set(this.characterList());
+    this._listedGoods().forEach(e => {
+      if (e.goods.blindBox) (e.goods.charNames || []).forEach(c => {
+        const t = String(c || '').trim(); if (t) set.add(t);
+      });
+    });
+    return [...set].sort();
+  },
+
   // ── 当前 CP（v2.69.0: 内部实现迁移到 Broadcast.getCP()，对外保持 {a,b,nickname}/null 契约）──
   getCP() {
     const info = Broadcast.getCP();
@@ -100,13 +111,23 @@ const Mercari = {
     return Math.max(0.7, Math.min(4.0, 0.7 + raw * 0.3));
   },
 
-  // 周边二手均价
-  _goodsAvgPrice(goodsEntry) {
+  // 单款二手均价：盲盒传 variantChar → 用该角色单独热度（人气炒高/冷门贱卖）；
+  // 普通周边 variantChar 为空 → 取 charNames 最高热度（原行为）
+  _avgPriceFor(goodsEntry, variantChar) {
     const g = goodsEntry.goods;
     const rarityMult = this._RARITY_MULT[g.rarity] || 1.0;
-    const chars = g.charNames || [];
-    const heat = chars.length ? Math.max(...chars.map(c => this._characterHeat(c))) : 1.0;
+    let heat;
+    if (g.blindBox && variantChar) {
+      heat = this._characterHeat(variantChar);
+    } else {
+      const chars = g.charNames || [];
+      heat = chars.length ? Math.max(...chars.map(c => this._characterHeat(c))) : 1.0;
+    }
     return this._roundPrice((g.price || 0) * rarityMult * heat);
+  },
+  // 兼容旧调用：系列级代表均价（普通周边原样；盲盒返回全员最高热度款）
+  _goodsAvgPrice(goodsEntry) {
+    return this._avgPriceFor(goodsEntry, null);
   },
 
   // 出品个体价（按卖家类型散开）
@@ -144,16 +165,30 @@ const Mercari = {
   },
 
   // 单个周边的出品生成
+  // 盲盒：对 charNames 每个角色款各展开一批（listing 带 variantChar）；普通周边整体一批
   _generateListingsForGoods(goodsEntry) {
     const g = goodsEntry.goods;
-    const avg = this._goodsAvgPrice(goodsEntry);
-    const heat = (g.charNames || []).length
-      ? Math.max(...g.charNames.map(c => this._characterHeat(c))) : 1.0;
+    if (g.blindBox && (g.charNames || []).length) {
+      const out = [];
+      g.charNames.forEach(ch => out.push(...this._genVariantListings(goodsEntry, ch)));
+      return out;
+    }
+    return this._genVariantListings(goodsEntry, null);
+  },
 
-    // 出品数：基础 3–5 + 稀缺度加成 + 热度加成
+  // 为单个款生成一批出品（variantChar=盲盒角色款 / null=普通周边整体）
+  _genVariantListings(goodsEntry, variantChar) {
+    const g = goodsEntry.goods;
+    const avg = this._avgPriceFor(goodsEntry, variantChar);
+    const heat = variantChar
+      ? this._characterHeat(variantChar)
+      : ((g.charNames || []).length ? Math.max(...g.charNames.map(c => this._characterHeat(c))) : 1.0);
+
+    // 出品数：基础 + 稀缺度加成 + 热度加成；盲盒单款基数低（每款分摊，热门角自然多）
     const rarityBonus = g.rarity === '特典' ? 3 : g.rarity === '限定' ? 2 : 0;
     const heatBonus = Math.round((heat - 1) * 2);
-    const n = 3 + Math.floor(Math.random() * 3) + rarityBonus + heatBonus;
+    const base = g.blindBox ? 1 + Math.floor(Math.random() * 3) : 3 + Math.floor(Math.random() * 3);
+    const n = Math.max(1, base + rarityBonus + heatBonus);
 
     // 坏人概率：越贵越抢手越多
     const heatNorm = Math.min(1, (heat - 0.7) / 3.3);
@@ -171,25 +206,48 @@ const Mercari = {
     for (let i = 0; i < n; i++) {
       const r = Math.random();
       const type = r < fakeP ? 'counterfeit' : (r < fakeP + scalperP ? 'scalper' : 'normal');
-      out.push({
-        id: Utils.generateId(),
-        goodsEntryId: goodsEntry.id,
-        sellerName: this._pick(this._SELLER_NAMES),
-        sellerType: type,
-        sellerRating: { stars: 3 + Math.floor(Math.random() * 3),
-                        count: 5 + Math.floor(Math.random() * 250) },
-        condition: this._pick(this._CONDITIONS),
-        price: this._listingPrice(avg, type),
-        status: (Math.random() < soldRatio) ? 'sold' : 'on_sale',
-        flaggedFake: false,
-        eventTag: null,
-        createdAtPlotId: this._currentPlotCount(),
-        aiGenerated: false,
-        sellerIntro: '',
-        comments: []
-      });
+      out.push(this._buildListing(goodsEntry, avg, type, variantChar,
+        (Math.random() < soldRatio) ? 'sold' : 'on_sale'));
+    }
+
+    // まとめ売り：盲盒冷门角色（热度低）偶尔被多件打包甩卖（大毒池真实现象）
+    if (g.blindBox && variantChar && heat <= 1.0 && Math.random() < 0.5) {
+      out.push(this._buildBundleListing(goodsEntry, variantChar));
     }
     return out;
+  },
+
+  // 构造单件出品骨架（盲盒带 variantChar；status 默认 on_sale）
+  _buildListing(goodsEntry, avg, type, variantChar, status) {
+    return {
+      id: Utils.generateId(),
+      goodsEntryId: goodsEntry.id,
+      variantChar: variantChar || null,
+      sellerName: this._pick(this._SELLER_NAMES),
+      sellerType: type,
+      sellerRating: { stars: 3 + Math.floor(Math.random() * 3),
+                      count: 5 + Math.floor(Math.random() * 250) },
+      condition: this._pick(this._CONDITIONS),
+      price: this._listingPrice(avg, type),
+      status: status || 'on_sale',
+      flaggedFake: false,
+      eventTag: null,
+      createdAtPlotId: this._currentPlotCount(),
+      aiGenerated: false,
+      sellerIntro: '',
+      comments: []
+    };
+  },
+
+  // まとめ売り：冷门角色多件打包款（一口价、明显折扣）
+  _buildBundleListing(goodsEntry, variantChar) {
+    const avg = this._avgPriceFor(goodsEntry, variantChar);
+    const qty = 3 + Math.floor(Math.random() * 4);          // 3–6 点
+    const l = this._buildListing(goodsEntry, avg, 'normal', variantChar, 'on_sale');
+    l.bundleQty = qty;
+    l.price = this._roundPrice(avg * qty * (0.45 + Math.random() * 0.2)); // 打包甩卖折扣
+    l.condition = '目立った傷や汚れなし';
+    return l;
   },
 
   // 首次填充全部在售周边
@@ -215,11 +273,11 @@ const Mercari = {
       }
     });
 
-    // 2. 重算价格 + 3. 价格明显变动则 AI 缓存失效
+    // 2. 重算价格 + 3. 价格明显变动则 AI 缓存失效（盲盒按单款 variantChar；まとめ売り款跳过）
     goods.forEach(ge => {
-      const avg = this._goodsAvgPrice(ge);
-      m.listings.filter(l => l.goodsEntryId === ge.id && l.status === 'on_sale')
+      m.listings.filter(l => l.goodsEntryId === ge.id && l.status === 'on_sale' && !l.bundleQty)
         .forEach(l => {
+          const avg = this._avgPriceFor(ge, l.variantChar);
           const np = this._listingPrice(avg, l.sellerType);
           if (l.price > 0 && Math.abs(np - l.price) / l.price > 0.1) {
             l._prevPrice = l.price;            // 供涨幅榜用
@@ -229,12 +287,14 @@ const Mercari = {
         });
     });
 
-    // 4. 推进售罄：on_sale 出品按热度小比例转 sold
+    // 4. 推进售罄：on_sale 出品按热度小比例转 sold（盲盒按单款热度）
     goods.forEach(ge => {
-      const heatNorm = Math.min(1, (this._goodsAvgPrice(ge) /
-        Math.max(1,(ge.goods.price||1)) - 1) / 4);
       m.listings.filter(l => l.goodsEntryId === ge.id && l.status === 'on_sale')
-        .forEach(l => { if (Math.random() < 0.1 + heatNorm * 0.2) l.status = 'sold'; });
+        .forEach(l => {
+          const heatNorm = Math.min(1, (this._avgPriceFor(ge, l.variantChar) /
+            Math.max(1,(ge.goods.price||1)) - 1) / 4);
+          if (Math.random() < 0.1 + heatNorm * 0.2) l.status = 'sold';
+        });
     });
 
     m.lastRefreshPlotId = plotId;
@@ -262,15 +322,16 @@ const Mercari = {
       }
     });
 
-    // 2. 上新：每个周边小概率有新卖家挂出 1–2 件
+    // 2. 上新：每个周边小概率有新卖家挂出 1–2 件（盲盒：每件随机一个角色款）
     goods.forEach(ge => {
       if (Math.random() < 0.55) {
-        const avg = this._goodsAvgPrice(ge);
         const cnt = 1 + Math.floor(Math.random() * 2);
         for (let i = 0; i < cnt; i++) {
           const r = Math.random();
           const type = r < 0.05 ? 'counterfeit' : (r < 0.18 ? 'scalper' : 'normal');
-          m.listings.push(this._makeListing(ge, avg, type));
+          const vc = this._pickVariant(ge);
+          const avg = this._avgPriceFor(ge, vc);
+          m.listings.push(this._makeListing(ge, avg, type, vc));
           added++;
         }
       }
@@ -282,11 +343,12 @@ const Mercari = {
     });
 
     // 4. 价格波动：部分在售出品重新定价（明显变动则 AI 缓存失效）
+    //    盲盒按单款均价（l.variantChar）；まとめ売り打包款不参与单件重定价
     goods.forEach(ge => {
-      const avg = this._goodsAvgPrice(ge);
-      m.listings.filter(l => l.goodsEntryId === ge.id && l.status === 'on_sale')
+      m.listings.filter(l => l.goodsEntryId === ge.id && l.status === 'on_sale' && !l.bundleQty)
         .forEach(l => {
           if (Math.random() < 0.3) {
+            const avg = this._avgPriceFor(ge, l.variantChar);
             const np = this._listingPrice(avg, l.sellerType);
             if (l.price > 0 && Math.abs(np - l.price) / l.price > 0.08) {
               l._prevPrice = l.price; l.price = np;
@@ -304,22 +366,16 @@ const Mercari = {
   },
 
   // 生成单个出品骨架（refreshMarket 上新用）
-  _makeListing(ge, avg, type) {
-    return {
-      id: Utils.generateId(),
-      goodsEntryId: ge.id,
-      sellerName: this._pick(this._SELLER_NAMES),
-      sellerType: type,
-      sellerRating: { stars: 3 + Math.floor(Math.random() * 3),
-                      count: 5 + Math.floor(Math.random() * 250) },
-      condition: this._pick(this._CONDITIONS),
-      price: this._listingPrice(avg, type),
-      status: 'on_sale',
-      flaggedFake: false,
-      eventTag: null,
-      createdAtPlotId: this._currentPlotCount(),
-      aiGenerated: false, sellerIntro: '', comments: []
-    };
+  _makeListing(ge, avg, type, variantChar) {
+    return this._buildListing(ge, avg, type, variantChar || null, 'on_sale');
+  },
+
+  // 盲盒某周边随机挑一个角色款（上新/事件时给单件指定 variantChar）；非盲盒返回 null
+  _pickVariant(ge) {
+    const g = ge.goods;
+    if (!g.blindBox) return null;
+    const chars = g.charNames || [];
+    return chars.length ? this._pick(chars) : null;
   },
 
   _preloadAll() {
@@ -350,6 +406,32 @@ const Mercari = {
     else if (this.currentScreen === 'search')   root.innerHTML = this._renderSearch();
     else if (this.currentScreen === 'favorites')root.innerHTML = this._renderFavorites();
     else if (this.currentScreen === 'settings') root.innerHTML = this._renderSettings();
+    this._loadGoodsImages(root);  // 回填官方周边商品图（卡片 + 详情）
+  },
+
+  // 懒填已生成的周边商品图 src（仿 Forum._loadGoodsImages）
+  async _loadGoodsImages(container) {
+    if (!container || typeof IllustGallery === 'undefined') return;
+    const imgs = container.querySelectorAll('img[data-illust-id]');
+    for (const img of imgs) {
+      const id = img.dataset.illustId;
+      if (id && !img.getAttribute('src')) {
+        try { const url = await IllustGallery.getUrl(id); if (url) img.src = url; }
+        catch (e) {}
+      }
+    }
+  },
+
+  // 商品图全屏查看
+  async _viewFullGoodsImage(illustId) {
+    if (typeof IllustGallery === 'undefined') return;
+    const url = await IllustGallery.getUrl(illustId);
+    if (!url) return;
+    const overlay = document.createElement('div');
+    overlay.className = 'tw-fullimg-overlay';
+    overlay.innerHTML = `<img src="${url}" class="tw-fullimg">`;
+    overlay.onclick = () => overlay.remove();
+    document.body.appendChild(overlay);
   },
 
   goScreen(screen, listingId) {
@@ -385,12 +467,26 @@ const Mercari = {
       <div class="mc-grid">${cards || `<div class="mc-placeholder">${I18n.t('mc.home_empty', '在售周边が登録されると、ここに出品が並びます')}</div>`}</div>`;
   },
 
+  // 出品显示标题：盲盒款 = 周边名 + 角色名（真 Mercari「○○ 缶バッジ 沖田総悟」式）；
+  // まとめ売り款再缀「まとめ売りN点」
+  _listingTitle(l, goodsEntry) {
+    const g = (goodsEntry && goodsEntry.goods) || {};
+    let t = g.name || (goodsEntry && goodsEntry.title) || I18n.t('mc.player_default_name', '周边');
+    if (l && l.variantChar) t += ' ' + l.variantChar;
+    if (l && l.bundleQty) t += ' ' + I18n.t('mc.bundle_suffix', { n: l.bundleQty });
+    return t;
+  },
+
   _listingCard(l, goodsEntry) {
     const g = goodsEntry.goods;
-    const title = this._escapeHtml(g.name || goodsEntry.title || I18n.t('mc.player_default_name', '周边'));
+    const title = this._escapeHtml(this._listingTitle(l, goodsEntry));
     const sold = l.status === 'sold' ? `<span class="mc-sold">${I18n.t('mc.status_sold', 'SOLD')}</span>` : '';
+    // 官方周边商品图（在放送局生成）→ 复用到 Mercari 卡片
+    const img = g.generatedImageId
+      ? `<img data-illust-id="${this._escapeHtml(g.generatedImageId)}" src="" alt="${title}">`
+      : '';
     return `<div class="mc-card" onclick="Mercari.goScreen('detail','${l.id}')">
-      <div class="mc-card-img">${sold}</div>
+      <div class="mc-card-img">${sold}${img}</div>
       <div class="mc-card-ti">${title}</div>
       <div class="mc-card-pr">¥${l.price.toLocaleString()}</div>
     </div>`;
@@ -402,11 +498,13 @@ const Mercari = {
     if (!l) return `<div class="mc-placeholder">${I18n.t('mc.listing_not_found', '出品が見つかりません')}</div>`;
     const ge = this._goodsById(l.goodsEntryId);
     const g = ge ? ge.goods : { name: I18n.t('mc.player_default_name', '周边'), price:0, rarity:'通常' };
+    const detailImgId = ge && ge.goods && ge.goods.generatedImageId;
 
-    // 相场基准：用价格引擎算的二手均价（确定值，不受个别黄牛/假货出品污染）
-    const avg = ge ? this._goodsAvgPrice(ge) : l.price;
+    // 相场基准：用价格引擎算的单款二手均价（盲盒按 variantChar，不受个别黄牛/假货污染）
+    const avg = ge ? this._avgPriceFor(ge, l.variantChar) : l.price;
     const ratio = avg ? (l.price / avg) : 1;
     const fav = m.favorites.includes(l.id);
+    const title = this._listingTitle(l, ge);
 
     const intro = l.sellerIntro
       ? this._escapeHtml(l.sellerIntro)
@@ -420,15 +518,16 @@ const Mercari = {
 
     return `
       <div class="mc-d-bar" onclick="Mercari.goScreen('home')">${I18n.t('mc.back_home_link', '‹ ホーム')}</div>
-      <div class="mc-d-img"></div>
+      <div class="mc-d-img">${detailImgId ? `<img data-illust-id="${this._escapeHtml(detailImgId)}" src="" alt="${this._escapeHtml(title)}" onclick="Mercari._viewFullGoodsImage('${this._escapeHtml(detailImgId)}')">` : ''}</div>
       <div class="mc-d-pad">
-        <div class="mc-d-name">${this._escapeHtml(g.name)}</div>
+        <div class="mc-d-name">${this._escapeHtml(title)}</div>
         <div class="mc-d-price">¥${l.price.toLocaleString()}</div>
         ${l.status === 'sold' ? `<div class="mc-d-soldtag">${I18n.t('mc.listing_sold', '売り切れました')}</div>` : ''}
         ${l.flaggedFake ? `<div class="mc-d-fake">${I18n.t('mc.fake_warning', '偽物の疑い（コメントで指摘あり）')}</div>` : ''}
         <div class="mc-d-meta">
           <div>${I18n.t('mc.condition_label', '商品の状態')}　${this._escapeHtml(this._conditionLabel(l.condition))}</div>
           <div>${I18n.t('mc.category_label', 'カテゴリー')}　${this._escapeHtml(this._rarityLabel(g.rarity))}・${this._escapeHtml(g.type || '')}</div>
+          ${g.blindBox ? `<div>${I18n.t('mc.blind_label', 'ブラインド')}　${I18n.t('mc.blind_meta', { n: (g.charNames||[]).length, per: (g.price||0).toLocaleString() })}</div>` : ''}
         </div>
 
         <div class="mc-d-h">${I18n.t('mc.description_section', '商品の説明')}</div>
@@ -492,21 +591,16 @@ const Mercari = {
     const m = this._ensureData();
     const ge = this._goodsById(goodsEntryId);
     if (!ge) return;
-    const avg = this._goodsAvgPrice(ge);
     const sellerType = (type === 'fake_storm') ? 'counterfeit' : 'scalper';
     const n = 2 + Math.floor(Math.random() * 3);
     for (let i = 0; i < n; i++) {
-      m.listings.push({
-        id: Utils.generateId(), goodsEntryId,
-        sellerName: this._pick(this._SELLER_NAMES), sellerType,
-        sellerRating: { stars: 2 + Math.floor(Math.random()*3),
-                        count: 1 + Math.floor(Math.random()*40) },
-        condition: this._pick(this._CONDITIONS),
-        price: this._listingPrice(avg, sellerType),
-        status: 'on_sale', flaggedFake: false,
-        eventTag: type, createdAtPlotId: this._currentPlotCount(),
-        aiGenerated: false, sellerIntro: '', comments: []
-      });
+      const vc = this._pickVariant(ge);                  // 盲盒：随机一个角色款
+      const avg = this._avgPriceFor(ge, vc);
+      const l = this._buildListing(ge, avg, sellerType, vc, 'on_sale');
+      l.eventTag = type;
+      l.sellerRating = { stars: 2 + Math.floor(Math.random()*3),
+                         count: 1 + Math.floor(Math.random()*40) };  // 事件款低信誉
+      m.listings.push(l);
     }
     // 同周边已有出品的 AI 缓存失效（让留言区反映新风波）
     m.listings.filter(l => l.goodsEntryId === goodsEntryId).forEach(l => {
@@ -531,7 +625,7 @@ const Mercari = {
     // 注：sourceLabel/title 是发到 LINE 的卡片显示标签，按品牌名 fallback 用原文
     if (typeof LineTalk !== 'undefined' && LineTalk.showShareCharSelect) {
       LineTalk.showShareCharSelect('product', {
-        title: g.name || 'グッズ',
+        title: this._listingTitle(l, ge),
         circleName: l.sellerName || '',
         sourceLabel: 'メルカリ',
         coverEmoji: '🛍️',
@@ -555,17 +649,26 @@ const Mercari = {
   _listingPromptFacts(l, ge) {
     const g = ge ? ge.goods : {};
     const m = this._ensureData();
-    const sib = m.listings.filter(x => x.goodsEntryId === l.goodsEntryId).map(x => x.price).sort((a,b)=>a-b);
+    // 相場中央値：盲盒只比同角色款，避免被别的角色款价格污染
+    const sib = m.listings
+      .filter(x => x.goodsEntryId === l.goodsEntryId && (!g.blindBox || x.variantChar === l.variantChar))
+      .map(x => x.price).sort((a,b)=>a-b);
     const median = sib.length ? sib[Math.floor(sib.length/2)] : l.price;
     const roleMap = { normal:'普通の個人出品者', scalper:'転売ヤー（高額転売目的）',
                       counterfeit:'偽物を本物と偽って売る出品者' };
-    return [
-      `周辺グッズ：${g.name || ''}（${g.type||''}・${g.rarity||''}）`,
-      `関連キャラ：${(g.charNames||[]).join('、') || '不明'}`,
-      `定価 ¥${g.price||0} / 相場中央値 ¥${median} / この出品 ¥${l.price}`,
+    const facts = [`周辺グッズ：${this._listingTitle(l, ge)}（${g.type||''}・${g.rarity||''}）`];
+    if (g.blindBox) {
+      facts.push(`形式：ブラインドくじ／カプセル（全${(g.charNames||[]).length}種ランダム）の単品。この出品は「${l.variantChar||'不明'}」`);
+      if (l.bundleQty) facts.push(`まとめ売り：${l.bundleQty}点セット（ダブり・不人気キャラの処分が多い）`);
+    } else {
+      facts.push(`関連キャラ：${(g.charNames||[]).join('、') || '不明'}`);
+    }
+    facts.push(
+      `定価（単価）¥${g.price||0} / 相場中央値 ¥${median} / この出品 ¥${l.price}`,
       `出品者の正体：${roleMap[l.sellerType]}`,
       `商品状態：${l.condition}`
-    ].join('\n');
+    );
+    return facts.join('\n');
   },
 
   async generateListingContent(listing) {
@@ -665,27 +768,40 @@ const Mercari = {
   },
 
   // ── 行情聚合工具 ──
-  // 按角色聚合在售周边均价
+  // 按角色聚合在售周边均价（盲盒按单款 variantChar，含没配声优的冷门角色）
   _charMarket() {
-    const rows = this.characterList().map(name => {
-      const goods = this._listedGoods().filter(e => (e.goods.charNames||[]).includes(name));
-      if (!goods.length) return null;
-      const prices = goods.map(g => this._goodsAvgPrice(g));
+    const m = this._ensureData();
+    const listed = this._listedGoods();
+    const rows = this._allMarketChars().map(name => {
+      const prices = [];
+      let count = 0;
+      listed.forEach(ge => {
+        const g = ge.goods;
+        if (g.blindBox) {
+          if ((g.charNames || []).includes(name)) {
+            prices.push(this._avgPriceFor(ge, name));
+            count += m.listings.filter(l => l.goodsEntryId === ge.id && l.variantChar === name).length;
+          }
+        } else if ((g.charNames || []).includes(name)) {
+          prices.push(this._goodsAvgPrice(ge));
+          count += m.listings.filter(l => l.goodsEntryId === ge.id).length;
+        }
+      });
+      if (!prices.length) return null;
       const avg = Math.round(prices.reduce((a,b)=>a+b,0) / prices.length);
-      const listed = this._ensureData().listings.filter(l =>
-        goods.some(g => g.id === l.goodsEntryId));
-      return { name, avg, count: listed.length, heat: this._characterHeat(name) };
+      return { name, avg, count, heat: this._characterHeat(name) };
     }).filter(Boolean);
-    // CP 作为一行
+    // CP 作为一行（盲盒为单人款，不计入 CP）
     const cp = this.getCP();
     if (cp) {
-      const cpGoods = this._listedGoods().filter(e => {
+      const cpGoods = listed.filter(e => {
+        if (e.goods.blindBox) return false;
         const cn = e.goods.charNames || [];
         return cn.includes(cp.a) && cn.includes(cp.b);
       });
       if (cpGoods.length) {
         const prices = cpGoods.map(g => this._goodsAvgPrice(g));
-        const cpListed = this._ensureData().listings.filter(l =>
+        const cpListed = m.listings.filter(l =>
           cpGoods.some(g => g.id === l.goodsEntryId));
         rows.push({ name: `${cp.nickname}${I18n.t('mc.cp_suffix', '（CP）')}`,
           avg: Math.round(prices.reduce((a,b)=>a+b,0)/prices.length),
@@ -720,7 +836,7 @@ const Mercari = {
     const risen = m.listings
       .filter(l => l._prevPrice && l.price > l._prevPrice)
       .map(l => { const ge = this._goodsById(l.goodsEntryId);
-        return ge ? { name: ge.goods.name, from: l._prevPrice, to: l.price,
+        return ge ? { name: this._listingTitle(l, ge), from: l._prevPrice, to: l.price,
           pct: Math.round((l.price/l._prevPrice - 1) * 100) } : null; })
       .filter(Boolean).sort((a,b) => b.pct - a.pct).slice(0, 5);
     const risenRows = risen.map((r,i) => `
@@ -740,7 +856,7 @@ const Mercari = {
 
   // ── さがす（按角色 / CP / 类型筛选）──
   _renderSearch() {
-    const chars = this.characterList();
+    const chars = this._allMarketChars();
     const chips = chars.map(c =>
       `<button class="mc-chip" data-mc-char="${this._escapeHtml(c)}" onclick="Mercari.searchByChip(this)">${this._escapeHtml(c)}</button>`).join('');
     const results = (this._searchResults || []).map(l => {
@@ -760,9 +876,16 @@ const Mercari = {
   searchBy(kind, value) {
     const m = this._ensureData();
     if (kind === 'char') {
-      const ids = this._listedGoods()
-        .filter(e => (e.goods.charNames||[]).includes(value)).map(e => e.id);
-      this._searchResults = m.listings.filter(l => ids.includes(l.goodsEntryId));
+      const goodsMap = {};
+      this._listedGoods().forEach(e => goodsMap[e.id] = e);
+      this._searchResults = m.listings.filter(l => {
+        const ge = goodsMap[l.goodsEntryId];
+        if (!ge) return false;
+        const g = ge.goods;
+        // 盲盒：精确到该角色款（不把整个系列倒出来）；普通：按条目关联角色
+        if (g.blindBox) return l.variantChar === value;
+        return (g.charNames || []).includes(value);
+      });
     }
     this.currentScreen = 'search';
     this.render();

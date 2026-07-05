@@ -8,6 +8,8 @@ const DataExport = {
         { key: 'broadcast', label: '放送局（世界设定 / 剧情 / 情报 / 角色）', i18nKey: 'data_export.broadcast', fields: ['broadcast'] },
         { key: 'forum', label: '论坛', i18nKey: 'data_export.forum', fields: ['forumData'] },
         { key: 'twitter', label: '推特', i18nKey: 'data_export.twitter', fields: ['twitterData'] },
+        { key: 'weibo', label: '微博', i18nKey: 'data_export.weibo', fields: ['weiboData'] },
+        { key: 'lofter', label: 'Lofter', i18nKey: 'data_export.lofter', fields: ['lofterData'] },
         { key: 'pixiv', label: 'Pixiv', i18nKey: 'data_export.pixiv', fields: ['pixivData'] },
         { key: 'magazine', label: '杂志', i18nKey: 'data_export.magazine', fields: ['magazineData'] },
         { key: 'melonbooks', label: 'メロンブックス', i18nKey: 'data_export.melonbooks', fields: ['melonbooksData'] },
@@ -23,6 +25,12 @@ const DataExport = {
         { key: 'wallet', label: '支付 & 钱包', i18nKey: 'data_export.wallet', fields: ['wallet', 'payments'] },
         { key: 'worldbook', label: '世界书', i18nKey: 'data_export.worldbook', fields: ['worldBooks'] },
         { key: 'system', label: 'API 与系统设置', i18nKey: 'data_export.system', fields: ['apiConfig', 'imageApiConfig', 'novelaiSettings', 'ttsConfig', 'systemConfig', 'apiPresets', 'imageGenModules'] }
+    ],
+
+    // 跨模块共享依赖：key 模块的数据引用了 needs 模块的实体（lofter 文手存微博 NPC 池 / 月读书引用世界书），
+    // 单独导出 key 不带 needs，换设备导入后会断链。勾了 key 没勾 needs 时弹提示建议一并勾选。
+    DEPENDENCIES: [
+        { key: 'lofter', needs: 'weibo', i18nKey: 'data_export.dep_hint_lofter' }
     ],
 
     _selected: new Set(),
@@ -82,6 +90,8 @@ const DataExport = {
     closeModal() {
         const m = document.getElementById('dataModuleModal');
         if (m) m.classList.remove('active');
+        const hint = document.getElementById('dataModuleDepHint');
+        if (hint) { hint.style.display = 'none'; hint.innerHTML = ''; }
         this._mode = null;
         this._pendingImport = null;
     },
@@ -95,12 +105,35 @@ const DataExport = {
             if (checked) this._selected.add(key);
             else this._selected.delete(key);
         });
+        this._updateDepHint();
     },
 
     _onCheckChange(event) {
         const key = event.target.dataset.modKey;
         if (event.target.checked) this._selected.add(key);
         else this._selected.delete(key);
+        this._updateDepHint();
+    },
+
+    // 勾了某模块却漏勾它依赖的共享模块时，弹一条建议（导入时仅当文件里确实含被依赖模块才提示）
+    _updateDepHint() {
+        const box = document.getElementById('dataModuleDepHint');
+        if (!box) return;
+        const selectable = this._mode === 'import' ? this._modulesPresentIn(this._pendingImport) : null;
+        const msgs = [];
+        for (const d of this.DEPENDENCIES) {
+            if (this._selected.has(d.key) && !this._selected.has(d.needs) &&
+                (!selectable || selectable.has(d.needs))) {
+                msgs.push(I18n.t(d.i18nKey));
+            }
+        }
+        if (msgs.length) {
+            box.innerHTML = msgs.map(m => `<div>${m}</div>`).join('');
+            box.style.display = 'block';
+        } else {
+            box.style.display = 'none';
+            box.innerHTML = '';
+        }
     },
 
     // ===== 内部 =====
@@ -138,6 +171,7 @@ const DataExport = {
             </label>`;
         }).join('');
         modal.classList.add('active');
+        this._updateDepHint();
     },
 
     _performSelectiveExport() {

@@ -19,6 +19,19 @@ const Lofter = {
     // ========== 4 类活跃 NPC type（其他 3 类静默过滤）==========
     LOFTER_ACTIVE_TYPES: ['fan_writer', 'fan_artist', 'cp_fan', 'info_station'],
 
+    // ========== v2.171.0 长篇品质（月读机制并入）==========
+    FULL_TEXT_WINDOW: 5,   // 长篇滑窗：最近 N 章全文、更早给摘要（原 3、对齐月读 5）
+
+    // 女性向写作立场（逐字搬自月读、注入长篇章节 prompt）。提大方向、不写具体例子，避免路径固化。
+    _NARRATIVE_STANCE: `【写作立场 · 女性向长篇】
+读者是女性，叙事服务于女性的情感体验与代入。把握以下基调（这是底层立场，不是要逐条点名照搬的清单）：
+· 女性角色拥有完整的主体性、专业能力与判断力——她们的身份、职业与选择是叙事理所当然的前提，无需被质疑或"解释为何合理"。
+· 叙事声音站在理解人物的位置，而非默认审视、怀疑女性。戏剧张力来自真实的处境、关系与抉择，不靠贬低、矮化或否定女性来制造冲突。
+· 让人物依其自身逻辑行动，避免套用刻板的性别模板。
+· 写出人物的深度与弧光——角色不止于单一标签或表面行为，挖掘其动机、内心、成长轨迹与过去；即便配角或反派，言行也应有可追溯的心理成因，让人物随剧情立体、可信、流动。
+· 尊重而不弱化女性，但也不流于说教或性别对立——魅力来自人物本身的鲜活与故事的可信。
+若本作基于既有原作（可从角色与世界设定辨识）：让原作人物保持其核心性格、关系与行事逻辑，他们在新剧情中的言行与走向要符合原作、合理可信，不为情节需要而扭曲人物（OOC）；若为原创设定，则依世界观自身的内在逻辑塑造人物。`,
+
     // ========== v2.82.0 短文「文章类型」预设（compose 二级菜单用、用户显式选形态）==========
     // preferType: 倾向挑的 NPC type（联动、有货优先、没货 fallback 全池）
     // baseType:   解析后强制覆盖 article.type（short / meta）
@@ -36,6 +49,7 @@ const Lofter = {
 
     init() {
         this._ensureDataSchema();
+        this._ensureWritingStyleDefaults();   // v2.171.0 文风库补种/月读搬运
         this._migrateExistingNpcs();
         this.applyDarkMode();
         this.bindEvents();
@@ -150,6 +164,7 @@ const Lofter = {
                 showInvalidArticles: true,
                 autoGenOnNewPlot: false,         // 仿 pixiv 同款独立开关
                 autoGenCount: 2,                 // 1-5、剧情更新触发时生成 N 篇
+                chapterLength: 'medium',         // v2.171.0 长篇每章篇幅（月读机制并入）short/medium/long
                 writingStyles: this._getDefaultWritingStyles()  // v2.81.0 长篇合集文风预设（内置 5 款、lofter 独立、_ensureDataSchema 自动给老存档补全）
             }
         };
@@ -194,7 +209,20 @@ const Lofter = {
                 description: '诗意向、意象丰富',
                 rules: '意象密集、叙事可跳跃、多用通感与比喻、重视语言韵律和氛围营造、心理与外景交融；情绪先于情节、允许留白和未尽之语。',
                 enabled: true
-            }
+            },
+            // ===== v2.171.0 月读文风并入（固定 id；老存档由 _ensureWritingStyleDefaults 补种）=====
+            { id: 'lof_style_yq',       name: '细腻言情',   description: '情绪流、心理与感官描写为主、慢节奏', enabled: true,
+              rules: '以细腻的笔触铺陈人物的内心活动与情感流动，重视心理描写和感官细节（光线、气味、触感、神态）。节奏舒缓，给情绪留出呼吸的空间，让关系的推进通过细微的眼神、停顿、欲言又止来体现，而非直白交代。多用具体场景承载情绪，少用抽象议论。' },
+            { id: 'lof_style_shuang',   name: '爽文快节奏', description: '强钩子、推进快、爽点密集', enabled: true,
+              rules: '情节驱动，节奏明快，每一段都往前推进剧情。开篇即抛出钩子，冲突来得快、解决得利落，及时给到爽点与正反馈。对话简洁有力，少铺垫多动作，避免冗长环境描写拖慢节奏。章节结尾留悬念或翻盘，吊住读者往下读。' },
+            { id: 'lof_style_gufeng',   name: '古风正剧',   description: '文白相间、群像权谋、克制内敛', enabled: true,
+              rules: '语言文白相间，遣词典雅而不堆砌，符合古代背景的称谓、礼仪与器物。叙事克制内敛，情感含蓄，重在群像刻画与局势、权谋的铺陈。多用对仗、留白与意在言外的表达，冲突常藏在言语机锋与人物算计之下，少直抒胸臆。' },
+            { id: 'lof_style_wenyi',    name: '文艺向',     description: '意象与留白、慢节奏、重氛围', enabled: true,
+              rules: '注重意象、氛围与留白，文字讲究质感与韵律。叙事节奏缓慢，情节淡化，更在意瞬间的感受、记忆的碎片与环境的隐喻。多用通感与具象意象承载情绪，结构可松散或非线性，结尾不必给明确答案，留余韵。' },
+            { id: 'lof_style_suspense', name: '悬疑暗黑',   description: '压抑氛围、反转、信息控制', enabled: true,
+              rules: '营造压抑、不安的氛围，节奏张弛有度。严格控制信息释放，通过悬念、误导与伏笔牵引读者，关键真相延后揭晓并安排反转。环境与心理描写服务于紧张感，多用短句与停顿制造压迫。基调偏冷峻阴郁，但不渲染血腥猎奇，张力来自未知与人心。' },
+            { id: 'lof_style_healing',  name: '日常治愈',   description: '轻松生活流、低冲突、温暖', enabled: true,
+              rules: '轻松温暖的生活流叙事，低冲突、慢生活。聚焦日常的小确幸——一顿饭、一场雨、一句闲谈——从细节里生出暖意。语气亲切松弛，节奏舒缓，偶有小波澜也以温和方式化解。多写人与人之间的善意与陪伴，给读者放松、被治愈的感觉。' }
         ];
     },
 
@@ -216,11 +244,47 @@ const Lofter = {
         return styles.find(s => s.id === collection.writingStyleId) || null;
     },
 
+    // v2.171.0 文风库迁移：老存档补种新增默认款 + 一次性搬运月读自定义文风（月读并入、文风全并）
+    _ensureWritingStyleDefaults() {
+        const ld = AppState.data.lofterData;
+        if (!ld || !ld.settings) return;
+        if (!Array.isArray(ld.settings.writingStyles)) ld.settings.writingStyles = [];
+        const styles = ld.settings.writingStyles;
+        let changed = false;
+        // 1) 默认款按固定 id 补种（不覆盖用户已有同 id 款的 enabled 状态）
+        this._getDefaultWritingStyles().forEach(def => {
+            if (!styles.some(s => s.id === def.id)) { styles.push({ ...def }); changed = true; }
+        });
+        // 2) 月读自定义文风一次性搬运（按 name 去重：月读内置 6 款与上面的默认款同名、自动跳过）
+        if (!ld.yueduStylesMerged) {
+            (AppState.data.yueduData?.settings?.writingStyles || []).forEach(s => {
+                if (!s || !s.name || !s.rules) return;
+                if (styles.some(x => x.name === s.name)) return;
+                styles.push({ id: 'lof_style_yd_' + this._uuid(), name: s.name, description: s.description || '', rules: s.rules, enabled: s.enabled !== false });
+                changed = true;
+            });
+            ld.yueduStylesMerged = true;
+            changed = true;
+        }
+        if (changed) Utils.saveData();
+    },
+
     // 文风对象 → 注入章节 prompt 的指令块（无文风返回空串）
     _styleInstructionFor(style) {
         return style && style.rules
             ? `\n【文风要求（本合集统一文风、续章保持一致）】\n${style.rules}\n`
             : '';
+    },
+
+    // v2.171.0 每章篇幅（月读机制并入）：settings.chapterLength → 篇幅描述 + 最小字数
+    _chapterLengthSpec() {
+        const len = AppState.data.lofterData?.settings?.chapterLength || 'medium';
+        const map = {
+            short:  { label: '约 800–1200 字、紧凑利落、不灌水', min: 800 },
+            medium: { label: '约 1500–2500 字、铺陈与推进兼顾', min: 1500 },
+            long:   { label: '约 2800–4000 字、充分展开场景、对话与心理描写', min: 2800 }
+        };
+        return map[len] || map.medium;
     },
 
     // ========== 老存档 NPC 迁移：补 lofter:{} 子字段 ==========
@@ -327,6 +391,48 @@ const Lofter = {
             context += `【主要 CP】${cp.cpCharA} × ${cp.cpCharB}${nick}\n`;
         }
         return context;
+    },
+
+    // ===== v2.170.0 per-collection 世界观（月读 _buildBookContext 机制并入）=====
+    // worldMode 'main'（含 undefined、老合集）：全站 Forum 上下文 + 可选加选世界书（综漫同场）
+    // worldMode 'other'：只用合集绑定的世界书 + 合集自带 CP，不带主世界剧情/官方情报
+    _worldBookEntriesText(wbs) {
+        return wbs.map(wb => {
+            const entries = (wb.entries || []).filter(e => e.enabled !== false)
+                .map(e => `[${e.title}] ${e.content}`).join('\n');
+            return `【世界书「${wb.name}」】\n${entries}`;
+        }).join('\n\n');
+    },
+
+    _collectionCPText(cp) {
+        if (!cp) return '';
+        if (cp.mode === 'pair' && cp.male && cp.female) {
+            return `【CP设定】本合集固定 CP：${cp.male} × ${cp.female}。不得拆对、不得改配。`;
+        }
+        if (cp.mode === 'allOC') return '【CP设定】全员原创角色、无原著人物。';
+        if (cp.mode === 'none') return '【CP设定】无指定 CP、按剧情自然发展、不强行配对。';
+        return '';
+    },
+
+    _getCollectionWorldContext(collection) {
+        if (!collection || collection.worldMode !== 'other') {
+            let ctx = this._getWorldContext();
+            const extraIds = collection?.worldBookIds || [];
+            if (extraIds.length) {
+                const activeIds = new Set((typeof Utils !== 'undefined' && Utils.getActiveWorldBookIds) ? (Utils.getActiveWorldBookIds() || []) : []);
+                const extras = (AppState.data.worldBooks || []).filter(wb => extraIds.includes(wb.id) && !activeIds.has(wb.id));
+                if (extras.length) {
+                    ctx += `\n\n【跨界世界书（本合集加选、与主世界同场的综漫设定）】\n${this._worldBookEntriesText(extras)}`;
+                }
+            }
+            return ctx;
+        }
+        const wbs = (AppState.data.worldBooks || []).filter(wb => (collection.worldBookIds || []).includes(wb.id));
+        const parts = [];
+        if (wbs.length) parts.push(this._worldBookEntriesText(wbs));
+        const cpText = this._collectionCPText(collection.cp);
+        if (cpText) parts.push(cpText);
+        return parts.join('\n\n');
     },
 
     // ========== _callLLM（共用微博中文圈 API override）==========
@@ -768,6 +874,7 @@ ${npcLines}
             f.lofter?.enabled !== false && this.LOFTER_ACTIVE_TYPES.includes(f.type)
         )).length === 0;
         const canCreateCollection = eligibleWriters.length > 0;
+        const canCreateOtherIP = (AppState.data.worldBooks || []).length > 0;   // v2.170.0 其他 IP 合集只需要世界书、不需要 NPC
 
         // v2.81.0 合集文风下拉选项（内置 5 款 enabled、仅长篇连载用）
         const _enabledStyles = (AppState.data.lofterData?.settings?.writingStyles || []).filter(s => s.enabled);
@@ -796,7 +903,7 @@ ${npcLines}
                 </div>
                 <div class="lof-compose-note">${I18n.t('lofter.compose_modal_note', 'Lofter 是创作主战场、用户不发文 — 但可以主动让 NPC 太太们写新内容')}</div>
                 ${npcPoolEmpty ? `<div class="lof-compose-empty-warn">${I18n.t('lofter.compose_npc_pool_empty', '中文圈 NPC 池为空、请先在微博 / 放送局填充 CP 设定再来')}</div>` : ''}
-                <div class="lof-compose-options ${npcPoolEmpty ? 'disabled' : ''}">
+                <div class="lof-compose-options ${(npcPoolEmpty && !canCreateOtherIP) ? 'disabled' : ''}">
                     <button class="lof-compose-option" id="lofComposeShort" ${npcPoolEmpty ? 'disabled' : ''}>
                         <div class="lof-compose-opt-icon" style="background:#ffe0e8;color:#ff6b9d">
                             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
@@ -807,18 +914,18 @@ ${npcLines}
                         </div>
                         ${npcPoolEmpty ? '' : arrowSvg}
                     </button>
-                    <button class="lof-compose-option" id="lofComposeCollection" ${(npcPoolEmpty || !canCreateCollection) ? 'disabled' : ''}>
+                    <button class="lof-compose-option" id="lofComposeCollection" ${(!canCreateCollection && !canCreateOtherIP) ? 'disabled' : ''}>
                         <div class="lof-compose-opt-icon" style="background:#dceffd;color:#3b82f6">
                             <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                         </div>
                         <div class="lof-compose-opt-body">
                             <div class="lof-compose-opt-title">${I18n.t('lofter.compose_collection_title', '让 NPC 开个新合集（长篇连载）')}</div>
-                            <div class="lof-compose-opt-desc">${canCreateCollection
+                            <div class="lof-compose-opt-desc">${(canCreateCollection || canCreateOtherIP)
                                 ? I18n.t('lofter.compose_collection_desc', '从同人文手 NPC 池挑 1 位、生成合集元数据 + 写第 1 章（1500-3000 字）')
                                 : I18n.t('lofter.compose_collection_disabled', '需要至少 1 位发过文的同人文手 NPC、先用「短文」给文手们攒发文记录')
                             }</div>
                         </div>
-                        ${(npcPoolEmpty || !canCreateCollection) ? '' : arrowSvg}
+                        ${(!canCreateCollection && !canCreateOtherIP) ? '' : arrowSvg}
                     </button>
                 </div>
                 <div class="lof-compose-note" style="text-align:left; padding:0 16px 18px; color:#888;">
@@ -886,18 +993,59 @@ ${npcLines}
             };
         };
 
-        // ===== 二级 B：合集表单（由谁来写 + 主题方向 + 文风）=====
+        // ===== 二级 B：合集表单（世界观 + 由谁来写 / 一次性作者 + 主题方向 + 文风）=====
         const renderCollectionForm = () => {
             // v2.141.0 点名：只列够格的同人文手（发过 ≥1 篇）
             const colWriterOpts = this._buildWriterOptions(eligibleWriters);
+            const activeIds = new Set((typeof Utils !== 'undefined' && Utils.getActiveWorldBookIds) ? (Utils.getActiveWorldBookIds() || []) : []);
+            const allWbs = AppState.data.worldBooks || [];
+            const extraWbs = allWbs.filter(wb => !activeIds.has(wb.id));   // 主世界模式的加选池（active 之外的书）
+            const wbCheckboxes = (list, cls) => list.length
+                ? list.map(wb => `<label class="lof-wb-opt"><input type="checkbox" class="${cls}" value="${wb.id}"><span>${this._escapeHtml(wb.name)}</span></label>`).join('')
+                : `<div class="lof-settings-hint">${I18n.t('lofter.compose_world_none_hint', '还没有可选的世界书 — 先去世界书 app 建一本')}</div>`;
+
             inner.innerHTML = `
                 <div class="lof-compose-bar">
                     <button class="lof-compose-back" id="lofComposeBack">‹</button>
                     <div class="lof-compose-title">${I18n.t('lofter.compose_col_step_title', '让 NPC 开新合集')}</div>
                 </div>
                 <div class="lof-compose-hint-wrap">
-                    <label class="lof-compose-hint-label">${I18n.t('lofter.compose_writer_label', '由谁来写')}</label>
-                    <select id="lofColWriter" class="lof-compose-style-select">${colWriterOpts}</select>
+                    <label class="lof-compose-hint-label">${I18n.t('lofter.compose_world_label', '世界观')}</label>
+                    <div class="lof-atype-list">
+                        <label class="lof-atype-opt"><input type="radio" name="lofColWorld" value="main" ${canCreateCollection ? 'checked' : 'disabled'}><span class="lof-atype-dot"></span><span class="lof-atype-name">${I18n.t('lofter.compose_world_main', '主世界（跟随放送局）')}</span></label>
+                        <label class="lof-atype-opt"><input type="radio" name="lofColWorld" value="other" ${canCreateCollection ? '' : 'checked'} ${allWbs.length ? '' : 'disabled'}><span class="lof-atype-dot"></span><span class="lof-atype-name">${I18n.t('lofter.compose_world_other', '其他 IP（自选世界书）')}</span></label>
+                    </div>
+                    ${canCreateCollection ? '' : `<div class="lof-settings-hint">${I18n.t('lofter.compose_main_need_writer', '主世界合集需要至少 1 位发过文的同人文手 — 先用「短文」攒发文记录、或切「其他 IP」')}</div>`}
+                </div>
+                <div id="lofColMainBlock">
+                    <div class="lof-compose-hint-wrap">
+                        <label class="lof-compose-hint-label">${I18n.t('lofter.compose_writer_label', '由谁来写')}</label>
+                        <select id="lofColWriter" class="lof-compose-style-select">${colWriterOpts}</select>
+                    </div>
+                    ${extraWbs.length ? `<div class="lof-compose-hint-wrap">
+                        <label class="lof-compose-hint-label">${I18n.t('lofter.compose_world_extra_label', '加选世界书（选填、综漫同场用）')}</label>
+                        <div class="lof-wb-list">${wbCheckboxes(extraWbs, 'lof-col-wb-extra')}</div>
+                    </div>` : ''}
+                </div>
+                <div id="lofColOtherBlock" style="display:none">
+                    <div class="lof-compose-hint-wrap">
+                        <label class="lof-compose-hint-label">${I18n.t('lofter.compose_world_pick_label', '选择世界书（必选、可多选）')}</label>
+                        <div class="lof-wb-list">${wbCheckboxes(allWbs, 'lof-col-wb-other')}</div>
+                    </div>
+                    <div class="lof-compose-hint-wrap">
+                        <label class="lof-compose-hint-label">${I18n.t('lofter.compose_cp_label', 'CP 设定（本合集）')}</label>
+                        <select id="lofColCpMode" class="lof-compose-style-select">
+                            <option value="pair">${I18n.t('lofter.compose_cp_mode_pair', '指定 CP')}</option>
+                            <option value="allOC">${I18n.t('lofter.compose_cp_mode_alloc', '全员原创')}</option>
+                            <option value="none">${I18n.t('lofter.compose_cp_mode_none', '无 CP（自然发展）')}</option>
+                        </select>
+                        <div id="lofColCpPair" class="lof-cp-pair-row">
+                            <input type="text" id="lofColCpA" class="lof-writer-edit-input" placeholder="${I18n.t('lofter.compose_cp_a_ph', '角色 A')}">
+                            <span class="lof-cp-x">×</span>
+                            <input type="text" id="lofColCpB" class="lof-writer-edit-input" placeholder="${I18n.t('lofter.compose_cp_b_ph', '角色 B')}">
+                        </div>
+                    </div>
+                    <div class="lof-settings-hint" style="padding:0 4px 8px">${I18n.t('lofter.compose_oneoff_hint', '其他 IP 的合集由「一次性作者」执笔：发布时自动生成一个新笔名、不进 NPC 名册、用完不复用。')}</div>
                 </div>
                 <div class="lof-compose-hint-wrap">
                     <label class="lof-compose-hint-label">${themeLabel}</label>
@@ -912,16 +1060,51 @@ ${npcLines}
                 </div>
             `;
             document.getElementById('lofComposeBack').onclick = () => renderStep1();
+            const mainBlock = document.getElementById('lofColMainBlock');
+            const otherBlock = document.getElementById('lofColOtherBlock');
+            const cpModeSel = document.getElementById('lofColCpMode');
+            const cpPairRow = document.getElementById('lofColCpPair');
+            const syncWorldMode = () => {
+                const mode = document.querySelector('input[name="lofColWorld"]:checked')?.value || 'main';
+                mainBlock.style.display = mode === 'main' ? '' : 'none';
+                otherBlock.style.display = mode === 'other' ? '' : 'none';
+            };
+            document.querySelectorAll('input[name="lofColWorld"]').forEach(r => { r.onchange = syncWorldMode; });
+            syncWorldMode();
+            cpModeSel.onchange = () => { cpPairRow.style.display = cpModeSel.value === 'pair' ? '' : 'none'; };
             document.getElementById('lofColSubmit').onclick = async () => {
                 const userPrompt = (document.getElementById('lofColHint')?.value || '').trim() || null;
                 const styleChoice = document.getElementById('lofColStyle')?.value || 'random';
+                const mode = document.querySelector('input[name="lofColWorld"]:checked')?.value || 'main';
+                if (mode === 'other') {
+                    const wbIds = [...document.querySelectorAll('.lof-col-wb-other:checked')].map(el => el.value);
+                    if (!wbIds.length) {
+                        Utils.showToast(I18n.t('lofter.compose_world_need_wb', '其他 IP 合集至少要选一本世界书'), 2500);
+                        return;
+                    }
+                    const cp = {
+                        male: (document.getElementById('lofColCpA')?.value || '').trim(),
+                        female: (document.getElementById('lofColCpB')?.value || '').trim(),
+                        mode: cpModeSel.value
+                    };
+                    if (cp.mode === 'pair' && (!cp.male || !cp.female)) cp.mode = 'none';   // 只填一半按无 CP 处理、不拦人
+                    close();
+                    Utils.showToast(I18n.t('lofter.toast_generating_collection_oneoff', '一次性作者动笔中、正在开新坑...'), 10000);
+                    const collection = await this._generateLofterCollection(null, null, userPrompt, styleChoice, { worldMode: 'other', worldBookIds: wbIds, cp });
+                    if (collection) {
+                        Utils.showToast(I18n.t('lofter.toast_collection_done', { name: collection.name }), 3500);
+                        setTimeout(() => this.openCollectionPage(collection.id), 600);
+                    }
+                    return;
+                }
                 const wSel = document.getElementById('lofColWriter')?.value || 'random';
+                const extraIds = [...document.querySelectorAll('.lof-col-wb-extra:checked')].map(el => el.value);
                 close();
                 // 点名 → 用指定文手；随机 → 从够格池随机
                 const picked = (wSel !== 'random' && eligibleWriters.find(w => w.id === wSel))
                     || eligibleWriters[Math.floor(Math.random() * eligibleWriters.length)];
                 Utils.showToast(I18n.t('lofter.toast_generating_collection', { name: picked.name }), 10000);
-                const collection = await this._generateLofterCollection(picked, null, userPrompt, styleChoice);
+                const collection = await this._generateLofterCollection(picked, null, userPrompt, styleChoice, extraIds.length ? { worldMode: 'main', worldBookIds: extraIds } : null);
                 if (collection) {
                     Utils.showToast(I18n.t('lofter.toast_collection_done', { name: collection.name }), 3500);
                     setTimeout(() => this.openCollectionPage(collection.id), 600);
@@ -940,7 +1123,7 @@ ${npcLines}
         const collection = (ld.collections || []).find(c => c.id === collectionId);
         if (!collection) return;
         const targetNum = (collection.chapterCount || 0) + 1;
-        const author = (AppState.data.weiboData?.fanFriends || []).find(f => f.id === collection.authorNpcId);
+        const author = this._getCollectionAuthor(collection);   // v2.170.0 oneoff 合集返回虚拟作者、可续写
         // v2.141.0 作者已删号退圈 → 无法续写（_generateNextLofterChapter 也会 return null）、提前拦下给明确提示
         if (!author) {
             Utils.showToast(I18n.t('lofter.next_ch_author_gone', '作者已注销、无法续写这个合集（旧章节仍保留）'), 3000);
@@ -958,6 +1141,10 @@ ${npcLines}
                     <div class="lof-next-ch-form">
                         <label class="lof-next-ch-label">${I18n.t('lofter.next_ch_hint_label', '本章方向（选填、留空让作者自由续写）')}</label>
                         <textarea id="lofNextChHint" rows="4" placeholder="${I18n.t('lofter.next_ch_hint_placeholder', '例：A 在雨夜中意外找到了独自疗伤的 B、终于说出了一直藏在心底的话。')}" class="lof-next-ch-textarea"></textarea>
+                        <label class="lof-next-ch-ending-row">
+                            <input type="checkbox" id="lofNextChEnding">
+                            <span>${I18n.t('lofter.next_ch_ending', '写成结局章（完结本合集）')}</span>
+                        </label>
                     </div>
                     <div class="lof-next-ch-actions">
                         <button class="lof-next-ch-btn cancel" id="lofNextChCancel">${I18n.t('lofter.btn_cancel', '取消')}</button>
@@ -978,11 +1165,14 @@ ${npcLines}
         };
         document.getElementById('lofNextChConfirm').onclick = async () => {
             const hint = (document.getElementById('lofNextChHint')?.value || '').trim();
+            const isEnding = !!document.getElementById('lofNextChEnding')?.checked;
             this._closeSubScreen('lofNextChapterModal');
             Utils.showToast(I18n.t('lofter.toast_generating_chapter_for', { name: collection.name }), 10000);
-            const chapter = await this._generateNextLofterChapter(collectionId, hint);
+            const chapter = await this._generateNextLofterChapter(collectionId, hint, { isEnding });
             if (chapter) {
-                Utils.showToast(I18n.t('lofter.toast_chapter_done', { n: chapter.chapterNum }), 3500);
+                Utils.showToast(isEnding
+                    ? I18n.t('lofter.toast_chapter_done_ending', '✓ 结局章已写完、本合集完结')
+                    : I18n.t('lofter.toast_chapter_done', { n: chapter.chapterNum }), 3500);
                 // 关闭旧合集页 + 重新打开（不嵌套）
                 this._closeSubScreen('lofCollectionSubScreen');
                 this.openCollectionPage(collectionId);
@@ -1235,6 +1425,14 @@ ${npcLines}
                 avatarLetter: ((npc.name || article.authorName || 'A') + '')[0]
             };
         }
+        // v2.170.0 一次性作者（其他 IP 合集）：无 npc id 但有笔名 → 正常显示笔名
+        if (!article.authorNpcId && article.authorName) {
+            return {
+                name: article.authorName,
+                avatarColor: this._colorFromString(article.authorName),
+                avatarLetter: (article.authorName + '')[0]
+            };
+        }
         // v2.141.0 作者已删号退圈：不再显示原名、统一「已注销作者」+ 灰头像
         return {
             name: I18n.t('lofter.deleted_author', '已注销作者'),
@@ -1321,6 +1519,9 @@ ${npcLines}
                 <button class="lof-detail-share-btn" aria-label="share">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
                 </button>
+                <button class="lof-detail-share-btn" id="lofDetailMore" aria-label="more">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+                </button>
             </div>
             <div class="lof-detail-body">
                 ${titleHtml}
@@ -1376,6 +1577,22 @@ ${npcLines}
                 this.openArticleDetail(articleId);
             };
         }
+        // v2.171.0 不感兴趣：短文/长评删单篇；连载章节删整个合集（单删章节会断章、语义上是「弃这个坑」）
+        const moreBtn = document.getElementById('lofDetailMore');
+        if (moreBtn) moreBtn.onclick = () => {
+            if (article.type === 'long' && article.collectionId) {
+                if (!confirm(I18n.t('lofter.del_chapter_confirm', '这是连载合集的章节 — 不感兴趣将删除整个合集及全部章节。确定吗？'))) return;
+                this._deleteCollection(article.collectionId);
+                this._closeSubScreen('lofCollectionSubScreen');
+            } else {
+                if (!confirm(I18n.t('lofter.del_article_confirm', '不感兴趣：这篇内容将被删除、互动记录一并清除。确定吗？'))) return;
+                this._deleteArticle(articleId);
+            }
+            this._closeSubScreen('lofArticleDetailSubScreen');
+            this._closeSubScreen('lofTagDetailSubScreen');
+            Utils.showToast(I18n.t('lofter.del_done', '已删除、不再展示'), 2500);
+            this.render();
+        };
         const favBtn = document.getElementById('lofDetailFav');
         if (favBtn) favBtn.onclick = () => this._handleArticleFavorite(articleId);
         const likeBtn = document.getElementById('lofDetailLikeBtn');
@@ -2069,8 +2286,26 @@ ${npcLines}
             .slice(0, 40);
     },
 
+    // v2.170.0 其他 IP 合集相关 tag（合集名 / 合集 CP / 绑定世界书名）不由主世界 NPC 懒加载补文——
+    // 那个世界只有一次性作者在写、中文圈太太们不掺和（世界观也对不上）。
+    _isOtherIPTag(tagName) {
+        const otherCols = (AppState.data.lofterData?.collections || []).filter(c => c.worldMode === 'other');
+        if (!otherCols.length) return false;
+        const names = new Set();
+        otherCols.forEach(c => {
+            if (c.name) names.add(c.name);
+            const ccp = c.cp || {};
+            if (ccp.mode === 'pair' && ccp.male && ccp.female) names.add(`${ccp.male}×${ccp.female}`);
+            (AppState.data.worldBooks || [])
+                .filter(wb => (c.worldBookIds || []).includes(wb.id))
+                .forEach(wb => names.add(wb.name));
+        });
+        return names.has(tagName);
+    },
+
     // Lazy seed: 进 tag 详情时 articles < 5 → 调一次 LLM 生成 5 篇该 tag 文章
     async _lazySeedTagArticles(tagName, count = 5) {
+        if (this._isOtherIPTag(tagName)) return;   // v2.170.0 其他 IP tag 只有该合集的章节、不补主世界 NPC 文
         if (this._lazyTagLock[tagName]) return;
         this._lazyTagLock[tagName] = true;
 
@@ -2175,7 +2410,7 @@ COMMENT_1: [昵称]|[内容]
         // 合集没章节时自动触发第 1 章生成（Phase 3d）
         const articles = (ld.articles || []).filter(a => a.collectionId === collection.id);
         if (articles.length === 0 && !this._chapterLock) {
-            const npc = (AppState.data.weiboData?.fanFriends || []).find(f => f.id === collection.authorNpcId);
+            const npc = this._getCollectionAuthor(collection);   // v2.170.0
             if (npc) {
                 Utils.showToast(I18n.t('lofter.toast_generating_chapter', '正在生成首章、请稍等...'), 6000);
                 setTimeout(async () => {
@@ -2198,10 +2433,9 @@ COMMENT_1: [昵称]|[内容]
 
     _renderCollectionPage(collection) {
         const ld = AppState.data.lofterData;
-        const fans = AppState.data.weiboData?.fanFriends || [];
-        const author = fans.find(f => f.id === collection.authorNpcId);
+        const author = this._getCollectionAuthor(collection);   // v2.170.0 oneoff 返回虚拟作者（id=null）
         const authorName = author?.name || I18n.t('lofter.deleted_author', '已注销作者');
-        const isFollowed = author && (ld.followedAuthorIds || []).includes(author.id);
+        const isFollowed = !!(author && author.id && (ld.followedAuthorIds || []).includes(author.id));
         const isSubscribed = (ld.subscribedCollectionIds || []).includes(collection.id);
 
         const articles = (ld.articles || [])
@@ -2225,12 +2459,15 @@ COMMENT_1: [昵称]|[内容]
             <div class="lof-sub-bar">
                 <button class="lof-sub-back" id="lofColBack">‹</button>
                 <div class="lof-sub-author-head">
-                    <div class="lof-sub-author-avatar" style="background:${author?.avatarColor || '#1abc9c'}">${this._escapeHtml((authorName + '')[0])}</div>
+                    <div class="lof-sub-author-avatar" style="background:${author?.avatarColor || this._colorFromString(authorName)}">${this._escapeHtml((authorName + '')[0])}</div>
                     <span class="lof-sub-author-name">${this._escapeHtml(authorName)}</span>
                 </div>
-                ${author ? `<button class="lof-detail-follow-btn ${isFollowed ? 'followed' : ''}" id="lofColFollow">${isFollowed ? I18n.t('lofter.btn_followed', '已关注') : I18n.t('lofter.btn_follow', '关注')}</button>` : ''}
+                ${(author && author.id) ? `<button class="lof-detail-follow-btn ${isFollowed ? 'followed' : ''}" id="lofColFollow">${isFollowed ? I18n.t('lofter.btn_followed', '已关注') : I18n.t('lofter.btn_follow', '关注')}</button>` : ''}
                 <button class="lof-detail-share-btn" aria-label="share">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                </button>
+                <button class="lof-detail-share-btn" id="lofColMore" aria-label="more">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
                 </button>
             </div>
             <div class="lof-col-head">
@@ -2238,7 +2475,7 @@ COMMENT_1: [昵称]|[内容]
                     <span class="lof-col-cover-text">${this._escapeHtml((collection.name || '?')[0])}</span>
                 </div>
                 <div class="lof-col-info">
-                    <div class="lof-col-name-big">${this._escapeHtml(collection.name)} <span class="lof-col-total">(${total})</span></div>
+                    <div class="lof-col-name-big">${this._escapeHtml(collection.name)} <span class="lof-col-total">(${total})</span>${collection.status === 'finished' ? `<span class="lof-col-finished-badge">${I18n.t('lofter.col_finished', '完结')}</span>` : ''}</div>
                     <div class="lof-col-desc">${this._escapeHtml(collection.description || '')}</div>
                     <button class="lof-col-sub-btn-big ${isSubscribed ? 'subscribed' : ''}" id="lofColSubBtn">${isSubscribed ? I18n.t('lofter.btn_subscribed', '已订阅') : I18n.t('lofter.btn_subscribe_collection', '订阅合集')}</button>
                 </div>
@@ -2272,7 +2509,7 @@ COMMENT_1: [昵称]|[内容]
         document.getElementById('lofColBack').onclick = () => this._closeSubScreen('lofCollectionSubScreen');
         // v2.73.10: 4 处去掉多余的 _closeSubScreen —— _renderCollectionPage 内部已 _openSubScreen（见 existed 自己 remove + append）、之前先 close 再 render 是无害但多余的双关闭
         const followBtn = document.getElementById('lofColFollow');
-        if (followBtn && author) {
+        if (followBtn && author && author.id) {
             followBtn.onclick = () => {
                 this._toggleFollowAuthor(author.id);
                 this._renderCollectionPage(collection);
@@ -2291,6 +2528,16 @@ COMMENT_1: [昵称]|[内容]
             this._renderCollectionPage(collection);
         };
         document.getElementById('lofColWriteBtn').onclick = () => this.showNextChapterModal(collection.id);
+        // v2.171.0 不感兴趣：删除整个合集及全部章节
+        const colMore = document.getElementById('lofColMore');
+        if (colMore) colMore.onclick = () => {
+            if (!confirm(I18n.t('lofter.del_collection_confirm', { name: collection.name || '?' }))) return;
+            this._deleteCollection(collection.id);
+            this._closeSubScreen('lofCollectionSubScreen');
+            this._closeSubScreen('lofTagDetailSubScreen');
+            Utils.showToast(I18n.t('lofter.del_done', '已删除、不再展示'), 2500);
+            this.render();
+        };
         node.querySelectorAll('.lof-col-chapter-row').forEach(row => {
             row.onclick = () => {
                 const id = row.dataset.articleId;
@@ -2303,39 +2550,60 @@ COMMENT_1: [昵称]|[内容]
 
     // 创建一个新合集 + 生成第 1 章
     // userPrompt：用户在 compose modal 填的「主题方向」（影响合集名 / 简介 / 第 1 章；仅初创时适用、不延续到后续章节）
-    async _generateLofterCollection(npc, ip = null, userPrompt = null, styleChoice = 'random') {
+    // worldOpts（v2.170.0）：null = 主世界现状；{ worldMode:'main', worldBookIds:[...] } = 主世界+加选（综漫）；
+    //   { worldMode:'other', worldBookIds:[...], cp:{male,female,mode} } = 其他 IP、一次性作者执笔（npc 参数传 null）
+    async _generateLofterCollection(npc, ip = null, userPrompt = null, styleChoice = 'random', worldOpts = null) {
         if (this._chapterLock) {
             Utils.showToast(I18n.t('lofter.toast_chapter_in_progress', '章节生成中、请稍候'));
             return null;
         }
-        if (!npc || !npc.lofter?.enabled || npc.type !== 'fan_writer') {
+        const isOther = worldOpts?.worldMode === 'other';
+        if (isOther) {
+            if (!Array.isArray(worldOpts.worldBookIds) || worldOpts.worldBookIds.length === 0) return null;
+            npc = {
+                id: null,
+                name: this._randomPenName(),
+                handle: null,
+                bio: '',
+                contentTags: [],
+                writingStyle: '',
+                followerCount: 600 + Math.floor(Math.random() * 2400),
+                lofter: null,
+                _isOneoff: true
+            };
+        } else if (!npc || !npc.lofter?.enabled || npc.type !== 'fan_writer') {
             console.warn('[Lofter collection] invalid npc:', npc?.name);
             return null;
         }
         const ld = AppState.data.lofterData;
         if (!ld) return null;
 
-        this._chapterLock = npc.id;
+        this._chapterLock = npc.id || 'oneoff_col';
         try {
             // v2.81.0 文风：解析用户选的文风（或随机）、整本合集统一、续章继承
             // v2.144.0 用户没显式选合集文风（random）且作者设了个人文风 → 不盖合集文风、
             // 让整本合集走作者个人文风（章节 prompt 分层：无合集文风时才注入 npc.writingStyle）。
-            // 作者没个人文风时维持原状（random 仍随机选一款、保证合集有文风）。
+            // 作者没个人文风时维持原状（random 仍随机选一款、保证合集有文风）。一次性作者无个人文风、恒走随机。
             const selectedStyle = (styleChoice === 'random' && npc.writingStyle)
                 ? null
                 : this._resolveWritingStyle(styleChoice);
             const styleInstruction = this._styleInstructionFor(selectedStyle);
 
             // 1. 创建 collection 元数据（先 LLM 生成 名 + 描述、再生成第 1 章）
-            const collectionMeta = await this._generateCollectionMeta(npc, ip, userPrompt, styleInstruction);
+            const collectionMeta = await this._generateCollectionMeta(npc, ip, userPrompt, styleInstruction, worldOpts);
             if (!collectionMeta) return null;
 
             const collection = {
                 id: 'col_' + this._uuid(),
                 name: collectionMeta.name,
                 description: collectionMeta.description,
-                authorNpcId: npc.id,
-                coverPattern: 'solid', // v2.73.11: 之前写 'gradient' 但 CSS 渲染只用 coverColor 纯色（无渐变铁律）、字面量改成 solid 避免未来读者误以为该用渐变
+                authorNpcId: npc.id || null,
+                authorType: isOther ? 'oneoff' : 'npc',      // v2.170.0
+                authorName: npc.name,                        // v2.170.0 oneoff 显示用；npc 合集也存一份兜底
+                worldMode: isOther ? 'other' : 'main',       // v2.170.0（老合集 undefined 也按 main 解释）
+                worldBookIds: (worldOpts && Array.isArray(worldOpts.worldBookIds)) ? worldOpts.worldBookIds.slice() : [],
+                cp: isOther ? (worldOpts.cp || { male: '', female: '', mode: 'none' }) : null,   // v2.170.0 仅 other 用
+                coverPattern: 'solid', // v2.73.11: CSS 渲染只用 coverColor 纯色（无渐变铁律）
                 coverColor: this._randomCollectionCoverColor(),
                 emojiTag: collectionMeta.emojiTag || null,
                 emojiTagCount: collectionMeta.emojiTagCount || 0,
@@ -2370,18 +2638,20 @@ COMMENT_1: [昵称]|[内容]
     },
 
     // 续章（chapterCount + 1）+ 可选 userHint（仿 pixiv 同款）
-    async _generateNextLofterChapter(collectionId, userHint = null) {
+    async _generateNextLofterChapter(collectionId, userHint = null, opts = null) {
         if (this._chapterLock) return null;
         const ld = AppState.data.lofterData;
         const collection = (ld?.collections || []).find(c => c.id === collectionId);
         if (!collection) return null;
-        const npc = (AppState.data.weiboData?.fanFriends || []).find(f => f.id === collection.authorNpcId);
+        const npc = this._getCollectionAuthor(collection);   // v2.170.0 oneoff 合集派生虚拟作者、可正常续章
         if (!npc) return null;
 
         this._chapterLock = collectionId;
         try {
             const nextNum = (collection.chapterCount || 0) + 1;
-            const chapter = await this._generateLofterChapterImpl(npc, collection, nextNum, null, userHint);
+            const isEnding = !!(opts && opts.isEnding);
+            const chapter = await this._generateLofterChapterImpl(npc, collection, nextNum, null, userHint, null, isEnding);
+            if (chapter && isEnding) collection.status = 'finished';   // v2.171.0 结局章：合集完结
             if (chapter) {
                 collection.chapterCount = nextNum;
                 collection.updatedAt = Date.now();
@@ -2398,15 +2668,16 @@ COMMENT_1: [昵称]|[内容]
     // 实际单章生成 (仿 pixiv generateNovel 流程、纯中文 prompt 重写)
     // userHint: 用户给本章方向（仅本章适用、不延续到后续章节、pixiv 同款）
     // styleInstruction: v2.81.0 本合集统一文风指令块；不传（null）则从 collection.writingStyleId 推导（续章 / 自动首章路径走这条）
-    async _generateLofterChapterImpl(npc, collection, chapterNum, ip = null, userHint = null, styleInstruction = null) {
+    async _generateLofterChapterImpl(npc, collection, chapterNum, ip = null, userHint = null, styleInstruction = null, isEnding = false) {
         const ld = AppState.data.lofterData;
-        const worldCtx = this._getWorldContext();
-        const plotGate = this._getPlotGate();
+        const isOther = collection?.worldMode === 'other';   // v2.170.0
+        const worldCtx = this._getCollectionWorldContext(collection);
+        const plotGate = isOther ? { promptGateText: '' } : this._getPlotGate();
         const cp = AppState.data.broadcast?.cpSettings || {};
         if (styleInstruction === null) styleInstruction = this._styleInstructionFor(this._resolveCollectionStyle(collection));
 
         // 前序章节滑动窗口（FULL_TEXT_WINDOW = 3）
-        const FULL_TEXT_WINDOW = 3;
+        const FULL_TEXT_WINDOW = this.FULL_TEXT_WINDOW;   // v2.171.0 3→5
         const prevChapters = (ld.articles || [])
             .filter(a => a.collectionId === collection.id)
             .sort((a, b) => (a.chapterNum || 0) - (b.chapterNum || 0));
@@ -2415,26 +2686,30 @@ COMMENT_1: [昵称]|[内容]
             if (i >= fromIdx) {
                 return `【第 ${ch.chapterNum || (i + 1)} 章「${ch.title || ''}」— 全文】\n${ch.content || ''}`;
             }
-            const synopsis = ch.summary || (ch.content || '').replace(/\s+/g, ' ').slice(0, 200) + '…';
+            // v2.171.0 记忆优先用隐藏 synopsis（约300字、专供衔接）、老章节回退 summary
+            const synopsis = ch.synopsis || ch.summary || (ch.content || '').replace(/\s+/g, ' ').slice(0, 200) + '…';
             return `【第 ${ch.chapterNum || (i + 1)} 章「${ch.title || ''}」— 摘要】\n${synopsis}`;
         }).join('\n\n');
 
-        const positionNote = chapterNum === 1
-            ? '你在写第 1 章 — 这是**长篇连载的开篇**、不是一篇 oneshot。你的任务是：建立基调、引入角色、抛出一个能撑起后续章节的核心张力（一个未解的关系状态 / 一个悬而未决的处境 / 一个刚被点燃的情绪），让读者读完想追下一章。**不要在第 1 章里把故事讲完** — 一切情节都是"刚开始"。'
-            : `你在写第 ${chapterNum} 章。前序章节见上方（最近 ${FULL_TEXT_WINDOW} 章给全文、更早章节给摘要）。第 ${chapterNum - 1} 章是故事当前到达的位置。新一章从那个状态后**自然推进** — 不要重述前一章结尾、不要复述已发生的对话。`;
+        const positionNote = isEnding
+            ? `你在写本合集的**最终章（结局）**。前序章节见上方。收束主要的伏笔、矛盾与情感线，给出完整、有余韵的结局；不要再留待续的悬念、不要写成又一个普通过渡章；是否圆满由剧情自然决定、不强行 HE/BE。`
+            : (chapterNum === 1
+                ? '你在写第 1 章 — 这是**长篇连载的开篇**、不是一篇 oneshot。你的任务是：建立基调、引入角色、抛出一个能撑起后续章节的核心张力（一个未解的关系状态 / 一个悬而未决的处境 / 一个刚被点燃的情绪），让读者读完想追下一章。**不要在第 1 章里把故事讲完** — 一切情节都是"刚开始"。'
+                : `你在写第 ${chapterNum} 章。前序章节见上方（最近 ${FULL_TEXT_WINDOW} 章给全文、更早章节给摘要）。第 ${chapterNum - 1} 章是故事当前到达的位置。新一章从那个状态后**自然推进** — 不要重述前一章结尾、不要复述已发生的对话。`);
 
         // userHint block（pixiv 同款独立性原则：仅本章适用、不延续）
         const userHintBlock = userHint
             ? `\n【作者给本章的方向（最高优先级、仅本章适用）】\n${userHint}\n↑ 请按此方向写。**不要把这个方向延续到后续章节** — 每章方向独立、未来续章会有新的方向（或没有方向自由发挥）。\n`
             : `\n【本章方向独立】\n用户没给本章具体方向。前序章节的方向**不要假设延续到本章** — 自由探索一个自然延续剧情的新视角 / 新场景 / 新转折。\n`;
 
-        const cpInfo = cp.cpCharA && cp.cpCharB
+        const cpInfo = (!isOther && cp.cpCharA && cp.cpCharB)
             ? `\n【CP】主要 CP: ${cp.cpCharA} × ${cp.cpCharB}${cp.cpNickname ? `（${cp.cpNickname}）` : ''}\n`
             : '';
 
         const ipNote = ip ? `\n【IP / Tag 倾向】围绕 #${ip}# 这个圈层 / 作品展开。\n` : '';
 
-        const prompt = `你是中文 lofter 平台资深同人作者、正在写一篇**长篇连载小说**的章节（不是单篇 oneshot）。基于以下世界观和合集背景写本章 1500-3000 字。
+        const lenSpec = this._chapterLengthSpec();
+        const prompt = `你是中文 lofter 平台资深同人作者、正在写一篇**长篇连载小说**的章节（不是单篇 oneshot）。基于以下世界观和合集背景写本章（${lenSpec.label}）。
 
 【连载创作铁律 — 不可妥协】
 1. **连贯推进**：第 1 章建立可以撑起后续章节的张力；续章从前一章结束的状态自然推进、不重述、不复述对话。
@@ -2444,6 +2719,8 @@ COMMENT_1: [昵称]|[内容]
 5. **原作尊重**：不违背已设定的剧情时间线和世界观铁律。
 6. **章节独立性**：前序章节的"作者方向"只是事实记录、不是后续主题约束。本章方向只对本章生效、不要假设延续到下一章。
 
+${this._NARRATIVE_STANCE}
+
 【世界观】
 ${worldCtx || '（未设定、围绕 CP 和合集主题写）'}
 ${cpInfo}
@@ -2451,7 +2728,7 @@ ${ipNote}
 ${plotGate.promptGateText}
 
 【作者身份】
-你是同人作家「${npc.name}」（@${npc.handle || 'user'}）。${npc.bio || ''}
+你是同人作家「${npc.name}」${npc.handle ? `（@${npc.handle}）` : ''}。${npc.bio || ''}
 你偏好的创作主题：${(npc.contentTags || []).join('、') || '同人创作'}。${(!styleInstruction && npc.writingStyle) ? '\n你的个人文风：' + npc.writingStyle + '（请贯穿全文）。' : ''}
 
 【合集】
@@ -2466,10 +2743,10 @@ ${positionNote}
 ${userHintBlock}${styleInstruction}
 【创作要求】
 - 视角：第三人称限制（默认）—— 全角括号（）包裹内心独白
-- 长度：1500-3000 字、一个完整的场景或紧凑的双场景
+- 长度：${lenSpec.label}、不少于 ${lenSpec.min} 字、一个完整的场景或紧凑的双场景
 - 文风：若上方有【文风要求】则严格以其为准；无则自然有节制、对白具体、心理细腻
 - 不要"流水账"、不要"快进剧情"
-- **章节末态**：停在本章张力的最高点 — 让当前处境余韵悬置。**不要在本章里发明并解决全新事件**、不要给一个完结感的结尾、不要"今天就到这里"式收束。读者读完应该想"然后呢？"。
+- **章节末态**：${isEnding ? '这是结局章 — 完整收束、余韵收尾、不再吊下一章、不要"欲知后事"式结尾。' : '停在本章张力的最高点 — 让当前处境余韵悬置。**不要在本章里发明并解决全新事件**、不要给一个完结感的结尾、不要"今天就到这里"式收束。读者读完应该想"然后呢？"。'}
 
 【底线】
 - 不评判其他粉丝群体 / 不贬低其他作品 CP
@@ -2481,6 +2758,7 @@ ${userHintBlock}${styleInstruction}
 【输出格式】严格按以下标签输出、不要 JSON、不要 markdown 代码块：
 <TITLE>章节标题</TITLE>
 <SUMMARY>1-2 句章节摘要、合集列表用、80 字内</SUMMARY>
+<SYNOPSIS>约300字的本章摘要：场景、按时间顺序的关键事件、情感转折点、1-2句关键原话。此摘要供后续章节衔接记忆用、读者看不到。</SYNOPSIS>
 <CONTENT>
 章节正文 ...
 </CONTENT>`;
@@ -2489,6 +2767,7 @@ ${userHintBlock}${styleInstruction}
             const raw = await this._callLLM(prompt);
             const title = (raw.match(/<TITLE>([\s\S]*?)<\/TITLE>/) || [])[1]?.trim();
             const summary = (raw.match(/<SUMMARY>([\s\S]*?)<\/SUMMARY>/) || [])[1]?.trim();
+            const synopsis = (raw.match(/<SYNOPSIS>([\s\S]*?)<\/SYNOPSIS>/) || [])[1]?.trim();
             const content = (raw.match(/<CONTENT>([\s\S]*?)<\/CONTENT>/) || [])[1]?.trim();
             if (!content || content.length < 300) {
                 console.warn('[Lofter chapter] content too short or missing', { title, summaryLen: summary?.length, contentLen: content?.length });
@@ -2502,6 +2781,7 @@ ${userHintBlock}${styleInstruction}
                 type: 'long',
                 title: title || `第 ${chapterNum} 章`,
                 summary: summary || (content.slice(0, 80) + '...'),
+                synopsis: synopsis || null,   // v2.171.0 隐藏记忆摘要（约300字、读者不可见）
                 content,
                 hasImages: false,
                 imageCount: 0,
@@ -2509,19 +2789,29 @@ ${userHintBlock}${styleInstruction}
                 tags: (() => {
                     const baseTags = [];
                     if (collection?.name) baseTags.push(collection.name);
-                    if (cp.cpNickname) baseTags.push(cp.cpNickname);
-                    else if (cp.cpCharA && cp.cpCharB) baseTags.push(`${cp.cpCharA}×${cp.cpCharB}`);
-                    if (cp.productionName) baseTags.push(cp.productionName);
+                    if (isOther) {
+                        // v2.170.0 其他 IP：tag = 合集名 + 合集 CP + 绑定世界书名（当 IP tag 用）
+                        const ccp = collection.cp || {};
+                        if (ccp.mode === 'pair' && ccp.male && ccp.female) baseTags.push(`${ccp.male}×${ccp.female}`);
+                        (AppState.data.worldBooks || [])
+                            .filter(wb => (collection.worldBookIds || []).includes(wb.id))
+                            .slice(0, 2)
+                            .forEach(wb => baseTags.push(wb.name));
+                    } else {
+                        if (cp.cpNickname) baseTags.push(cp.cpNickname);
+                        else if (cp.cpCharA && cp.cpCharB) baseTags.push(`${cp.cpCharA}×${cp.cpCharB}`);
+                        if (cp.productionName) baseTags.push(cp.productionName);
+                    }
                     baseTags.push(...(npc.contentTags || []).slice(0, 2));
                     if (ip) baseTags.push(ip);
                     // dedup + 上限 6
                     return [...new Set(baseTags.filter(Boolean))].slice(0, 6);
                 })(),
-                authorNpcId: npc.id,
+                authorNpcId: npc.id || null,   // v2.170.0 一次性作者无 npc id
                 authorName: npc.name,
                 collectionId: collection.id,
                 chapterNum,
-                cpFlag: (cp.cpCharA && cp.cpCharB) ? 'main' : 'none',
+                cpFlag: isOther ? 'none' : ((cp.cpCharA && cp.cpCharB) ? 'main' : 'none'),
                 stats: {
                     hearts: Math.floor(Math.random() * fc * 0.06),
                     favorites: Math.floor(Math.random() * fc * 0.02),
@@ -2545,11 +2835,12 @@ ${userHintBlock}${styleInstruction}
 
     // 合集元数据生成（名 + 描述、不算章节内容、独立轻量 LLM 调用）
     // userPrompt：用户给的合集主题方向（最高优先级、影响合集名 + 简介 + 情绪标签的取舍）
-    async _generateCollectionMeta(npc, ip = null, userPrompt = null, styleInstruction = '') {
+    async _generateCollectionMeta(npc, ip = null, userPrompt = null, styleInstruction = '', worldOpts = null) {
+        const isOther = worldOpts?.worldMode === 'other';   // v2.170.0 其他 IP 合集：世界观/CP/剧情闸门全走合集自带
         const cp = AppState.data.broadcast?.cpSettings || {};
-        const worldCtx = this._getWorldContext();
-        const plotGate = this._getPlotGate(); // v2.73.11: 接 plotGate — 合集名 / 简介虽然不涉及具体剧情、但仍可能 LLM 自由发挥时暗示未发生剧情、加 gate 一致性更好
-        const cpStr = cp.cpCharA && cp.cpCharB ? `${cp.cpCharA} × ${cp.cpCharB}` : '';
+        const worldCtx = this._getCollectionWorldContext({ worldMode: worldOpts?.worldMode, worldBookIds: worldOpts?.worldBookIds || [], cp: worldOpts?.cp });
+        const plotGate = isOther ? { promptGateText: '' } : this._getPlotGate(); // 其他 IP 与主世界剧情进度无关；main 路径保留 v2.73.11 的 gate
+        const cpStr = isOther ? '' : (cp.cpCharA && cp.cpCharB ? `${cp.cpCharA} × ${cp.cpCharB}` : '');
         const userPromptBlock = userPrompt
             ? `\n【作者给这个合集的方向（最高优先级）】\n${userPrompt}\n↑ 合集名 + 简介 + 情绪标签都应该围绕这个方向。但不要直接把方向当合集名照抄、而是写出一个有记忆点的"作者本人会取的名字"。\n`
             : '';
@@ -2604,6 +2895,63 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
         return cities[Math.floor(Math.random() * cities.length)];
     },
 
+    // ===== v2.170.0 一次性作者（月读机制并入）=====
+    // 其他 IP 合集由一次性笔名作者执笔：发布时随机生成、不进 weiboData.fanFriends 名册、用完不复用。
+    _randomPenName() {
+        const a = ['临', '江', '沈', '顾', '苏', '陆', '温', '叶', '南', '云', '墨', '青', '白', '长', '远', '澹', '疏', '寒', '晚', '宋'];
+        const b = ['川', '栀', '遇', '歌', '野', '迟', '序', '安', '陵', '澜', '声', '息', '枝', '舟', '酌', '鹤', '宁', '梧', '笙', '砚'];
+        const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+        return pick(a) + pick(b) + (Math.random() < 0.5 ? pick(b) : '');
+    },
+
+    // 合集作者解析：npc 合集查共用名册；oneoff 合集派生虚拟作者对象（不持久化、每次从 collection 派生）
+    // 生成管线与展示层统一走这里，别再直接 fanFriends.find(collection.authorNpcId)。
+    _getCollectionAuthor(collection) {
+        if (!collection) return null;
+        if (collection.authorType === 'oneoff') {
+            return {
+                id: null,
+                name: collection.authorName || '佚名',
+                handle: null,
+                bio: '',
+                contentTags: [],
+                writingStyle: '',
+                followerCount: 800,
+                lofter: null,
+                _isOneoff: true
+            };
+        }
+        return (AppState.data.weiboData?.fanFriends || []).find(f => f.id === collection.authorNpcId) || null;
+    },
+
+    // ===== v2.171.0 不感兴趣（内容删除、仿真 lofter 语义）=====
+    // 删的是内容与用户互动引用；NPC 本人不动（删号退圈走文手管理）。
+    _deleteArticle(articleId) {
+        const ld = AppState.data.lofterData;
+        if (!ld) return;
+        ld.articles = (ld.articles || []).filter(a => a.id !== articleId);
+        ['myLikedArticleIds', 'myFavoritedArticleIds', 'myFootprintArticleIds', 'myReadLaterArticleIds'].forEach(k => {
+            if (Array.isArray(ld[k])) ld[k] = ld[k].filter(id => id !== articleId);
+        });
+        Utils.saveData();
+    },
+
+    _deleteCollection(collectionId) {
+        const ld = AppState.data.lofterData;
+        if (!ld) return;
+        const chapterIds = new Set((ld.articles || []).filter(a => a.collectionId === collectionId).map(a => a.id));
+        ld.articles = (ld.articles || []).filter(a => a.collectionId !== collectionId);
+        ld.collections = (ld.collections || []).filter(c => c.id !== collectionId);
+        if (Array.isArray(ld.subscribedCollectionIds)) ld.subscribedCollectionIds = ld.subscribedCollectionIds.filter(id => id !== collectionId);
+        ['myLikedArticleIds', 'myFavoritedArticleIds', 'myFootprintArticleIds', 'myReadLaterArticleIds'].forEach(k => {
+            if (Array.isArray(ld[k])) ld[k] = ld[k].filter(id => !chapterIds.has(id));
+        });
+        (AppState.data.weiboData?.fanFriends || []).forEach(npc => {
+            if (npc.lofter?.collectionIds) npc.lofter.collectionIds = npc.lofter.collectionIds.filter(id => id !== collectionId);
+        });
+        Utils.saveData();
+    },
+
     // ========== Phase 4b: 设置 sub-screen ==========
 
     openSettingsSubScreen() {
@@ -2646,6 +2994,22 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
                     </label>
                 </div>
                 <div class="lof-settings-section">
+                    <div class="lof-settings-section-title">${I18n.t('lofter.settings_section_longform', '长篇连载')}</div>
+                    <label class="lof-settings-row">
+                        <span class="lof-settings-row-label">${I18n.t('lofter.settings_chapter_length', '每章篇幅')}</span>
+                        <select id="lofSettingsChapterLen" class="lof-settings-select">
+                            <option value="short" ${s.chapterLength === 'short' ? 'selected' : ''}>${I18n.t('lofter.chapter_len_short', '短（800–1200 字）')}</option>
+                            <option value="medium" ${(!s.chapterLength || s.chapterLength === 'medium') ? 'selected' : ''}>${I18n.t('lofter.chapter_len_medium', '中（1500–2500 字）')}</option>
+                            <option value="long" ${s.chapterLength === 'long' ? 'selected' : ''}>${I18n.t('lofter.chapter_len_long', '长（2800–4000 字）')}</option>
+                        </select>
+                    </label>
+                    <button class="lof-settings-entry-btn" id="lofStyleMgrBtn">
+                        <span>${I18n.t('lofter.settings_style_mgr', '文风库（启用停用 · 新建自定义）')}</span>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                    <div class="lof-settings-hint">${I18n.t('lofter.settings_style_mgr_hint', '开新合集时可选的文风款式。停用的不再出现在下拉里；也可以新建自己的文风。')}</div>
+                </div>
+                <div class="lof-settings-section">
                     <div class="lof-settings-section-title">${I18n.t('lofter.settings_section_writers', '文手 · NPC 管理')}</div>
                     <button class="lof-settings-entry-btn" id="lofWriterMgrBtn">
                         <span>${I18n.t('lofter.settings_writer_mgr', '管理文手 / NPC（偏好 · 文风 · 启用停用 · 删除）')}</span>
@@ -2664,6 +3028,90 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
         document.getElementById('lofSettingsBack').onclick = () => this._closeSubScreen('lofSettingsSubScreen');
         document.getElementById('lofSettingsSave').onclick = () => this._saveSettings();
         document.getElementById('lofWriterMgrBtn').onclick = () => this.openWriterManager();
+        document.getElementById('lofStyleMgrBtn').onclick = () => this.openStyleManager();
+    },
+
+    // ========== v2.171.0 文风管理（设置页入口、月读设置并入）==========
+    // 内置款只能启停；自定义款（月读搬运 lof_style_yd_* / 新建 lof_style_custom_*）可删。
+    // 删除被合集引用的文风无碍：_resolveCollectionStyle 查不到返回 null、章节回退作者个人文风/无文风（月读同款语义）。
+    openStyleManager() {
+        const node = this._openSubScreen('lofStyleMgrSubScreen', `
+            <div class="lof-sub-bar">
+                <button class="lof-sub-back" id="lofSMgrBack">‹</button>
+                <div class="lof-sub-title">${I18n.t('lofter.style_mgr_title', '文风库')}</div>
+                <span></span>
+            </div>
+            <div class="lof-writer-mgr-body" id="lofSMgrBody"></div>
+        `);
+        if (!node) return;
+        document.getElementById('lofSMgrBack').onclick = () => this._closeSubScreen('lofStyleMgrSubScreen');
+        this._renderStyleMgrList();
+    },
+
+    _renderStyleMgrList() {
+        const body = document.getElementById('lofSMgrBody');
+        if (!body) return;
+        const styles = AppState.data.lofterData?.settings?.writingStyles || [];
+        const isCustom = (s) => /^lof_style_(yd|custom)_/.test(s.id || '');
+        body.innerHTML = styles.map(s => `
+            <div class="lof-writer-row ${s.enabled ? '' : 'disabled'}" data-style-id="${s.id}">
+                <div class="lof-writer-main">
+                    <div class="lof-writer-name-row">
+                        <span class="lof-writer-name">${this._escapeHtml(s.name)}</span>
+                        ${isCustom(s) ? `<span class="lof-writer-type">${I18n.t('lofter.style_mgr_custom_badge', '自定义')}</span>` : ''}
+                    </div>
+                    <div class="lof-writer-tags">${this._escapeHtml(s.description || (s.rules || '').slice(0, 40))}</div>
+                    <div class="lof-writer-actions">
+                        <label class="lof-writer-toggle">
+                            <input type="checkbox" class="lof-style-enable" ${s.enabled ? 'checked' : ''}>
+                            <span>${I18n.t('lofter.style_mgr_enable', '可选')}</span>
+                        </label>
+                        ${isCustom(s) ? `<button class="lof-writer-btn lof-style-del">${I18n.t('lofter.style_mgr_del', '删除')}</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('') + `
+            <div class="lof-compose-hint-wrap">
+                <label class="lof-compose-hint-label">${I18n.t('lofter.style_mgr_add', '新建自定义文风')}</label>
+                <input type="text" id="lofSMgrName" class="lof-writer-edit-input" placeholder="${I18n.t('lofter.style_mgr_name_ph', '文风名（例：细水长流）')}">
+                <textarea id="lofSMgrRules" rows="3" class="lof-compose-hint-textarea" placeholder="${I18n.t('lofter.style_mgr_rules_ph', '文风指令（喂给作者的写法要求、一两句话）')}"></textarea>
+                <div class="lof-compose-submit-wrap">
+                    <button class="lof-compose-submit" id="lofSMgrAdd">${I18n.t('lofter.style_mgr_save', '保存')}</button>
+                </div>
+            </div>
+        `;
+        const styleArr = AppState.data.lofterData.settings.writingStyles;
+        body.querySelectorAll('.lof-writer-row').forEach(row => {
+            const id = row.dataset.styleId;
+            const toggle = row.querySelector('.lof-style-enable');
+            if (toggle) toggle.onchange = () => {
+                const s = styleArr.find(x => x.id === id);
+                if (!s) return;
+                s.enabled = toggle.checked;
+                Utils.saveData();
+                row.classList.toggle('disabled', !toggle.checked);
+            };
+            const del = row.querySelector('.lof-style-del');
+            if (del) del.onclick = () => {
+                const idx = styleArr.findIndex(x => x.id === id);
+                if (idx < 0) return;
+                styleArr.splice(idx, 1);
+                Utils.saveData();
+                this._renderStyleMgrList();
+            };
+        });
+        document.getElementById('lofSMgrAdd').onclick = () => {
+            const name = (document.getElementById('lofSMgrName')?.value || '').trim();
+            const rules = (document.getElementById('lofSMgrRules')?.value || '').trim();
+            if (!name || !rules) {
+                Utils.showToast(I18n.t('lofter.style_mgr_name_required', '文风名和指令都要填'), 2500);
+                return;
+            }
+            styleArr.push({ id: 'lof_style_custom_' + this._uuid(), name, description: '', rules, enabled: true });
+            Utils.saveData();
+            Utils.showToast(I18n.t('lofter.style_mgr_added', '✓ 已新建'), 2000);
+            this._renderStyleMgrList();
+        };
     },
 
     // ========== v2.141.0 文手管理（设置页入口）==========
@@ -2834,6 +3282,8 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
         if (autoGenCountEl) ld.settings.autoGenCount = Math.max(1, Math.min(5, parseInt(autoGenCountEl.value) || 2));
         if (showInvalidEl) ld.settings.showInvalidArticles = showInvalidEl.checked;
         if (defaultViewEl) ld.settings.defaultViewMode = defaultViewEl.value;
+        const chapterLenEl = document.getElementById('lofSettingsChapterLen');
+        if (chapterLenEl) ld.settings.chapterLength = chapterLenEl.value;
         Utils.saveData();
         Utils.showToast(I18n.t('lofter.toast_settings_saved', '✓ 设置已保存'));
         this._closeSubScreen('lofSettingsSubScreen');

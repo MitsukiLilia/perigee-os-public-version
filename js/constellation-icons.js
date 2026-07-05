@@ -65,8 +65,8 @@ const ConstellationIcons = {
         if (!c.dataset.iconDefault) c.dataset.iconDefault = c.innerHTML;
         c.innerHTML = this.SVGS[appId];
       } else if (c.dataset.iconDefault && !customIcons[appId]) {
-        // 切走夜空 / 该 app 无星座版：恢复默认 SVG（仅在非手帐主题时；手帐会自己接管）
-        if (document.documentElement.dataset.theme !== 'journal' && document.documentElement.dataset.theme !== 'strawberry') {
+        // 切走夜空 / 该 app 无星座版：恢复默认 SVG（仅在非手帐/草莓/雪国主题时；它们会自己接管）
+        if (document.documentElement.dataset.theme !== 'journal' && document.documentElement.dataset.theme !== 'strawberry' && document.documentElement.dataset.theme !== 'snow-country') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

@@ -6,6 +6,7 @@ const Magazine = {
     // 情報アクセス制限ルール → 见 Utils.PROMPTS.infoAccessRule()
 
     currentArticleId: null,
+    _genToken: 0, // 生成 run 身份 token（in-memory、不入存档、单调递增）：关闭弹窗/新 run 都 ++ 使在途生成失效；resolve 后 token 不匹配则跳过 toast/跳转，不抢占当前屏幕。布尔标记区分不了新旧 run（取消A→立刻生成B时A会复活），所以用 token
 
     // ===== 类型配置 =====
     get _TYPE_LABELS() {
@@ -352,9 +353,12 @@ const Magazine = {
                 segments: synthesized
             });
 
-            // 标记 article 已 dramatized
+            // 标记 article 已 dramatized（数据归属于闭包 article，与弹窗归属无关，始终落盘）
             article.audioDramaId = audioDramaId;
             Utils.saveData();
+
+            // 生成期间用户可能已取消并打开了另一篇文章的预览，共享的弹窗 DOM 现在属于它，静默跳过写入
+            if (this._audioDramaState?.articleId !== state.articleId) return;
 
             if (body) {
                 body.innerHTML = `
@@ -375,6 +379,10 @@ const Magazine = {
             this.renderReader();
         } catch (e) {
             console.error('[AudioDrama]', e);
+
+            // 同上：弹窗可能已属于另一篇文章，静默跳过写入
+            if (this._audioDramaState?.articleId !== state.articleId) return;
+
             if (body) {
                 body.innerHTML = `<div style="text-align:center;padding:20px 0;color:#d04a5e;">${I18n.t('magazine.gen_failed_prefix', '生成失敗：')}${this._escHtml(e.message || I18n.t('mag.ad_unknown_error', '不明なエラー'))}</div>`;
             }
@@ -437,6 +445,7 @@ const Magazine = {
     closeGenerateModal() {
         const modal = document.getElementById('magazineGenerateModal');
         if (modal) modal.classList.remove('active');
+        this._genToken++; // 任何关闭都使在途生成失效：resolve 后 token 对不上就不再自动 toast/跳转
     },
 
     // ===== 根据类型切换表单区域 =====
@@ -453,6 +462,10 @@ const Magazine = {
         // 模板区域：仅企划类需要
         const featSection = document.getElementById('magazineFeatureSection');
         if (featSection) featSection.style.display = isFeature ? '' : 'none';
+
+        // 主题输入框区域：月間まとめは _generateRoundup 完全不读取该字段，直接隐藏整块（不复用访谈类「必須」文案）
+        const themeSection = document.getElementById('magazineThemeSection');
+        if (themeSection) themeSection.style.display = (type === 'roundup') ? 'none' : '';
 
         // 主题输入框 placeholder + label 文字切换
         const themeInput = document.getElementById('magazineThemeInput');
@@ -500,6 +513,7 @@ const Magazine = {
     },
 
     async generateArticle() {
+        this._genToken++; // 新 run 使旧 run 失效（各 _generateXxx 首行同步捕获本次 token）
         const type = document.getElementById('magazineTypeSelect')?.value || 'seiyuu';
         const btn = document.getElementById('magazineGenerateBtn');
         if (btn) { btn.textContent = I18n.t('mag.gen_btn_generating', '生成中...'); btn.disabled = true; }
@@ -524,6 +538,7 @@ const Magazine = {
 
     // ===== 访谈生成 =====
     async _generateInterview(type) {
+        const genToken = this._genToken; // 捕获本次 run 身份（generateArticle 同步 dispatch，首行在任何 await 之前）
         const theme = document.getElementById('magazineThemeInput')?.value?.trim() || '';
         const afterPlotId = document.getElementById('magazineAfterPlot')?.value || '';
         const checked = document.querySelectorAll('.magazine-npc-check:checked');
@@ -600,6 +615,7 @@ TITLE: [日本語タイトル、例：「○○役・田中花子 単独イン�
         if (typeof Utils !== 'undefined' && Utils.emitEvent) {
             Utils.emitEvent('magazine_published', 'magazine', { title: article.title, summary: article.theme });
         }
+        if (genToken !== this._genToken) return; // 本次 run 已失效（用户关闭弹窗/另开新生成），文章数据已保存，不再自动 toast/跳转抢占当前屏幕
         this.closeGenerateModal();
         Utils.showToast(I18n.t('t.mag_interview_done', '✓ インタビュー生成完了'));
         this.openArticle(article.id);
@@ -607,6 +623,7 @@ TITLE: [日本語タイトル、例：「○○役・田中花子 単独イン�
 
     // ===== 人气投票生成 =====
     async _generatePoll() {
+        const genToken = this._genToken; // 捕获本次 run 身份（generateArticle 同步 dispatch，首行在任何 await 之前）
         const theme = document.getElementById('magazineThemeInput')?.value?.trim() || '';
         if (!theme) { Utils.showToast(I18n.t('t.mag_need_poll_theme', '投票テーマを入力してください')); return; }
         const afterPlotId = document.getElementById('magazineAfterPlot')?.value || '';
@@ -663,6 +680,10 @@ TITLE: [投票タイトル、例：「第1回キャラクター人気投票 結�
         if (!magazineData.articles) magazineData.articles = [];
         magazineData.articles.push(article);
         Utils.saveData();
+        if (typeof Utils !== 'undefined' && Utils.emitEvent) {
+            Utils.emitEvent('magazine_published', 'magazine', { title: article.title, summary: article.theme });
+        }
+        if (genToken !== this._genToken) return; // 本次 run 已失效（用户关闭弹窗/另开新生成），文章数据已保存，不再自动 toast/跳转抢占当前屏幕
         this.closeGenerateModal();
         Utils.showToast(I18n.t('t.mag_poll_done', '✓ 人気投票生成完了'));
         this.openArticle(article.id);
@@ -670,6 +691,7 @@ TITLE: [投票タイトル、例：「第1回キャラクター人気投票 結�
 
     // ===== 角色企划生成 =====
     async _generateFeature() {
+        const genToken = this._genToken; // 捕获本次 run 身份（generateArticle 同步 dispatch，首行在任何 await 之前）
         const template = document.getElementById('magazineFeatureTemplate')?.value || 'bag';
         const customTheme = document.getElementById('magazineThemeInput')?.value?.trim() || '';
         const afterPlotId = document.getElementById('magazineAfterPlot')?.value || '';
@@ -727,6 +749,10 @@ TITLE: [記事タイトル、例：「キャラ別・カバンの中身を大公
         if (!magazineData.articles) magazineData.articles = [];
         magazineData.articles.push(article);
         Utils.saveData();
+        if (typeof Utils !== 'undefined' && Utils.emitEvent) {
+            Utils.emitEvent('magazine_published', 'magazine', { title: article.title, summary: article.theme });
+        }
+        if (genToken !== this._genToken) return; // 本次 run 已失效（用户关闭弹窗/另开新生成），文章数据已保存，不再自动 toast/跳转抢占当前屏幕
         this.closeGenerateModal();
         Utils.showToast(I18n.t('t.mag_feature_done', '✓ キャラクター企画生成完了'));
         this.openArticle(article.id);
@@ -734,6 +760,7 @@ TITLE: [記事タイトル、例：「キャラ別・カバンの中身を大公
 
     // ===== 制作コラム生成 =====
     async _generateColumn() {
+        const genToken = this._genToken; // 捕获本次 run 身份（generateArticle 同步 dispatch，首行在任何 await 之前）
         const theme = document.getElementById('magazineThemeInput')?.value?.trim() || '';
         const afterPlotId = document.getElementById('magazineAfterPlot')?.value || '';
         if (!theme) { Utils.showToast(I18n.t('t.mag_need_column_theme', 'コラムテーマを入力してください')); return; }
@@ -789,6 +816,10 @@ TITLE: [コラムタイトル、例：「第10話、あのシーンに込めた�
         if (!magazineData.articles) magazineData.articles = [];
         magazineData.articles.push(article);
         Utils.saveData();
+        if (typeof Utils !== 'undefined' && Utils.emitEvent) {
+            Utils.emitEvent('magazine_published', 'magazine', { title: article.title, summary: article.theme });
+        }
+        if (genToken !== this._genToken) return; // 本次 run 已失效（用户关闭弹窗/另开新生成），文章数据已保存，不再自动 toast/跳转抢占当前屏幕
         this.closeGenerateModal();
         Utils.showToast(I18n.t('t.mag_column_done', '✓ 制作コラム生成完了'));
         this.openArticle(article.id);
@@ -796,6 +827,7 @@ TITLE: [コラムタイトル、例：「第10話、あのシーンに込めた�
 
     // ===== 読者コーナー生成 =====
     async _generateReaderCorner() {
+        const genToken = this._genToken; // 捕获本次 run 身份（generateArticle 同步 dispatch，首行在任何 await 之前）
         const theme = document.getElementById('magazineThemeInput')?.value?.trim() || '';
         const afterPlotId = document.getElementById('magazineAfterPlot')?.value || '';
 
@@ -855,6 +887,10 @@ TITLE: [タイトル、例：「読者のお便りコーナー ～みんなの�
         if (!magazineData.articles) magazineData.articles = [];
         magazineData.articles.push(article);
         Utils.saveData();
+        if (typeof Utils !== 'undefined' && Utils.emitEvent) {
+            Utils.emitEvent('magazine_published', 'magazine', { title: article.title, summary: article.theme });
+        }
+        if (genToken !== this._genToken) return; // 本次 run 已失效（用户关闭弹窗/另开新生成），文章数据已保存，不再自动 toast/跳转抢占当前屏幕
         this.closeGenerateModal();
         Utils.showToast(I18n.t('t.mag_reader_done', '✓ 読者コーナー生成完了'));
         this.openArticle(article.id);
@@ -862,6 +898,7 @@ TITLE: [タイトル、例：「読者のお便りコーナー ～みんなの�
 
     // ===== キャラ対談生成 =====
     async _generateCharaTalk() {
+        const genToken = this._genToken; // 捕获本次 run 身份（generateArticle 同步 dispatch，首行在任何 await 之前）
         const theme = document.getElementById('magazineThemeInput')?.value?.trim() || '';
         const afterPlotId = document.getElementById('magazineAfterPlot')?.value || '';
         if (!theme) { Utils.showToast(I18n.t('t.mag_need_talk_theme', '対談テーマを入力してください')); return; }
@@ -926,6 +963,10 @@ TITLE: [タイトル、例：「放課後クロストーク ～AとBの本音～
         if (!magazineData.articles) magazineData.articles = [];
         magazineData.articles.push(article);
         Utils.saveData();
+        if (typeof Utils !== 'undefined' && Utils.emitEvent) {
+            Utils.emitEvent('magazine_published', 'magazine', { title: article.title, summary: article.theme });
+        }
+        if (genToken !== this._genToken) return; // 本次 run 已失效（用户关闭弹窗/另开新生成），文章数据已保存，不再自动 toast/跳转抢占当前屏幕
         this.closeGenerateModal();
         Utils.showToast(I18n.t('t.mag_charatalk_done', '✓ キャラ対談生成完了'));
         this.openArticle(article.id);
@@ -933,6 +974,7 @@ TITLE: [タイトル、例：「放課後クロストーク ～AとBの本音～
 
     // ===== 相関図生成 =====
     async _generateRelationChart() {
+        const genToken = this._genToken; // 捕获本次 run 身份（generateArticle 同步 dispatch，首行在任何 await 之前）
         const theme = document.getElementById('magazineThemeInput')?.value?.trim() || '';
         const afterPlotId = document.getElementById('magazineAfterPlot')?.value || '';
 
@@ -984,6 +1026,10 @@ TITLE: [タイトル、例：「最新話までの人物相関図」]
         if (!magazineData.articles) magazineData.articles = [];
         magazineData.articles.push(article);
         Utils.saveData();
+        if (typeof Utils !== 'undefined' && Utils.emitEvent) {
+            Utils.emitEvent('magazine_published', 'magazine', { title: article.title, summary: article.theme });
+        }
+        if (genToken !== this._genToken) return; // 本次 run 已失效（用户关闭弹窗/另开新生成），文章数据已保存，不再自动 toast/跳转抢占当前屏幕
         this.closeGenerateModal();
         Utils.showToast(I18n.t('t.mag_chart_done', '✓ 相関図生成完了'));
         this.openArticle(article.id);
@@ -991,6 +1037,7 @@ TITLE: [タイトル、例：「最新話までの人物相関図」]
 
     // ===== 月間まとめ生成 =====
     async _generateRoundup() {
+        const genToken = this._genToken; // 捕获本次 run 身份（generateArticle 同步 dispatch，首行在任何 await 之前）
         const forumData = AppState.data.forumData || {};
         const magazineData = AppState.data.magazineData;
         const worldContext = (typeof Forum !== 'undefined' && Forum.getWorldContext) ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
@@ -1059,6 +1106,7 @@ TITLE: [記事タイトル、例：「今月のファンダム総まとめ！激
             Utils.emitEvent('magazine_published', 'magazine', { title: title, summary: '月間まとめ特集' });
         }
 
+        if (genToken !== this._genToken) return; // 本次 run 已失效（用户关闭弹窗/另开新生成），文章数据已保存，不再自动 toast/跳转抢占当前屏幕
         this.closeGenerateModal();
         Utils.showToast(I18n.t('t.mag_roundup_done', '✓ 月間まとめ生成完了'));
         this.openArticle(article.id);
@@ -1222,6 +1270,7 @@ TITLE: [記事タイトル、例：「今月のファンダム総まとめ！激
 
         const relationships = [];
         const editorialNotes = [];
+        const plainLines = []; // 関係正則に一致しなかった◆行、◆/※以外の非空行 — 捨てずにプレーンテキストで兜底表示する
         for (const line of lines) {
             const trimmed = this._stripMarkdown(line.trim());
             if (!trimmed) continue;
@@ -1237,14 +1286,23 @@ TITLE: [記事タイトル、例：「今月のファンダム総まとめ！激
                         arrow: relMatch[2],
                         desc: relMatch[4].trim()
                     });
+                } else {
+                    plainLines.push(trimmed);
                 }
             } else if (trimmed.startsWith('※')) {
                 editorialNotes.push(trimmed);
+            } else {
+                plainLines.push(trimmed);
             }
         }
 
         const charNames = Object.keys(charColorMap);
-        if (charNames.length === 0) return `<div class="magazine-chart-body"><div class="magazine-feature-line">${I18n.t('mag.no_data', 'No data')}</div></div>`;
+        if (charNames.length === 0) {
+            // 関係を一つも認識できなかった場合：空表示にせず原文をそのままプレーンテキストで兜底表示する
+            const fallbackLines = lines.map(l => this._stripMarkdown(l.trim())).filter(Boolean);
+            const fallbackHtml = fallbackLines.map(l => `<div class="magazine-feature-line">${this._escHtml(l)}</div>`).join('');
+            return `<div class="magazine-chart-body">${fallbackHtml || `<div class="magazine-feature-line">${I18n.t('mag.no_data', 'No data')}</div>`}</div>`;
+        }
 
         // ── SVG Layout ──
         const svgW = 360, svgH = Math.max(300, charNames.length * 50 + 60);
@@ -1333,8 +1391,9 @@ TITLE: [記事タイトル、例：「今月のファンダム総まとめ！激
         detailHtml += '</div>';
 
         let editHtml = editorialNotes.map(n => `<div class="mag-chart-editorial">${this._escHtml(n)}</div>`).join('');
+        let plainHtml = plainLines.map(l => `<div class="magazine-feature-line">${this._escHtml(l)}</div>`).join('');
 
-        return `<div class="magazine-chart-body">${svg}${detailHtml}${editHtml}</div>`;
+        return `<div class="magazine-chart-body">${svg}${detailHtml}${editHtml}${plainHtml}</div>`;
     },
 
     // ===== 翻译全文 =====
@@ -1815,6 +1874,7 @@ body { font-family: 'Noto Serif JP', 'Noto Serif SC', 'Yu Mincho', 'Hiragino Min
 .p-cover[data-type="reader"]   { background: linear-gradient(145deg, #2a1a0a 0%, #4a3015 40%, #6b4520 100%); }
 .p-cover[data-type="charatalk"]{ background: linear-gradient(145deg, #2a0a2a 0%, #4a154a 40%, #6b206b 100%); }
 .p-cover[data-type="chart"]    { background: linear-gradient(145deg, #0a2a2a 0%, #154a4a 40%, #206b6b 100%); }
+.p-cover[data-type="roundup"]  { background: #3a4a5c; }
 /* body text */
 .p-body { font-size: 13px; line-height: 1.8; }
 .p-body .q { color: #666; font-style: italic; margin: 14px 0 4px; }

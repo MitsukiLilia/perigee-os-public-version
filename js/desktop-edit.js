@@ -100,6 +100,7 @@ const DesktopRenderer = {
         if (typeof ConstellationIcons !== 'undefined') ConstellationIcons.apply();
         if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
+        if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
         // Apply custom icons if available
         if (typeof IconCustomizer !== 'undefined') IconCustomizer.applyCustomIcons();
         // Apply i18n
@@ -379,6 +380,24 @@ const DesktopRenderer = {
         Utils.saveData();
     },
 
+    // v2.172.0 月读下架迁移：老存档桌面上的月读图标（网格 + dock）摘掉。
+    // 只删图标、不动 yueduData（存档数据永远保留）。幂等：没有就什么都不做。
+    _removeYueduIcon() {
+        const layout = AppState.data.desktopLayout;
+        if (!layout || !Array.isArray(layout.pages)) return;
+        let changed = false;
+        layout.pages.forEach(p => {
+            const before = (p.items || []).length;
+            p.items = (p.items || []).filter(it => !(it.type === 'icon' && it.appId === 'yuedu'));
+            if (p.items.length !== before) changed = true;
+        });
+        if (Array.isArray(layout.dock) && layout.dock.includes('yuedu')) {
+            layout.dock = layout.dock.filter(a => a !== 'yuedu');
+            changed = true;
+        }
+        if (changed) Utils.saveData();
+    },
+
     _ensureLayout() {
         if (AppState.data.desktopLayout && AppState.data.desktopLayout.pages.length > 0) {
             this._migrateDock();   // 必须在 _ensureBroadcastIcon 之前：先把 broadcast 落进 dock，它才不会被补回网格
@@ -386,6 +405,7 @@ const DesktopRenderer = {
             this._ensureMercariIcon();
             this._ensureWeiboIcon();
             this._ensureLofterIcon();
+            this._removeYueduIcon();
             return;
         }
 

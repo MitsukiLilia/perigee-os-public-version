@@ -48,6 +48,7 @@
     flex: 1;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;   /* v2.171.0 首页只能上下滑：长作者名等内容不再把页面横向撑开 */
     -webkit-overflow-scrolling: touch;
     padding: 0 0 calc(64px + env(safe-area-inset-bottom, 0px));
 }
@@ -266,6 +267,7 @@
 }
 .lof-col {
     flex: 1;
+    min-width: 0;   /* v2.171.0 关键：flex 子项默认 min-width:auto、卡片里 nowrap 的长作者名会把列的最小宽度顶穿 50%，两列合计超过屏宽 → 横向溢出 */
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -380,6 +382,7 @@
 .lof-card-author-name {
     font-size: 12px;
     color: var(--text-secondary, #666);
+    min-width: 0;   /* v2.171.0 flex 子项允许收缩、省略号才真正生效 */
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2647,3 +2650,16 @@
     .lof-detail-title { font-size: 20px; }
     .lof-detail-content { font-size: 15px; }
 }
+
+/* ===== v2.170.0 合集世界观选择（世界书多选 + CP 行）===== */
+.lof-wb-list { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; padding: 4px 2px; -webkit-overflow-scrolling: touch; }
+.lof-wb-opt { display: flex; align-items: center; gap: 8px; font-size: 14px; color: inherit; }
+.lof-wb-opt input { flex: none; margin: 0; }
+.lof-cp-pair-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.lof-cp-pair-row input { flex: 1; min-width: 0; }
+.lof-cp-x { opacity: 0.5; flex: none; }
+
+/* v2.171.0 结局章 */
+.lof-next-ch-ending-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; opacity: 0.85; }
+.lof-next-ch-ending-row input { margin: 0; }
+.lof-col-finished-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; background: rgba(26, 188, 156, 0.14); color: #1abc9c; vertical-align: 2px; }

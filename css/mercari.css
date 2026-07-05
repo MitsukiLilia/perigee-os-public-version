@@ -37,7 +37,8 @@
 .mc-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:0 14px; }
 .mc-card { background:var(--bg-card,#fff); border:1px solid var(--border-light,#e6e6ea);
   border-radius:8px; overflow:hidden; }
-.mc-card-img { height:96px; background:#ececf0; position:relative; }
+.mc-card-img { height:96px; background:#ececf0; position:relative; overflow:hidden; }
+.mc-card-img img { width:100%; height:100%; object-fit:cover; display:block; }
 .mc-sold { position:absolute; left:0; top:0; background:#e4002b; color:#fff;
   font-size:10px; font-weight:700; padding:2px 7px; }
 .mc-card-ti { padding:5px 7px 0; font-size:12px; color:var(--text-primary,#222);
@@ -47,7 +48,8 @@
 
 /* 商品详情页 */
 .mc-d-bar { padding:10px 14px; color:var(--text-secondary,#888); font-size:13px; }
-.mc-d-img { height:200px; background:#ececf0; }
+.mc-d-img { height:200px; background:#ececf0; overflow:hidden; }
+.mc-d-img img { width:100%; height:100%; object-fit:contain; display:block; cursor:zoom-in; }
 .mc-d-pad { padding:12px 14px; }
 .mc-d-name { font-size:15px; font-weight:600; color:var(--text-primary,#222); }
 .mc-d-price { font-size:24px; font-weight:800; color:#e4002b; margin-top:4px; }

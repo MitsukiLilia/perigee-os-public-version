@@ -24,7 +24,7 @@ const WorldBook = {
                         </svg>
                     </div>
                     <div class="chat-info">
-                        <div class="chat-name">${book.name}</div>
+                        <div class="chat-name">${this._escapeHtml(book.name)}</div>
                         <div class="chat-preview">${countLabel}</div>
                     </div>
                 </div>
@@ -47,6 +47,37 @@ const WorldBook = {
 
         AppState.data.worldBooks.push(newBook);
         Utils.saveData();
+        this.renderList();
+    },
+
+    // 重命名当前世界书
+    renameBook() {
+        const book = AppState.data.worldBooks.find(b => b.id === this.currentBookId);
+        if (!book) return;
+
+        const name = prompt(I18n.t('t.wb_rename_prompt'), book.name);
+        if (name === null) return;          // 用户取消
+        const trimmed = name.trim();
+        if (!trimmed) return alert(I18n.t('t.wb_name_empty'));
+
+        book.name = trimmed;
+        Utils.saveData();
+        document.getElementById('worldBookTitle').textContent = trimmed;
+        this.renderList();
+    },
+
+    // 删除当前整本世界书
+    deleteBook() {
+        const book = AppState.data.worldBooks.find(b => b.id === this.currentBookId);
+        if (!book) return;
+
+        const count = book.entries ? book.entries.length : 0;
+        if (!confirm(I18n.t('t.wb_delete_confirm', { name: book.name, count: count }))) return;
+
+        AppState.data.worldBooks = (AppState.data.worldBooks || []).filter(b => b.id !== this.currentBookId);
+        this.currentBookId = null;
+        Utils.saveData();
+        Navigation.goTo('worldbook');
         this.renderList();
     },
 
@@ -77,24 +108,24 @@ const WorldBook = {
         container.innerHTML = entries.map(entry => {
             const isEnabled = entry.enabled !== false;
             const keysPreview = entry.keys ? entry.keys.slice(0, 3).join(', ') : '';
-            const contentPreview = entry.content.slice(0, 50).replace(/\n/g, ' ');
+            const contentPreview = (entry.content || '').slice(0, 50).replace(/\n/g, ' ');
             const dimStyle = isEnabled ? '' : 'opacity:0.4;';
             return `
                 <div class="settings-card" style="margin-bottom:12px;">
                     <div style="padding:12px 16px;">
                         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:10px;">
                             <div style="font-weight:600;font-size:15px;${isEnabled ? '' : 'text-decoration:line-through;opacity:0.45;'}cursor:pointer;"
-                                onclick="WorldBook.openEntry('${entry.id}')">${entry.title}</div>
+                                onclick="WorldBook.openEntry('${entry.id}')">${this._escapeHtml(entry.title)}</div>
                             <label class="wb-toggle" title="${isEnabled ? '点击关闭' : '点击开启'}">
                                 <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="WorldBook.toggleEntry('${entry.id}',this.checked)">
                                 <span class="wb-toggle-slider"></span>
                             </label>
                         </div>
                         <div style="font-size:12px;color:#666;margin-bottom:6px;${dimStyle}cursor:pointer;" onclick="WorldBook.openEntry('${entry.id}')">
-                            <strong>关键词：</strong>${keysPreview || '无'}
+                            <strong>关键词：</strong>${this._escapeHtml(keysPreview) || '无'}
                         </div>
                         <div style="font-size:13px;color:#888;${dimStyle}cursor:pointer;" onclick="WorldBook.openEntry('${entry.id}')">
-                            ${contentPreview}${entry.content.length > 50 ? '...' : ''}
+                            ${this._escapeHtml(contentPreview)}${(entry.content || '').length > 50 ? '...' : ''}
                         </div>
                         <button class="glass-btn danger" style="margin-top:10px;padding:6px 12px;font-size:12px;" onclick="event.stopPropagation();WorldBook.deleteEntry('${entry.id}')">删除条目</button>
                     </div>
@@ -165,7 +196,7 @@ const WorldBook = {
         Utils.saveData();
         Navigation.goTo('worldbookDetail');
         this.renderEntries();
-        alert('✓ 条目已保存');
+        Utils.showToast('条目已保存');
     },
 
     // 切换条目启用/禁用

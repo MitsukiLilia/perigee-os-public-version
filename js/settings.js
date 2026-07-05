@@ -35,7 +35,9 @@ const APISettings = {
     },
 
     // 根据API模式更新UI和默认值
-    updateUIForMode() {
+    // forceUrlReset: 手动切换 mode 时 true（强制预填该 provider 默认地址）；
+    //   init 恢复已保存配置时 false（openrouter/pioneer 不覆盖用户改过的 URL）
+    updateUIForMode(forceUrlReset = false) {
         const mode = document.getElementById('apiMode').value;
         const urlRow = document.getElementById('apiUrlRow');
         const urlInput = document.getElementById('apiUrl');
@@ -97,6 +99,40 @@ const APISettings = {
                 urlRow.appendChild(deepseekHint);
                 break;
 
+            case 'openrouter':
+                // OpenRouter 文字聚合站：OpenAI 兼容，URL 可见+预填，可微调
+                urlRow.style.display = '';
+                urlInput.style.display = '';
+                if (forceUrlReset || !urlInput.value) urlInput.value = 'https://openrouter.ai/api/v1';
+                fetchBtn.style.display = '';
+                fetchBtn.textContent = '获取模型';
+                keyInput.placeholder = '输入 OpenRouter API Key (sk-or-...)';
+                modelInput.placeholder = '点击「获取模型」自动拉取';
+
+                const orHint = document.createElement('p');
+                orHint.className = 'api-hint';
+                orHint.style.cssText = 'font-size:10px; color:#999; margin-top:4px; margin-bottom:0;';
+                orHint.textContent = '* OpenRouter 文字模型聚合站、OpenAI 兼容，点「获取模型」自动拉取最新';
+                urlRow.appendChild(orHint);
+                break;
+
+            case 'pioneer':
+                // Pioneer 官方中转站：OpenAI 兼容，URL 可见+预填，可微调；鉴权双发 Bearer + X-API-Key
+                urlRow.style.display = '';
+                urlInput.style.display = '';
+                if (forceUrlReset || !urlInput.value) urlInput.value = 'https://api.pioneer.ai/v1';
+                fetchBtn.style.display = '';
+                fetchBtn.textContent = '获取模型';
+                keyInput.placeholder = '输入 Pioneer API Key';
+                modelInput.placeholder = '点击「获取模型」自动拉取';
+
+                const pioneerHint = document.createElement('p');
+                pioneerHint.className = 'api-hint';
+                pioneerHint.style.cssText = 'font-size:10px; color:#999; margin-top:4px; margin-bottom:0;';
+                pioneerHint.textContent = '* Pioneer 官方中转站、OpenAI 兼容，点「获取模型」自动拉取最新';
+                urlRow.appendChild(pioneerHint);
+                break;
+
             case 'openai':
             default:
                 urlRow.style.display = '';
@@ -110,7 +146,7 @@ const APISettings = {
     },
 
     onModeChange() {
-        APISettings.updateUIForMode();
+        APISettings.updateUIForMode(true);
     },
 
     // 尝试拉取模型列表 (支持 OpenAI/Google/Claude/DeepSeek)
@@ -182,6 +218,13 @@ const APISettings = {
                 // 移除可能的 /chat/completions 或 /completions 后缀
                 url = url.replace(/\/(chat\/)?completions?$/i, '');
 
+                // 鉴权头：标准 Bearer；Pioneer 文档示例用 X-API-Key，双发兜底（服务器取其一）
+                const fetchHeaders = {
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                };
+                if (mode === 'pioneer') fetchHeaders['X-API-Key'] = key;
+
                 // 尝试多种endpoint格式
                 const endpointsToTry = [
                     { url: `${url}/v1/models`, base: `${url}/v1` },
@@ -195,10 +238,7 @@ const APISettings = {
                         console.log(`[API Test] Trying: ${endpoint.url}`);
                         const res = await fetch(endpoint.url, {
                             method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${key}`,
-                                'Content-Type': 'application/json'
-                            }
+                            headers: fetchHeaders
                         });
 
                         if (res.ok) {
@@ -267,7 +307,7 @@ const APISettings = {
                 document.getElementById('apiUrl').value = correctBaseUrl;
             }
 
-            const modeNames = { 'google': 'Google', 'claude': 'Claude', 'openai': 'OpenAI', 'deepseek': 'DeepSeek' };
+            const modeNames = { 'google': 'Google', 'claude': 'Claude', 'openai': 'OpenAI', 'deepseek': 'DeepSeek', 'openrouter': 'OpenRouter', 'pioneer': 'Pioneer' };
             const modeName = modeNames[mode] || 'API';
             alert(`✓ 成功获取 ${models.length} 个 ${modeName} 模型！${correctBaseUrl && mode !== 'claude' ? `\n基础 URL 已自动更新为: ${correctBaseUrl}` : ''}\n\n请在下拉菜单选择模型，或手动输入模型 ID。`);
         } else {
@@ -384,8 +424,8 @@ const APISettings = {
         document.getElementById('apiUrl').value = preset.url || '';
         document.getElementById('apiKey').value = preset.key || '';
         document.getElementById('manualModel').value = preset.model || '';
-        document.getElementById('temperature').value = preset.temperature || 0.7;
-        document.getElementById('tempValue').textContent = preset.temperature || 0.7;
+        document.getElementById('temperature').value = Utils._num(preset.temperature, 0.7);
+        document.getElementById('tempValue').textContent = Utils._num(preset.temperature, 0.7);
 
         this.updateUIForMode();
         Utils.showToast(I18n.t('t.set_preset_loaded', {name: preset.name}));
@@ -498,7 +538,7 @@ const APISettings = {
 
 // 2. 系统配置模块
 const SystemConfig = {
-    THEMES: ['sakura', 'night-sky', 'summer-rain', 'journal', 'minimal', 'zelda', 'animal', 'strawberry'],
+    THEMES: ['sakura', 'night-sky', 'summer-rain', 'journal', 'minimal', 'zelda', 'animal', 'strawberry', 'snow-country'],
     FONTS: ['cjk-serif', 'jp-mincho', 'sans', 'mono', 'system'],
 
     // 老 → 新主题映射（静默迁移）
@@ -525,6 +565,7 @@ const SystemConfig = {
                 customTheme: '',
                 rainEffect: true,
                 starfieldEffect: true,
+                snowEffect: true,
                 glassQuality: 'auto'
             };
         }
@@ -569,6 +610,7 @@ const SystemConfig = {
         if (cfg.customTheme === undefined) cfg.customTheme = '';
         if (cfg.rainEffect === undefined) cfg.rainEffect = true;
         if (cfg.starfieldEffect === undefined) cfg.starfieldEffect = true;
+        if (cfg.snowEffect === undefined) cfg.snowEffect = true;
         if (cfg.glassQuality === undefined) cfg.glassQuality = 'auto';
         if (cfg.showDockLabels === undefined) cfg.showDockLabels = true;
         if (!cfg.language) cfg.language = 'zh';
@@ -581,6 +623,7 @@ const SystemConfig = {
         this.applyCustomTheme(cfg.customTheme);
         this.applyRainEffect(cfg.rainEffect);
         this.applyStarfieldEffect(cfg.starfieldEffect);
+        this.applySnowEffect(cfg.snowEffect);
         this.applyGlassQuality(cfg.glassQuality);
 
         // 表单值
@@ -778,6 +821,7 @@ const SystemConfig = {
         if (typeof ConstellationIcons !== 'undefined') ConstellationIcons.apply();
         if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
+        if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
         // 切主题后更新「动态特效开关」行（按当前主题显示对应开关 / 隐藏）
         if (typeof this._updateThemeEffectRow === 'function') this._updateThemeEffectRow();
         if (typeof this._updateGlassQualityRow === 'function') this._updateGlassQualityRow();
@@ -822,6 +866,13 @@ const SystemConfig = {
         if (window.StarfieldEngine) StarfieldEngine.setEnabled(enabled);
     },
 
+    // 飘雪动态开关（仅雪国主题；关闭只去飘雪，背景图 + 冰磨砂图标保留）
+    applySnowEffect(enabled) {
+        document.body.classList.toggle('snow-off', !enabled);
+        if (window.SnowEngine) SnowEngine.setEnabled(enabled);
+        if (window.SnowEngine2D) SnowEngine2D.setEnabled(enabled);
+    },
+
     // 玻璃质量（仅夏雨 + 支持折射时有意义）：'auto' | 'high' | 'off' → LiquidGlass.setQuality
     applyGlassQuality(level) {
         const lv = (level === 'high' || level === 'off') ? level : 'auto';
@@ -851,8 +902,9 @@ const SystemConfig = {
     // ── 数据驱动「动态特效开关」：每个主题各自的动态特效，按当前主题显示对应开关 / 无动态则隐藏整行
     //    （顺手修了原雨开关无条件显示、切到别的主题也看得见的 bug） ──
     THEME_EFFECTS: {
-        'summer-rain': { key: 'rainEffect',      label: 'appr.rain_effect',      note: 'appr.rain_effect_note',      applyFn: 'applyRainEffect' },
-        'night-sky':   { key: 'starfieldEffect', label: 'appr.starfield_effect', note: 'appr.starfield_effect_note', applyFn: 'applyStarfieldEffect' },
+        'summer-rain':  { key: 'rainEffect',      label: 'appr.rain_effect',      note: 'appr.rain_effect_note',      applyFn: 'applyRainEffect' },
+        'night-sky':    { key: 'starfieldEffect', label: 'appr.starfield_effect', note: 'appr.starfield_effect_note', applyFn: 'applyStarfieldEffect' },
+        'snow-country': { key: 'snowEffect',      label: 'appr.snow_effect',      note: 'appr.snow_effect_note',      applyFn: 'applySnowEffect' },
     },
 
     _updateThemeEffectRow() {
@@ -1220,12 +1272,13 @@ const IconCustomizer = {
         });
     },
 
-    // 删/改自定义图标后重铺当前主题图标贴纸/星座(三方守卫对称、顺序同 DesktopRenderer.render)，
+    // 删/改自定义图标后重铺当前主题图标贴纸/星座(四方守卫对称、顺序同 DesktopRenderer.render)，
     // 否则被 reset 的 app 会退回默认 SVG 而非主题图标。自定义图标仍最高优先(applyCustomIcons 在此之前已跑)。
     _reapplyThemeIcons() {
         if (typeof ConstellationIcons !== 'undefined') ConstellationIcons.apply();
         if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
+        if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
     }
 };
 
@@ -1289,6 +1342,8 @@ const ImageAPISettings = {
             if (twEl) twEl.checked = imgModules.twitter !== false;
             const mbEl = document.getElementById('imageGenMelonbooks');
             if (mbEl) mbEl.checked = imgModules.melonbooks !== false;
+            const gdEl = document.getElementById('imageGenGoods');
+            if (gdEl) gdEl.checked = imgModules.goods === true;  // 官方周边默认关
         }
 
         // Initial UI update
@@ -1370,7 +1425,8 @@ const ImageAPISettings = {
         // モジュール別画像生成設定
         AppState.data.imageGenModules = {
             twitter: document.getElementById('imageGenTwitter')?.checked ?? true,
-            melonbooks: document.getElementById('imageGenMelonbooks')?.checked ?? true
+            melonbooks: document.getElementById('imageGenMelonbooks')?.checked ?? true,
+            goods: document.getElementById('imageGenGoods')?.checked ?? false  // 官方周边默认关
         };
 
         // Save NovelAI-specific settings
@@ -1390,6 +1446,115 @@ const ImageAPISettings = {
 
         Utils.saveData();
         Utils.showToast(I18n.t('t.set_image_api_saved', '✓ Image API settings saved'));
+    }
+};
+
+// ===== 视频生成 API（Seedance PV，js/video-gen.js 消费 workerUrl/key/model） =====
+const VideoAPISettings = {
+    init() {
+        // 懒创建配置对象（照 ImageAPISettings.init 的姿势）
+        if (!AppState.data.videoApiConfig) {
+            AppState.data.videoApiConfig = { workerUrl: '', key: '', model: (typeof VideoGen !== 'undefined' && VideoGen.MODELS?.[0]?.id) || '' };
+        }
+        const config = AppState.data.videoApiConfig;
+
+        document.getElementById('videoApiWorkerUrl').value = config.workerUrl || '';
+        document.getElementById('videoApiKey').value = config.key || '';
+        this.populateModels(config.model);
+
+        document.getElementById('videoApiFetchModelsBtn').onclick = this.tryFetchVideoModels.bind(this);
+        document.getElementById('saveVideoApiBtn').onclick = this.save.bind(this);
+    },
+
+    // 用 VideoGen.MODELS 填 select（value=id，text=label）
+    populateModels(selected) {
+        const select = document.getElementById('videoApiModel');
+        if (!select) return;
+        const models = (typeof VideoGen !== 'undefined' && VideoGen.MODELS) ? VideoGen.MODELS : [];
+        select.innerHTML = '';
+        models.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = m.label;
+            select.appendChild(opt);
+        });
+        if (selected && models.some(m => m.id === selected)) {
+            select.value = selected;
+        } else if (models.length) {
+            select.value = models[0].id;
+        }
+    },
+
+    save() {
+        let workerUrl = document.getElementById('videoApiWorkerUrl').value.trim();
+        while (workerUrl.endsWith('/')) workerUrl = workerUrl.slice(0, -1);
+
+        AppState.data.videoApiConfig = {
+            workerUrl,
+            key: document.getElementById('videoApiKey').value.trim(),
+            model: document.getElementById('videoApiModel').value
+        };
+
+        Utils.saveData();
+        Utils.showToast(I18n.t('settings.video_api_saved', '✓ 视频生成 API 已保存'));
+    },
+
+    // GET {workerUrl}/ark/api/v3/models（Bearer）→ 过滤 id 含 seedance 的项替换 select；
+    // 保留当前选中值（不在新列表里也追加一项防丢配置）；任何失败/空结果都不动内置列表，只 toast。
+    // 容错风格照 APISettings.tryFetchModels（js/settings.js:153）/ WeiboApiSettings._fetchModels。
+    async tryFetchVideoModels() {
+        const workerUrl = document.getElementById('videoApiWorkerUrl').value.trim().replace(/\/+$/, '');
+        const key = document.getElementById('videoApiKey').value.trim();
+        const select = document.getElementById('videoApiModel');
+        const btn = document.getElementById('videoApiFetchModelsBtn');
+        const prevSelected = select ? select.value : '';
+
+        if (!workerUrl || !key) {
+            Utils.showToast(I18n.t('settings.video_api_url_key_required', '请先填写 Worker URL 和 API Key'));
+            return;
+        }
+
+        if (btn) { btn.textContent = '⏳'; btn.disabled = true; }
+        try {
+            const res = await fetch(`${workerUrl}/ark/api/v3/models`, {
+                method: 'GET',
+                headers: { 'Authorization': 'Bearer ' + key }
+            });
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (!data || !Array.isArray(data.data)) throw new Error('bad response shape');
+
+            const seedanceIds = data.data
+                .map(m => (typeof m === 'string' ? m : m.id))
+                .filter(id => id && id.toLowerCase().includes('seedance'));
+            if (!seedanceIds.length) throw new Error('no seedance models in response');
+
+            // 内置列表里有同 id 的沿用其 label；拉到的新 id 没有内置 label 时用 id 本身兜底显示
+            const builtins = (typeof VideoGen !== 'undefined' && VideoGen.MODELS) ? VideoGen.MODELS : [];
+            const merged = seedanceIds.map(id => builtins.find(m => m.id === id) || { id, label: id });
+
+            // 当前选中值不在新列表里也保留为一个选项，防止丢配置
+            if (prevSelected && !merged.some(m => m.id === prevSelected)) {
+                merged.push(builtins.find(m => m.id === prevSelected) || { id: prevSelected, label: prevSelected });
+            }
+
+            select.innerHTML = '';
+            merged.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = m.label;
+                select.appendChild(opt);
+            });
+            select.value = prevSelected && merged.some(m => m.id === prevSelected) ? prevSelected : merged[0].id;
+
+            Utils.showToast(I18n.t('settings.video_api_fetched', '模型列表已更新'));
+        } catch (err) {
+            console.warn('[VideoAPISettings] fetch failed', err);
+            Utils.showToast(I18n.t('settings.video_api_fetch_failed', '拉取失败，使用内置列表'));
+            // 内置列表未被触碰（上面校验失败会在替换 select 之前 throw）
+        } finally {
+            if (btn) { btn.textContent = I18n.t('settings.video_api_fetch_models', '拉取模型列表'); btn.disabled = false; }
+        }
     }
 };
 
