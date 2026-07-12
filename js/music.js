@@ -51,7 +51,7 @@ const Music = {
     },
 
     _escHtml(s) {
-        return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        return Utils.escapeHtml(s); // 收口：转发权威实现（语义与原实现完全相同）
     },
 
     _getSongTypeLabel(value) {

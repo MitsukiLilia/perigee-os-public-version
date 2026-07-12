@@ -641,10 +641,11 @@ const Niconico = {
         return models.find(m => m.id === id) || models[0] || { id: '', ref: false, audio: false };
     },
 
-    _pvDurationOptionsHtml() {
+    // min/max/selected 可覆写——1.0 系模型只支持 [4,12]s，其他系列 [4,15]s（_pvOnModelChange 按系列重建时传入）
+    _pvDurationOptionsHtml(min = 4, max = 15, selected = 10) {
         let html = '';
-        for (let s = 4; s <= 15; s++) {
-            html += `<option value="${s}" ${s === 10 ? 'selected' : ''}>${I18n.t('nico.pv_duration_unit', { n: s })}</option>`;
+        for (let s = min; s <= max; s++) {
+            html += `<option value="${s}" ${s === selected ? 'selected' : ''}>${I18n.t('nico.pv_duration_unit', { n: s })}</option>`;
         }
         return html;
     },
@@ -769,6 +770,16 @@ const Niconico = {
             resSel.value = resOptions.includes(prevRes) ? prevRes : '720p';
         }
 
+        // 時長：1.0 系列モデルは短尺のみ対応（[4,12]s）、それ以外は[4,15]s。現在値が新範囲を超えたら範囲内最大値に落とす
+        const durSel = document.getElementById('nicoPvDuration');
+        if (durSel) {
+            const prevDur = parseInt(durSel.value, 10);
+            const isV1 = /^doubao-seedance-1-0-/.test(model.id);
+            const minD = 4, maxD = isV1 ? 12 : 15;
+            const fallbackD = (prevDur >= minD && prevDur <= maxD) ? prevDur : maxD;
+            durSel.innerHTML = this._pvDurationOptionsHtml(minD, maxD, fallbackD);
+        }
+
         const refRow = document.getElementById('nicoPvRefRow');
         const refAddBtn = document.getElementById('nicoPvRefAddBtn');
         const refHint = document.getElementById('nicoPvRefHint');
@@ -807,11 +818,12 @@ const Niconico = {
         this._pvRenderRefThumbs();
     },
 
-    // ===== 参考画像ピッカー（Pixivイラストギャラリーから選択・最大9枚） =====
+    // ===== 参考画像ピッカー（放送局立ち絵 + Pixivイラストギャラリー・最大9枚混選） =====
     async _pvOpenGalleryPicker() {
         const illusts = (AppState.data.pixivData && AppState.data.pixivData.illustrations) || [];
-        if (illusts.length === 0) {
-            Utils.showToast(I18n.t('nico.pv_gallery_empty', 'Pixivにイラストがありません'));
+        const charRefs = (typeof Broadcast !== 'undefined' && Broadcast.getAllCharRefs) ? Broadcast.getAllCharRefs() : [];
+        if (illusts.length === 0 && charRefs.length === 0) {
+            Utils.showToast(I18n.t('nico.pv_gallery_empty_all', '参考にできる画像がありません（放送局の立ち絵か Pixiv イラストが必要です）'));
             return;
         }
         this._pvGallerySelection = (this._pvRefImgIds || []).slice();
@@ -828,22 +840,34 @@ const Niconico = {
             </div>
         </div>`;
         document.body.insertAdjacentHTML('beforeend', html);
-        await this._pvRenderGalleryGrid(illusts);
+        await this._pvRenderGalleryGrid(charRefs, illusts);
     },
 
-    async _pvRenderGalleryGrid(illusts) {
+    async _pvRenderGalleryGrid(charRefs, illusts) {
         const grid = document.getElementById('nicoPvGalleryGrid');
         if (!grid) return;
-        const items = await Promise.all(illusts.map(async it => ({ it, url: await IllustGallery.getUrl(it.id) })));
+        // 立ち絵組：getUrl null（blob 丢失/未上传）过滤——跨设备导入后引用悬空的条目不显示
+        const refItems = (await Promise.all(charRefs.map(async c =>
+            ({ id: c.blobId, badge: c.name, url: await IllustGallery.getUrl(c.blobId) })))).filter(x => x.url);
+        const illustItems = (await Promise.all(illusts.map(async it =>
+            ({ id: it.id, badge: null, url: await IllustGallery.getUrl(it.id) })))).filter(x => x.url);
         const grid2 = document.getElementById('nicoPvGalleryGrid');
-        if (!grid2) return;
-        grid2.innerHTML = items.map(({ it, url }) => {
-            const selected = this._pvGallerySelection.includes(it.id);
+        if (!grid2) return;   // await 期间被关闭
+        const esc = s => Utils.escapeHtml(s || '');
+        const renderItem = (item) => {
+            const selected = this._pvGallerySelection.includes(item.id);
             return `
-            <div class="nico-pv-gallery-item ${selected ? 'selected' : ''}" data-illust-id="${it.id}" style="background-image:url('${url || ''}')" onclick="Niconico._pvToggleGalleryItem('${it.id}')">
+            <div class="nico-pv-gallery-item ${selected ? 'selected' : ''}" data-illust-id="${esc(item.id)}" style="background-image:url('${item.url}')" onclick="Niconico._pvToggleGalleryItem('${esc(item.id)}')">
+                ${item.badge ? `<span class="nico-pv-gallery-badge">${esc(item.badge)}</span>` : ''}
                 <span class="nico-pv-gallery-check">${this._SVG.check}</span>
             </div>`;
-        }).join('');
+        };
+        const section = (titleHtml, items) => items.length
+            ? `<div class="nico-pv-gallery-section-title">${titleHtml}</div>` + items.map(renderItem).join('')
+            : '';
+        grid2.innerHTML =
+            section(I18n.t('nico.pv_gallery_sect_refs', '放送局の立ち絵'), refItems) +
+            section(I18n.t('nico.pv_gallery_sect_pixiv', 'Pixiv イラスト'), illustItems);
     },
 
     _pvToggleGalleryItem(id) {
@@ -1008,6 +1032,9 @@ ${seedText ? `\n## ユーザーが既に考えている方向性\n${seedText}\n`
             <div class="nico-video-info">
                 <div class="nico-video-title">${titleText}</div>
                 <div class="nico-gencard-status">${statusText}</div>
+                <div class="nico-gencard-actions">
+                    <button class="glass-btn mini danger-text" onclick="event.stopPropagation();Niconico._abandonGenTask('${task.id}')">${I18n.t('nico.pv_btn_cancel', 'キャンセル')}</button>
+                </div>
             </div>
         </div>`;
     },
@@ -1095,6 +1122,57 @@ ${seedText ? `\n## ユーザーが既に考えている方向性\n${seedText}\n`
         Utils.saveData();
         if (AppState.currentScreen === 'niconico' && this.currentTab === 'new') this._renderCurrentTab();
         return video;
+    },
+
+    // 包装 LLM が視頻生成より遅かった場合の補救（VideoGen._generatePackaging から呼ばれる）：
+    // task が既にキューから出ている（_onSucceeded が占位値で入库済み）時、videoBlobId で逆引きして
+    // 本物の title/desc/tags/弾幕/コメントを埋め直す。videoBlobId = 'vid-' + taskId（_onSucceeded と同じ規則）。
+    // 動画が既に削除済みなら何もしない（結果は破棄）。
+    applyPackagingBackfill(taskId, pk) {
+        const n = this._ensureData();
+        const videoBlobId = 'vid-' + taskId;
+        const v = (n.videos || []).find(x => x.videoBlobId === videoBlobId);
+        if (!v) return;   // 動画は既に削除済み
+
+        if (pk.title) v.title = pk.title;
+        if (pk.titleTl) v.titleTl = pk.titleTl;
+        if (pk.description) v.description = pk.description;
+        if (pk.descTl) v.descTl = pk.descTl;
+        if (pk.tags && pk.tags.length) v.tags = pk.tags;
+
+        // 弾幕/コメントは addRealVideo と同じ落库形态で n.comments[v.id] に追記
+        const extra = [];
+        (pk.danmaku || []).forEach(text => {
+            if (!text) return;
+            extra.push({
+                id: Utils.generateId(),
+                authorName: '',
+                text,
+                timestamp: this._randomTimestamp(v.duration),
+                color: this._DANMAKU_COLORS[Math.floor(Math.random() * this._DANMAKU_COLORS.length)]
+            });
+        });
+        (pk.comments || []).forEach(c => {
+            extra.push({
+                id: Utils.generateId(),
+                authorName: (c && c.author) || I18n.t('nico.anonymous', '匿名'),
+                text: (c && c.text) || '',
+                timestamp: '',
+                color: null
+            });
+        });
+        if (extra.length) {
+            if (!n.comments[v.id]) n.comments[v.id] = [];
+            n.comments[v.id].push(...extra);
+            v.commentCount = (v.commentCount || 0) + extra.length;
+        }
+
+        Utils.saveData();
+        if (AppState.currentScreen === 'niconico-detail' && this.currentVideoId === v.id) {
+            this.renderVideoDetail();
+        } else if (AppState.currentScreen === 'niconico' && this.currentTab === 'new') {
+            this._renderCurrentTab();
+        }
     },
 
     // 動画詳細ページのプレイヤーエリア：videoBlobId 持ちは真プレイヤー、それ以外は既存の弾幕クリック再生プレースホルダー
@@ -1966,8 +2044,9 @@ ${existingComments || '（なし）'}
         return (this._ensureData().channels || []).find(c => c.id === id) || null;
     },
 
+    // 收口：转发 Utils.escapeHtml（str||'' 保留原 falsy→'' 语义）
     _escHtml(str) {
-        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return Utils.escapeHtml(str || '');
     },
 
     _fmtNum(num) {

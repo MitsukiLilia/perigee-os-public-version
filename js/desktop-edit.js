@@ -101,6 +101,7 @@ const DesktopRenderer = {
         if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
         if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
+        if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
         // Apply custom icons if available
         if (typeof IconCustomizer !== 'undefined') IconCustomizer.applyCustomIcons();
         // Apply i18n

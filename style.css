@@ -594,7 +594,7 @@ body.dark-mode #desktop::before {
     min-width: 0;
     min-height: 0;
     box-sizing: border-box;
-    background: #ffffff;
+    background: var(--polaroid-paper, #ffffff);
     padding: 10px 10px 0;
     border-radius: 4px;
     box-shadow:
@@ -605,8 +605,8 @@ body.dark-mode #desktop::before {
     transition: transform 0.25s ease;
     cursor: pointer;
 }
-body.dark-mode .widget-polaroid-j {
-    background: #f5f0e8;
+body.dark-mode {
+    --polaroid-paper: #f5f0e8;
 }
 .widget-polaroid-j:active { transform: scale(0.97) !important; }
 
@@ -1194,6 +1194,10 @@ body.dark-mode .polaroid-image {
     font-size: 12px;
     color: var(--desktop-text, #555);
 }
+/* v2.192 B3：事件类型标签 pill；v2.193 文字色从 --text-secondary 改 --desktop-text
+   （同 .widget-news-item/.widget-news-label 家族，桌面文字按各主题底色单独调深浅，
+   夏雨主题下 --text-secondary 仍是深字、压在透出深蓝壁纸的玻璃上几乎不可见） */
+.widget-news-tag { flex: none; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 6px; border: 1px solid var(--border-light); color: var(--desktop-text, #333); white-space: nowrap; }
 .widget-news-dot {
     width: 5px;
     height: 5px;
@@ -1557,10 +1561,11 @@ body.dark-mode .widget-clock {
     text-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-/* 修复pixiv图标颜色-使用主题色 */
+/* pixiv 桌面图标色：与 .icon-niconico 同构，禁加 !important——
+   草莓/雪国等贴纸主题靠 [data-theme] .app-icon 把托盘压成透明，!important 会顶穿它露白砖 */
 .icon-pixiv-novel {
-    background: var(--app-icon-bg) !important;
-    color: var(--accent-color) !important;
+    background: var(--app-icon-bg);
+    color: var(--accent-color);
 }
 
 .app-header.glass {
@@ -1592,6 +1597,12 @@ body.dark-mode .widget-clock {
     color: var(--accent-color);
     padding: 8px;
     cursor: pointer;
+    transition: opacity .12s ease, transform .12s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.nav-btn:active:not(:disabled) {
+    opacity: .5;
+    transform: scale(0.92);
 }
 
 .nav-btn.back-btn {
@@ -3159,11 +3170,6 @@ details.tl>summary::-webkit-details-marker {
 details.tl>span {
     font-size: inherit;
     opacity: 0.8;
-}
-
-/* 图标颜色 */
-.icon-pixiv-novel {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 /* App图标自定义样�?*/
@@ -5005,3 +5011,143 @@ details.tl>span {
 #pixiv-reader .pixiv-reader-bar .active svg[fill="currentColor"] {
     color: #e74c3c;
 }
+
+/* v2.179.0 changelog 历史页懒加载按钮 */
+.changelog-load-more {
+    display: block;
+    margin: 6px auto 20px;
+    padding: 10px 24px;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.changelog-load-more:hover { background: var(--bg-secondary, rgba(0,0,0,0.03)); }
+.changelog-load-more:disabled { opacity: 0.6; cursor: default; }
+.changelog-history-end {
+    text-align: center;
+    color: var(--text-tertiary);
+    font-size: 12px;
+    padding: 8px 0 24px;
+}
+
+/* ===================================================
+   角色立绘卡 widget（v2.191 B1）：宽卡 单人/双人
+   卡面（底色/边框/圆角）由 .widget-card + 各主题皮肤承担，这里只管内部布局
+   =================================================== */
+.widget-charcard {
+    display: flex;
+    align-items: stretch;
+    padding: 0;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+}
+.cc-fig-wrap {
+    position: relative;
+    width: 38%;
+    min-width: 0;
+    overflow: hidden;
+}
+.cc-fig-wrap img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+}
+.cc-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 14px;
+    min-width: 0;
+}
+.cc-name {
+    font-size: 19px;
+    font-weight: 700;
+    /* v2.193 修复：曾用 --text-primary（app 内部深字 token），夏雨主题下该 token 仍是深色、
+       而立绘卡背景是透出深蓝壁纸的玻璃——改用桌面专属 --desktop-text（各主题已按桌面底色调好深浅） */
+    color: var(--desktop-text, #333);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cc-rule {
+    width: 34px;
+    height: 2px;
+    background: var(--accent-color);
+    margin: 6px 0;
+}
+.cc-line {
+    font-size: 10px;
+    color: var(--desktop-text, #555);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+/* 双人对台：两立绘分居两侧、右像镜像、名字居中悬浮 */
+.widget-charcard.cc-duo {
+    justify-content: space-between;
+}
+.widget-charcard.cc-duo .cc-fig-wrap {
+    width: 32%;
+}
+.cc-fig-b img {
+    transform: scaleX(-1);
+}
+.cc-duo-name {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 2;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--desktop-text, #333);
+    white-space: nowrap;
+    max-width: 44%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cc-x {
+    color: var(--accent-color);
+    font-weight: 400;
+    margin: 0 2px;
+}
+.cc-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 4px;
+    color: var(--text-tertiary);
+    font-size: 9px;
+}
+
+/* ═══ v2.192 B4 通知中心卡 ═══ */
+.widget-notifhub { display: flex; align-items: center; justify-content: space-around; padding: 12px 10px; }
+.nh-icon { position: relative; cursor: pointer; }
+.nh-icon .app-icon { width: 44px; height: 44px; border-radius: 11px; }
+.nh-icon .app-icon svg { width: 22px; height: 22px; }
+.nh-badge { position: absolute; top: -5px; right: -5px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #e2483d; color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+
+/* ═══ v2.192 B5 メルカリ新着卡 ═══ */
+.widget-mercari { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 10px 14px; }
+/* v2.193：mcw-head/mcw-name/mcw-price 从 --text-primary/--text-secondary 改 --desktop-text——
+   夏雨主题下 app token 仍是深字，而 .widget-card 是透出深蓝壁纸的玻璃，深字压深蓝几乎不可见 */
+.mcw-head { display: flex; align-items: center; gap: 5px; color: var(--desktop-text, #333); }
+.mcw-label { font-size: 10px; font-weight: 700; letter-spacing: .06em; }
+.mcw-new { margin-left: auto; font-size: 9px; font-weight: 700; color: #fff; background: #e2483d; border-radius: 7px; padding: 1px 6px; }
+.mcw-name { font-size: 13px; font-weight: 600; color: var(--desktop-text, #333); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcw-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.mcw-price { font-size: 17px; font-weight: 800; color: var(--desktop-text, #333); font-variant-numeric: tabular-nums; }
+.mcw-seller { font-size: 10px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mcw-empty { font-size: 12px; color: var(--text-tertiary); }

@@ -600,6 +600,18 @@
                             </div>
                         </div>
                     </div>
+                    <!-- 2026-07-06: 动态角色立绘注册表（不限于 CP 主角；PV 参考图/后续生图 union 用） -->
+                    <div style="border-top:1px solid var(--border-medium);margin:12px 0 0;padding-top:10px;">
+                        <label data-i18n="broadcast.char_refs_title" style="display:block;font-size:13px;font-weight:600;color:var(--text-primary);padding:0 0 4px;">其他角色立绘</label>
+                        <p class="card-hint" data-i18n="broadcast.char_refs_hint" style="font-size:12px;color:var(--text-tertiary);padding:0 0 10px;line-height:1.6;">
+                            除 CP 主角外，想在 PV 参考图里登场的角色都可以在这里登记：填角色名、传认可的立绘。外貌 tag 与上方同款（可 AI 识图生成），供后续生图使用。
+                        </p>
+                        <div id="broadcastCharRefsList"></div>
+                        <button id="broadcastCharRefAdd" type="button" style="display:flex;align-items:center;justify-content:center;gap:5px;width:100%;margin-top:8px;font-size:12px;padding:8px 0;border:1px dashed var(--border-medium);border-radius:6px;cursor:pointer;color:var(--text-secondary);background:transparent;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            <span data-i18n="broadcast.char_refs_add">新增角色立绘</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -848,7 +860,8 @@
                         <span class="pixiv-profile-row-label" data-i18n="pixiv.profile_history">浏览记录</span>
                         <span class="pixiv-profile-row-arrow">›</span>
                     </button>
-                    <button class="pixiv-profile-row" onclick="PixivNovel.showProfilePlaceholder('bookmark')">
+                    <!-- v2.181.0 修：真 pixiv 里「ブックマーク」= 收藏 的别名，同一份数据，onclick 接到既有 openFavoritesPage() -->
+                    <button class="pixiv-profile-row" onclick="PixivNovel.openFavoritesPage()">
                         <svg class="pixiv-profile-row-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
                         <span class="pixiv-profile-row-label" data-i18n="pixiv.profile_bookmark">书签</span>
                         <span class="pixiv-profile-row-arrow">›</span>
@@ -1464,12 +1477,12 @@
                 <div id="themeGrid" class="theme-grid">
                     <button type="button" class="theme-card" data-theme-id="sakura">
                         <div class="theme-card-swatches">
-                            <span class="theme-card-swatch" style="background:#C4999D"></span>
-                            <span class="theme-card-swatch" style="background:#E8C8CB"></span>
-                            <span class="theme-card-swatch" style="background:#faf5f5"></span>
+                            <span class="theme-card-swatch" style="background:#b08a90"></span>
+                            <span class="theme-card-swatch" style="background:#e8cdd1"></span>
+                            <span class="theme-card-swatch" style="background:#f8f1f1"></span>
                         </div>
-                        <div class="theme-card-name" data-i18n="appr.theme_sakura">柔粉 / Sakura</div>
-                        <div class="theme-card-desc" data-i18n="appr.theme_sakura_desc">暖粉色 · 圆润 · 治愈</div>
+                        <div class="theme-card-name" data-i18n="appr.theme_sakura">梦之芭蕾 / Ballet de Rêve</div>
+                        <div class="theme-card-desc" data-i18n="appr.theme_sakura_desc">法式芭蕾 · 缎带与珍珠 · 撕纸贴纸</div>
                     </button>
                     <button type="button" class="theme-card" data-theme-id="night-sky">
                         <div class="theme-card-swatches">
@@ -1506,15 +1519,6 @@
                         </div>
                         <div class="theme-card-name" data-i18n="appr.theme_minimal">ミニマル / Minimal</div>
                         <div class="theme-card-desc" data-i18n="appr.theme_minimal_desc">纯白 · 黑白灰 · 极简</div>
-                    </button>
-                    <button type="button" class="theme-card" data-theme-id="zelda">
-                        <div class="theme-card-swatches">
-                            <span class="theme-card-swatch" style="background:#3CD3FC"></span>
-                            <span class="theme-card-swatch" style="background:#FCC413"></span>
-                            <span class="theme-card-swatch" style="background:#0e1726"></span>
-                        </div>
-                        <div class="theme-card-name" data-i18n="appr.theme_zelda">希卡 / Sheikah</div>
-                        <div class="theme-card-desc" data-i18n="appr.theme_zelda_desc">深蓝 · 青蓝荧光 · 金橙</div>
                     </button>
                     <button type="button" class="theme-card" data-theme-id="animal">
                         <div class="theme-card-swatches">
@@ -4599,13 +4603,21 @@
 
     <!-- 加载模块化JavaScript文件（按依赖顺序） -->
     <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <!-- jszip / xlsx 已本地化到 js/vendor/，用到时 Utils.loadScriptOnce 按需注入（travel.js / pixiv-illust.js） -->
     <script src="js/utils.js"></script>
     <script src="js/i18n.js"></script>
-    <script src="js/i18n-zh.js"></script>
-    <script src="js/i18n-ja.js"></script>
-    <script src="js/i18n-en.js"></script>
+    <script>
+    // v2.196.0 i18n 按语言懒加载（P1-⑤）：启动只同步加载当前语言字典（三语 key 集合零差异，
+    // 行为等价）。语言真身在 IndexedDB（systemConfig.language），解析期读 localStorage 镜像
+    // perigee_lang_mirror（I18n.setLanguage 维护）；无镜像默认 zh，与旧时序一致。
+    // 其余语言切换时由 I18n.setLanguage 经 Utils.loadScriptOnce 补载（SW precache 有三语，离线可切）。
+    (function () {
+        var l = 'zh';
+        try { l = localStorage.getItem('perigee_lang_mirror') || 'zh'; } catch (e) {}
+        if (l !== 'zh' && l !== 'ja' && l !== 'en') l = 'zh';
+        document.write('<script src="js/i18n-' + l + '.js"><\/script>');
+    })();
+    </script>
     <script src="js/settings.js"></script>
     <script src="js/help-content.js"></script>
     <script src="js/help.js"></script>
@@ -4629,11 +4641,16 @@
     <!-- profile.js removed — identity management migrated to line.js LineHome -->
     <script src="js/fortune.js"></script>
     <script src="js/tarot.js"></script>
+    <script src="js/world-context.js"></script>
     <script src="js/forum.js"></script>
     <script src="js/broadcast.js"></script>
     <script src="js/pixiv-novel.js"></script>
     <script src="js/illust-gallery.js"></script>
     <script src="js/twitter.js"></script>
+    <script src="js/twitter-thread.js"></script>
+    <script src="js/twitter-social.js"></script>
+    <script src="js/twitter-spaces.js"></script>
+    <script src="js/twitter-profile.js"></script>
     <script src="js/wandoro.js"></script>
     <script src="js/weibo.js"></script>
     <script src="js/lofter.js"></script>
@@ -4654,6 +4671,7 @@
     <script src="js/journal-icons.js"></script>
     <script src="js/strawberry-icons.js"></script>
     <script src="js/snow-icons.js"></script>
+    <script src="js/sakura-icons.js"></script>
     <script src="js/starfield.js"></script>
     <script src="js/snow.js"></script>
     <script src="js/snow-2d.js"></script>

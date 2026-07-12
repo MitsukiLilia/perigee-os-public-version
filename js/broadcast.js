@@ -59,9 +59,170 @@ const Broadcast = {
         ].filter(c => c.name && c.tags);
     },
 
+    // ===== 动态角色立绘注册表（2026-07-06 计划：PV 参考图两来源）=====
+    // charRefs = [{id, name, tags}]；blob 存 IllustGallery，id 恒等推导 'charref_'+entry.id（同 id 覆盖上传）。
+    // CP A/B 固定槽刻意不并入（getCP()/生图消费方零改动），读取端用 getAllCharRefs() 做 union。
+    // tags 字段本期只存不消费（生图接 union 为后置阶段），与 cpCharATags 同语义（NovelAI danbooru tag）。
+    _ensureCharRefs() {
+        if (!AppState.data.broadcast) AppState.data.broadcast = {};
+        if (!Array.isArray(AppState.data.broadcast.charRefs)) AppState.data.broadcast.charRefs = [];
+        return AppState.data.broadcast.charRefs;
+    },
+    charRefBlobId(entryId) { return 'charref_' + entryId; },
+    // union 候选列表（同步纯数据，不查 blob 存在性——消费方 getUrl 为 null 时自行过滤，
+    // 这样跨设备导入 blob 丢失时也能正确隐藏）。CP 在前保持「主角优先」直觉。
+    getAllCharRefs() {
+        const s = (AppState.data.broadcast && AppState.data.broadcast.cpSettings) || {};
+        const out = [];
+        if (s.cpCharARefId) out.push({ name: (s.cpCharA || '').trim(), blobId: s.cpCharARefId, source: 'cp' });
+        if (s.cpCharBRefId) out.push({ name: (s.cpCharB || '').trim(), blobId: s.cpCharBRefId, source: 'cp' });
+        for (const e of ((AppState.data.broadcast || {}).charRefs || [])) {
+            out.push({ name: (e.name || '').trim(), blobId: this.charRefBlobId(e.id), source: 'extra' });
+        }
+        return out;
+    },
+
+    _charRefCardUrls: {},   // entryId → ObjectURL（重渲染/删除前 revoke 防泄漏）
+
+    _initCharRefCards() {
+        const addBtn = document.getElementById('broadcastCharRefAdd');
+        if (addBtn) addBtn.onclick = () => {
+            const list = this._ensureCharRefs();
+            list.push({ id: Utils.generateId(), name: '', tags: '' });
+            Utils.saveData();
+            this._renderCharRefCards();
+        };
+        this._renderCharRefCards();
+    },
+
+    _renderCharRefCards() {
+        const wrap = document.getElementById('broadcastCharRefsList');
+        if (!wrap) return;
+        // 全量重渲染前 revoke 全部旧 URL
+        Object.values(this._charRefCardUrls).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
+        this._charRefCardUrls = {};
+        const list = this._ensureCharRefs();
+        const esc = s => Utils.escapeHtml(s || '');
+        // 动态 innerHTML 的文案照项目惯例内联 I18n.t（语言切换 → applyTranslations 中央化重渲染时取当前语言）；
+        // data-i18n 属性保留，供全局 applyTranslations 扫静态存量 DOM 时同步。
+        wrap.innerHTML = list.map(e => `
+            <div class="bc-charref-card" data-entry-id="${esc(e.id)}" style="border:1px solid var(--border-medium);border-radius:8px;padding:10px;margin-bottom:10px;">
+                <div style="display:flex;gap:10px;">
+                    <div style="position:relative;width:84px;height:112px;flex:none;border:1px solid var(--border-medium);border-radius:6px;overflow:hidden;background:var(--bg-secondary);">
+                        <img class="bc-charref-preview" alt="" style="display:none;width:100%;height:100%;object-fit:cover;">
+                        <div class="bc-charref-placeholder" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:100%;height:100%;gap:4px;color:var(--text-tertiary);font-size:11px;cursor:pointer;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                            <span data-i18n="broadcast.char_refs_upload">${esc(I18n.t('broadcast.char_refs_upload', '上传立绘'))}</span>
+                        </div>
+                        <button type="button" class="bc-charref-remove-img" title="删除立绘" style="display:none;position:absolute;top:4px;right:4px;width:20px;height:20px;border:none;border-radius:50%;background:rgba(0,0,0,0.55);color:#fff;align-items:center;justify-content:center;cursor:pointer;padding:0;line-height:1;">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="width:10px;height:10px;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                        <input type="file" accept="image/*" class="bc-charref-file" style="display:none;">
+                    </div>
+                    <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;">
+                        <input type="text" class="bc-charref-name" value="${esc(e.name)}" placeholder="${esc(I18n.t('broadcast.char_refs_name_ph', '角色名'))}" data-i18n-placeholder="broadcast.char_refs_name_ph" style="width:100%;padding:7px 8px;border:1px solid var(--border-medium);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:12px;box-sizing:border-box;outline:none;font-family:inherit;">
+                        <textarea class="bc-charref-tags" rows="2" placeholder="${esc(I18n.t('broadcast.cp_tags_placeholder', '外貌 tag，如：1boy, black hair, red eyes…'))}" data-i18n-placeholder="broadcast.cp_tags_placeholder" style="width:100%;padding:7px 8px;border:1px solid var(--border-medium);border-radius:6px;background:var(--bg-secondary);color:var(--text-primary);font-size:12px;line-height:1.5;resize:vertical;box-sizing:border-box;font-family:inherit;outline:none;">${esc(e.tags)}</textarea>
+                        <div style="display:flex;gap:6px;">
+                            <button type="button" class="bc-charref-tags-gen" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;font-size:12px;padding:6px 0;border:1px solid var(--border-medium);border-radius:6px;cursor:pointer;color:var(--text-secondary);background:transparent;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9L19 15z"/></svg>
+                                <span data-i18n="broadcast.cp_tags_gen">${esc(I18n.t('broadcast.cp_tags_gen', 'AI 生成外貌 tag'))}</span>
+                            </button>
+                            <button type="button" class="bc-charref-delete" style="display:flex;align-items:center;justify-content:center;gap:4px;font-size:12px;padding:6px 10px;border:1px solid var(--border-medium);border-radius:6px;cursor:pointer;color:var(--text-tertiary);background:transparent;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:12px;height:12px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                <span data-i18n="broadcast.char_refs_delete">${esc(I18n.t('broadcast.char_refs_delete', '删除角色'))}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>`).join('');
+        wrap.querySelectorAll('.bc-charref-card').forEach(card => this._bindCharRefCard(card));
+    },
+
+    _bindCharRefCard(card) {
+        const entryId = card.dataset.entryId;
+        const entry = this._ensureCharRefs().find(e => e.id === entryId);
+        if (!entry) return;
+        const blobId = this.charRefBlobId(entryId);
+        const img = card.querySelector('.bc-charref-preview');
+        const placeholder = card.querySelector('.bc-charref-placeholder');
+        const removeImgBtn = card.querySelector('.bc-charref-remove-img');
+        const fileInput = card.querySelector('.bc-charref-file');
+        const nameInput = card.querySelector('.bc-charref-name');
+        const tagsArea = card.querySelector('.bc-charref-tags');
+        const genBtn = card.querySelector('.bc-charref-tags-gen');
+        const delBtn = card.querySelector('.bc-charref-delete');
+
+        const refresh = async () => {
+            const blob = (typeof IllustGallery !== 'undefined')
+                ? await IllustGallery.getBlob(blobId).catch(() => null) : null;
+            if (this._charRefCardUrls[entryId]) { URL.revokeObjectURL(this._charRefCardUrls[entryId]); delete this._charRefCardUrls[entryId]; }
+            const has = !!blob;
+            if (has) {
+                const url = URL.createObjectURL(blob);
+                this._charRefCardUrls[entryId] = url;
+                img.src = url;
+            } else {
+                img.removeAttribute('src');
+            }
+            img.style.display = has ? 'block' : 'none';
+            placeholder.style.display = has ? 'none' : 'flex';
+            removeImgBtn.style.display = has ? 'flex' : 'none';
+        };
+
+        placeholder.onclick = () => fileInput.click();
+        img.onclick = () => fileInput.click();
+        fileInput.onchange = async () => {
+            const file = fileInput.files && fileInput.files[0];
+            fileInput.value = '';
+            if (!file) return;
+            if (!file.type || file.type.indexOf('image/') !== 0) {
+                Utils.showToast(I18n.t('bc.cp_ref_not_image', '请选择图片文件')); return;
+            }
+            if (file.size > 25 * 1024 * 1024) {
+                Utils.showToast(I18n.t('bc.cp_ref_too_large', '图片过大（上限 25MB）')); return;
+            }
+            let blobToSave = file;
+            if (file.type !== 'image/png' && file.type !== 'image/jpeg') {
+                try { blobToSave = await this._reencodeToPng(file); }
+                catch (e) { Utils.showToast(I18n.t('bc.cp_ref_bad_format', '无法处理该图片格式，请换 PNG 或 JPG')); return; }
+            }
+            await IllustGallery.save(blobId, blobToSave);
+            Utils.saveData();
+            await refresh();
+            Utils.showToast(I18n.t('bc.cp_ref_saved', '参考立绘已保存'));
+        };
+        removeImgBtn.onclick = async () => {
+            try { await IllustGallery.remove(blobId); } catch (e) {}
+            await refresh();
+        };
+        nameInput.oninput = () => { entry.name = nameInput.value.trim(); Utils.saveData(); };
+        tagsArea.oninput = () => { entry.tags = tagsArea.value.trim(); Utils.saveData(); };
+        genBtn.onclick = async () => {
+            const blob = await IllustGallery.getBlob(blobId).catch(() => null);
+            if (!blob) { Utils.showToast(I18n.t('bc.cp_tags_no_ref', '请先上传该角色的立绘')); return; }
+            await this._generateTagsForBlob(blob, (entry.name || '').trim(), tagsArea, genBtn, (tags) => {
+                entry.tags = tags; Utils.saveData();
+            });
+        };
+        delBtn.onclick = async () => {
+            if (!confirm(I18n.t('bc.char_refs_delete_confirm', '删除该角色及其立绘？'))) return;
+            try { await IllustGallery.remove(blobId); } catch (e) {}
+            const list = this._ensureCharRefs();
+            const idx = list.findIndex(e => e.id === entryId);
+            if (idx >= 0) list.splice(idx, 1);
+            Utils.saveData();
+            this._renderCharRefCards();
+        };
+
+        refresh();
+    },
+
     switchTab(tabName) {
-        // 离开世界 tab 时回收 CP 立绘预览的 ObjectURL，避免会话内常驻泄漏
-        if (this.currentTab === 'world' && tabName !== 'world') this._revokeCpRefUrls();
+        // 离开世界 tab 时回收 CP 立绘 + 动态角色立绘卡预览的 ObjectURL，避免会话内常驻泄漏（单张最大 25MB）
+        if (this.currentTab === 'world' && tabName !== 'world') {
+            this._revokeCpRefUrls();
+            this._revokeCharRefCardUrls();
+        }
         this.currentTab = tabName;
         document.querySelectorAll('.broadcast-tab').forEach(b => {
             b.classList.toggle('active', b.dataset.tab === tabName);
@@ -140,6 +301,8 @@ const Broadcast = {
         this._initCpRefImages();
         // v2.173.0: 外貌 tag 输入框 + AI 生成按钮
         this._initCpTagsFields();
+        // 2026-07-06: 动态角色立绘注册表卡列表
+        this._initCharRefCards();
     },
 
     // v2.139.0: 参考立绘预览的 ObjectURL（重渲染前 revoke 防泄漏）
@@ -254,17 +417,8 @@ const Broadcast = {
         if (genBtn) genBtn.onclick = () => this._generateCpTags(slot, tagsKey, refIdKey, area, genBtn);
     },
 
-    async _generateCpTags(slot, tagsKey, refIdKey, area, btn) {
-        const s = AppState.data.broadcast.cpSettings || {};
-        const refId = s[refIdKey];
-        const blob = (refId && typeof IllustGallery !== 'undefined')
-            ? await IllustGallery.getBlob(refId).catch(() => null)
-            : null;
-        if (!blob) {
-            Utils.showToast(I18n.t('bc.cp_tags_no_ref', '请先上传该角色的立绘'));
-            return;
-        }
-        const charName = ((slot === 'a' ? s.cpCharA : s.cpCharB) || '').trim();
+    // tag 生成公共体（CP 槽与动态角色卡共用）：blob+名字 → 多模态识别 danbooru tag → area 回显 + saveFn 落库
+    async _generateTagsForBlob(blob, charName, area, btn, saveFn) {
         const label = btn ? btn.querySelector('span') : null;
         const origText = label ? label.textContent : '';
         if (btn) btn.disabled = true;
@@ -289,17 +443,33 @@ Rules:
             const tags = (raw || '').trim().replace(/\n+/g, ', ');
             if (!tags) throw new Error('empty result');
             area.value = tags;
-            if (!AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings = {};
-            AppState.data.broadcast.cpSettings[tagsKey] = tags;
-            Utils.saveData();
+            saveFn(tags);
             Utils.showToast(I18n.t('bc.cp_tags_done', '外貌 tag 已生成，可手动微调'));
         } catch (e) {
-            console.error('[Broadcast] CP tags generation failed:', e);
+            console.error('[Broadcast] tags generation failed:', e);
             Utils.showToast(I18n.t('bc.cp_tags_failed', '生成失败：请确认当前文字模型支持图片输入'));
         } finally {
             if (btn) btn.disabled = false;
             if (label) label.textContent = origText;
         }
+    },
+
+    async _generateCpTags(slot, tagsKey, refIdKey, area, btn) {
+        const s = AppState.data.broadcast.cpSettings || {};
+        const refId = s[refIdKey];
+        const blob = (refId && typeof IllustGallery !== 'undefined')
+            ? await IllustGallery.getBlob(refId).catch(() => null)
+            : null;
+        if (!blob) {
+            Utils.showToast(I18n.t('bc.cp_tags_no_ref', '请先上传该角色的立绘'));
+            return;
+        }
+        const charName = ((slot === 'a' ? s.cpCharA : s.cpCharB) || '').trim();
+        await this._generateTagsForBlob(blob, charName, area, btn, (tags) => {
+            if (!AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings = {};
+            AppState.data.broadcast.cpSettings[tagsKey] = tags;
+            Utils.saveData();
+        });
     },
 
     // 立绘 Blob → 最长边缩到 1024 的 JPEG base64（原图直发容易超请求体积上限）
@@ -353,6 +523,12 @@ Rules:
         ['a', 'b'].forEach(k => {
             if (this._cpRefUrls[k]) { URL.revokeObjectURL(this._cpRefUrls[k]); this._cpRefUrls[k] = null; }
         });
+    },
+
+    // 回收动态角色立绘卡预览的 ObjectURL（离开世界 tab 时调用；写法同 _renderCharRefCards 里的全量重渲染 revoke 循环）
+    _revokeCharRefCardUrls() {
+        Object.values(this._charRefCardUrls).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
+        this._charRefCardUrls = {};
     },
 
     _initPlotTab() {

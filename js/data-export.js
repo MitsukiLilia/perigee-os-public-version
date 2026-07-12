@@ -218,10 +218,17 @@ const DataExport = {
         if (!confirm(`将导入 ${labels.length} 个板块的数据：\n${labels.join('、')}\n\n当前对应内容会被覆盖（其它板块保持不变）。继续？`)) return;
 
         for (const f of planFields) AppState.data[f] = data[f];
-        Utils.saveData();
+        AppState.data._v = 0;   // 分板块导入可能往新 _v 的树里塞旧结构板块数据：重置 _v，reload 后全量重跑迁移（各条自带幂等守卫，重跑无害）
+        // v2.198.0 复检修复：导入可能改写 systemConfig.language，语言镜像跟上再 reload，
+        // 否则重启先按旧镜像预载错语言、boot 后才自愈闪一下（i18n 懒加载 v2.196 起）。
+        try {
+            const _lang = AppState.data.systemConfig && AppState.data.systemConfig.language;
+            if (_lang === 'zh' || _lang === 'ja' || _lang === 'en') localStorage.setItem('perigee_lang_mirror', _lang);
+        } catch (e) { /* 存储不可用则镜像自愈兜底 */ }
         Utils.showToast(I18n.t('t.dx_import_success', '✓ 导入成功，即将刷新'));
         this.closeModal();
-        setTimeout(() => location.reload(), 1000);
+        // 落盘完成后再刷新，防 reload 掉防抖窗口内的导入数据
+        Utils.flushSave().then(() => setTimeout(() => location.reload(), 1000));
     },
 
     _download(content, prefix) {

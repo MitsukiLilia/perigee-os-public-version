@@ -3,6 +3,7 @@
   "short_name": "Perigee",
   "description": "智能办公助手 - AI驱动的聊天、文书和学习平台",
   "start_url": "./index.html",
+  "id": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f2f4f6",

@@ -150,7 +150,7 @@ const LineHome = {
     _editingCharId: null,
     _editingBindingCharId: null,
 
-    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
+    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }, // ⚠️ 保留独立实现勿收编 Utils.escapeHtml：模块内有先转义后 .slice() 的预览截断，多转义 ' 会挪动截断点
 
     _ensurePersonas() {
         if (!AppState.data.myPersonaPresets) AppState.data.myPersonaPresets = [];
@@ -661,7 +661,7 @@ const LineHome = {
 
 // ===== LineVoom — VOOM タブ =====
 const LineVoom = {
-    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
+    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }, // ⚠️ 保留独立实现勿收编 Utils.escapeHtml：模块内有先转义后 .slice() 的预览截断，多转义 ' 会挪动截断点
     _lastGenTime: 0,
     _showingComments: null, // postId being viewed
     _isGenerating: false,
@@ -937,7 +937,7 @@ Be natural and authentic to your character. Reply with ONLY the post text, no qu
 
 // ===== LinePay — ウォレットタブ =====
 const LinePay = {
-    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
+    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }, // ⚠️ 保留独立实现勿收编 Utils.escapeHtml：模块内有先转义后 .slice() 的预览截断，多转义 ' 会挪动截断点
 
     _ensureWallet() {
         if (!AppState.data.wallet) AppState.data.wallet = { balance: 10000, transactions: [] };
@@ -1220,7 +1220,7 @@ const LineTalk = {
 };
 
 const ChatList = {
-    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
+    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }, // ⚠️ 保留独立实现勿收编 Utils.escapeHtml：模块内有先转义后 .slice() 的预览截断，多转义 ' 会挪动截断点
 
     _formatTime(ts) {
         if (!ts) return '';
@@ -1355,7 +1355,7 @@ const ChatList = {
 };
 
 const Conversation = {
-    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
+    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }, // ⚠️ 保留独立实现勿收编 Utils.escapeHtml：模块内有先转义后 .slice() 的预览截断，多转义 ' 会挪动截断点
     _isGroup: false,
     _group: null,
     _groupMembers: [],

@@ -1620,8 +1620,9 @@ ${productList}
         return (this._ensureData().circles || []).find(c => c.id === id) || null;
     },
 
+    // 收口：转发 Utils.escapeHtml（str||'' 保留原 falsy→'' 语义）
     _escHtml(str) {
-        return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return Utils.escapeHtml(str || '');
     },
 
     _timeAgo(ts) {

@@ -34,7 +34,8 @@ const StrawberryIcons = {
 
   apply() {
     const isStrawberry = document.documentElement.dataset.theme === this.THEME;
-    const customIcons = (window.AppState && AppState.data && AppState.data.customIcons) || {};
+    // AppState 是顶层词法声明、不在 window 上——用 typeof 探测（window.AppState 恒 undefined，曾使本守卫沦为死代码）
+    const customIcons = (typeof AppState !== 'undefined' && AppState.data && AppState.data.customIcons) || {};
     document.querySelectorAll('.app-item[data-app]').forEach(item => {
       const appId = item.dataset.app;
       const c = item.querySelector('.app-icon');
@@ -47,9 +48,9 @@ const StrawberryIcons = {
         if (!c.dataset.iconDefault) c.dataset.iconDefault = c.innerHTML;
         c.innerHTML = `<img src="assets/icons/strawberry/${this.ICONS[appId]}" alt="${appId}" draggable="false">`;
       } else if (c.dataset.iconDefault) {
-        // 离开草莓主题：恢复原始 SVG；但若目标是夜空/手帐/雪国，交给它们接管（四方守卫对称）
+        // 离开草莓主题：恢复原始 SVG；但若目标是夜空/手帐/雪国/梦之芭蕾，交给它们接管（五方守卫对称）
         const t = document.documentElement.dataset.theme;
-        if (t !== 'night-sky' && t !== 'journal' && t !== 'snow-country') {
+        if (t !== 'night-sky' && t !== 'journal' && t !== 'snow-country' && t !== 'sakura') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

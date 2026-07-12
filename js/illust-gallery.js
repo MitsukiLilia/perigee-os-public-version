@@ -15,6 +15,12 @@ const IllustGallery = {
     },
 
     async save(id, blob) {
+        // 同 id 覆盖保存（如立绘重新上传）时失效旧缓存的 ObjectURL，否则已打开过的调用方（如 PV 选择器）
+        // 缩略图会一直指向旧图字节，直到下次 getUrl 重建才会指向新图
+        if (this._urlCache.has(id)) {
+            URL.revokeObjectURL(this._urlCache.get(id));
+            this._urlCache.delete(id);
+        }
         await this._getStore().setItem(id, blob);
     },
 

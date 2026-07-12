@@ -19,7 +19,7 @@ const Weibo = {
         this.render();
         this.bindEvents();
         this.applyDarkMode();
-        setTimeout(() => this._maybeSeedWeiboNpcs(), 200);
+        setTimeout(() => this._maybeSeedWeiboNpcs().catch(() => {}), 200);
         // 进入微博时扫一遍 broadcast.officialInfo (category=twitter)、零 token 搬运到 info_station NPC
         setTimeout(() => this._scanForBroadcastTweetTranslations(), 300);
     },
@@ -57,6 +57,13 @@ const Weibo = {
     _closeSubScreen(id) {
         const n = document.getElementById(id);
         if (n) n.remove();
+    },
+
+    // 桌面通知中心直达私信（v2.192 B4）：先置子 tab 再进 app
+    openDmTab() {
+        this._notifSubTab = 'dm';
+        Navigation.goTo('weibo');
+        this.switchTab('notif');
     },
 
     switchTab(tab) {
@@ -354,8 +361,9 @@ const Weibo = {
         return content + extras;
     },
 
+    // 收口：转发 Utils.escapeHtml；String(s) 保留原 null→"null" 行为
     _escapeHtml(s) {
-        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return Utils.escapeHtml(String(s));
     },
 
     _formatTime(ts) {
@@ -407,13 +415,27 @@ const Weibo = {
                 if (postId) this.openPostDetail(postId);
             };
         });
-        // 评论 / 转发 / 分享按钮也跳详情（comment 是最常见入口）
-        scope.querySelectorAll('.wb-act-comment, .wb-act-repost').forEach(btn => {
+        // 评论 / 分享按钮跳详情（comment 是最常见入口）
+        scope.querySelectorAll('.wb-act-comment').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const card = e.target.closest('.wb-post-card');
                 const postId = card?.dataset.postId;
                 if (postId) this.openPostDetail(postId);
+            };
+        });
+        // v2.178.0 修 3-3：转发按钮之前跟评论合并绑定、误导成"跳详情"——单独拆出、仿真占位 toast
+        scope.querySelectorAll('.wb-act-repost').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                Utils.showToast(I18n.t('weibo.toast_repost_placeholder', '仿真按钮、转发功能暂未开放'));
+            };
+        });
+        // v2.181.0 修：分享图标此前完全没绑定、点击静默无反应，补上跟转发一致的诚实仿真占位 toast
+        scope.querySelectorAll('.wb-act-share').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                Utils.showToast(I18n.t('weibo.toast_share_placeholder', '仿真按钮、分享功能暂未开放'));
             };
         });
     },
@@ -937,11 +959,11 @@ REPOSTS: [转发数]
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
                         <span>${stats.likes || ''}</span>
                     </button>
-                    <button class="wb-act" data-act="comment">
+                    <button class="wb-act wb-act-comment" data-act="comment">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         <span>${stats.comments || ''}</span>
                     </button>
-                    <button class="wb-act" data-act="repost">
+                    <button class="wb-act wb-act-repost" data-act="repost">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                         <span>${stats.reposts || ''}</span>
                     </button>
@@ -957,10 +979,17 @@ REPOSTS: [转发数]
                 <div class="wb-topic-cover" style="background:${topic.coverColor || '#ff8200'}">${iconChar}</div>
                 <div class="wb-search-topic-meta">
                     <div class="wb-search-topic-name">#${this._escapeHtml(topic.name)}#</div>
-                    <div class="wb-search-topic-stats">${topic.memberCount || 0} ${I18n.t('weibo.topic_members', '成员')} · ${topic.postCount || 0} ${I18n.t('weibo.topic_posts', '帖子')}</div>
+                    <div class="wb-search-topic-stats">${topic.memberCount || 0} ${I18n.t('weibo.topic_members', '成员')} · ${this._topicPostCount(topic)} ${I18n.t('weibo.topic_posts', '帖子')}</div>
                 </div>
             </div>
         `;
+    },
+
+    // 超话实时帖子数（与 openTopic 详情页同源的 filter 条件）—— 列表渲染不再读静态 topic.postCount（恒为0的老字段、创建时留着兼容老存档）
+    _topicPostCount(topic) {
+        if (!topic) return 0;
+        const wd = AppState.data.weiboData;
+        return ((wd?.posts) || []).filter(p => (p.topicIds || []).includes(topic.name) || (p.topicIds || []).includes(topic.id)).length;
     },
 
     // 给 inline reply 的临时 commenter 名字生成稳定的头像底色（同名同色）
@@ -1424,22 +1453,26 @@ CONTENT: [评论本文]
                         <span class="wb-settings-label">${I18n.t('weibo.settings_account_security', '账号与安全')}</span>
                         <span class="wb-chevron">›</span>
                     </div>
+                    <div class="wb-settings-row" data-sub="api">
+                        <span class="wb-settings-label">${I18n.t('weibo.settings_api_cn', '中文圈 API 设置')}</span>
+                        <span class="wb-chevron">›</span>
+                    </div>
 
                     <div class="wb-settings-group"></div>
 
-                    <div class="wb-settings-row" data-sub="api">
+                    <div class="wb-settings-row" data-sub="decorative">
                         <span class="wb-settings-label">${I18n.t('weibo.settings_msg', '消息设置')}</span>
                         <span class="wb-chevron">›</span>
                     </div>
-                    <div class="wb-settings-row" data-sub="api">
+                    <div class="wb-settings-row" data-sub="decorative">
                         <span class="wb-settings-label">${I18n.t('weibo.settings_push', '推送设置')}</span>
                         <span class="wb-chevron">›</span>
                     </div>
-                    <div class="wb-settings-row" data-sub="api">
+                    <div class="wb-settings-row" data-sub="decorative">
                         <span class="wb-settings-label">${I18n.t('weibo.settings_privacy', '隐私')}</span>
                         <span class="wb-chevron">›</span>
                     </div>
-                    <div class="wb-settings-row" data-sub="api">
+                    <div class="wb-settings-row" data-sub="decorative">
                         <span class="wb-settings-label">${I18n.t('weibo.settings_general', '通用')}</span>
                         <span class="wb-chevron">›</span>
                     </div>
@@ -1457,14 +1490,14 @@ CONTENT: [评论本文]
                         <span class="wb-settings-label">${I18n.t('weibo.settings_reset_npc', '重置中文圈 NPC 池')}</span>
                         <span class="wb-chevron">›</span>
                     </div>
-                    <div class="wb-settings-row" data-sub="api">
+                    <div class="wb-settings-row" data-sub="decorative">
                         <span class="wb-settings-label">${I18n.t('weibo.settings_recommend', '推荐给好友')}</span>
                     </div>
-                    <div class="wb-settings-row" data-sub="api">
+                    <div class="wb-settings-row" data-sub="decorative">
                         <span class="wb-settings-label">${I18n.t('weibo.settings_rating', '评分鼓励')}</span>
                         <span class="wb-chevron">›</span>
                     </div>
-                    <div class="wb-settings-row" data-sub="api">
+                    <div class="wb-settings-row" data-sub="decorative">
                         <span class="wb-settings-label">${I18n.t('weibo.settings_about', '关于我们')}</span>
                         <div class="wb-settings-trail">
                             <span class="wb-settings-trail-text">v${typeof Changelog !== 'undefined' && Changelog.CURRENT ? Changelog.CURRENT : '2.73'}</span>
@@ -1487,7 +1520,8 @@ CONTENT: [评论本文]
                 if (target === 'account-security') this.openAccountManagement();
                 else if (target === 'drafts') this.openDrafts();
                 else if (target === 'reset-pool') this._confirmResetWeiboPool();
-                else this.openApiSettings();
+                else if (target === 'api') this.openApiSettings();
+                else Utils.showToast(I18n.t('weibo.toast_decorative', '仿真按钮'));
             };
         });
         const logout = document.querySelector('#wbSettingsSubModal .wb-settings-logout');
@@ -1939,8 +1973,8 @@ CONTENT: [评论本文]
             Utils.showToast(I18n.t('weibo.drafts_empty', '草稿箱是空的'));
             return;
         }
+        // v2.178.0 修 2-3：迁移到 _openSubScreen 体系（原 body insertAdjacentHTML 挂载不在 #weibo.wb-dark 容器内、不跟深色模式）
         const html = `
-            <div class="wb-modal" id="wbDraftsModal">
                 <div class="wb-modal-bar">
                     <button class="wb-modal-close" id="wbDraftsClose">×</button>
                     <div class="wb-modal-title">${I18n.t('weibo.drafts_title', '草稿箱')}</div>
@@ -1957,26 +1991,26 @@ CONTENT: [评论本文]
                         </div>
                     `).join('')}
                 </div>
-            </div>
         `;
-        document.body.insertAdjacentHTML('beforeend', html);
+        const node = this._openSubScreen('wbDraftsSubScreen', html);
+        if (!node) return;
 
-        document.getElementById('wbDraftsClose').onclick = () => document.getElementById('wbDraftsModal').remove();
-        document.querySelectorAll('#wbDraftsModal .wb-draft-item').forEach(el => {
+        document.getElementById('wbDraftsClose').onclick = () => this._closeSubScreen('wbDraftsSubScreen');
+        node.querySelectorAll('.wb-draft-item').forEach(el => {
             el.onclick = (e) => {
                 if (e.target.classList.contains('wb-draft-delete')) return;
                 const id = el.dataset.draftId;
-                document.getElementById('wbDraftsModal').remove();
+                this._closeSubScreen('wbDraftsSubScreen');
                 this.openComposer(id);
             };
         });
-        document.querySelectorAll('#wbDraftsModal .wb-draft-delete').forEach(btn => {
+        node.querySelectorAll('.wb-draft-delete').forEach(btn => {
             btn.onclick = (e) => {
                 e.stopPropagation();
                 const id = btn.dataset.draftId;
                 AppState.data.weiboData.drafts = AppState.data.weiboData.drafts.filter(d => d.id !== id);
                 Utils.saveData();
-                document.getElementById('wbDraftsModal').remove();
+                this._closeSubScreen('wbDraftsSubScreen');
                 this.openDrafts();
             };
         });
@@ -2054,14 +2088,18 @@ CONTENT: [评论本文]
         });
 
         document.getElementById('wbAccAdd').onclick = () => {
-            const name = prompt(I18n.t('weibo.account_prompt_name', '请输入账号名'));
+            const nameRaw = prompt(I18n.t('weibo.account_prompt_name', '请输入账号名'));
+            if (nameRaw === null) return;
+            const name = nameRaw.trim();
             if (!name) return;
-            const handle = prompt(I18n.t('weibo.account_prompt_handle', '请输入 @ 名（不含 @）'));
+            const handleRaw = prompt(I18n.t('weibo.account_prompt_handle', '请输入 @ 名（不含 @）'));
+            if (handleRaw === null) return;
+            const handle = handleRaw.trim();
             if (!handle) return;
             const newAcc = {
                 id: 'acc_' + this._uuid(),
-                name: name.trim(),
-                handle: handle.trim().replace(/^@/, ''),
+                name,
+                handle: handle.replace(/^@/, ''),
                 bio: '',
                 avatarLetter: name[0],
                 avatarColor: this._randomAccountColor(),
@@ -2223,7 +2261,7 @@ CONTENT: [评论本文]
                     <div class="wb-topic-name">${this._escapeHtml(topic.name)}</div>
                     <div class="wb-topic-stats">
                         <span>${topic.memberCount || 0} ${I18n.t('weibo.topic_members', '成员')}</span>
-                        <span>${topic.postCount || 0} ${I18n.t('weibo.topic_posts', '帖子')}</span>
+                        <span>${this._topicPostCount(topic)} ${I18n.t('weibo.topic_posts', '帖子')}</span>
                     </div>
                 </div>
                 <button class="wb-topic-follow" data-topic-id="${topic.id}">${isFollowed ? '✓' : I18n.t('weibo.btn_follow', '关注')}</button>
@@ -2435,6 +2473,8 @@ TAG: [N2]
         if (!screen) return;
         const sub = this._notifSubTab || 'mention';
         const notif = AppState.data.weiboData?.notifications || {};
+        // 先清孤儿 loading 占位再算未读、防上次生成中关 App 落盘的占位被计入徽章 / 显示成「……」预览
+        this._sweepDmLoadingOrphans(notif.dms);
         const dmUnread = (notif.dms || []).reduce((n, d) => n + ((d.messages || []).filter(m => m.from !== 'me' && m.createdAt > (d.lastReadAt || 0)).length), 0);
 
         screen.innerHTML = `
@@ -2497,6 +2537,20 @@ TAG: [N2]
             const stranger = document.getElementById('wbStrangerEntry');
             if (stranger) stranger.onclick = () => this._showStrangerDms(strangerDms);
         }
+
+        // v2.177.0 修 1-1：消息tab整体交互绑定 —— 通知项跳原博、感谢Ta回礼、私信项开会话
+        container.querySelectorAll('.wb-notif-item').forEach(el => {
+            el.onclick = () => this._openNotifTarget(el.dataset.id, el.dataset.kind);
+        });
+        container.querySelectorAll('.wb-notif-thanks').forEach(btn => {
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                this._thankLike(btn.dataset.id);
+            };
+        });
+        container.querySelectorAll('.wb-dm-item').forEach(el => {
+            el.onclick = () => this._openDmThread(el.dataset.dmId);
+        });
     },
 
     _renderNotifItem(item, kind) {
@@ -2504,7 +2558,7 @@ TAG: [N2]
         if (!npc) return '';
         const post = (AppState.data.weiboData.posts || []).find(p => p.id === item.postId);
         return `
-            <div class="wb-notif-item" data-id="${item.id}">
+            <div class="wb-notif-item" data-id="${item.id}" data-kind="${kind}">
                 <div class="wb-avatar" style="background:${npc.avatarColor}">${npc.name[0]}</div>
                 <div class="wb-notif-body">
                     <div class="wb-notif-head">
@@ -2532,7 +2586,7 @@ TAG: [N2]
                     </div>
                     <div class="wb-notif-text">${I18n.t('weibo.notif_like_label', '赞了你的微博')}</div>
                     ${post ? `<div class="wb-notif-quote">${this._escapeHtml((post.content || '').slice(0, 60))}</div>` : `<div class="wb-notif-quote">${I18n.t('weibo.notif_post_deleted', '微博已被删除')}</div>`}
-                    <button class="wb-notif-thanks">${I18n.t('weibo.notif_thanks', '感谢 Ta')}</button>
+                    <button class="wb-notif-thanks${like.thanked ? ' thanked' : ''}" data-id="${like.id}"${like.thanked ? ' disabled' : ''}>${like.thanked ? I18n.t('weibo.notif_thanked', '已感谢') : I18n.t('weibo.notif_thanks', '感谢 Ta')}</button>
                 </div>
             </div>
         `;
@@ -2556,9 +2610,10 @@ TAG: [N2]
         `;
     },
 
+    // v2.178.0 修 2-3：迁移到 _openSubScreen 体系（原 body insertAdjacentHTML 挂载不在 #weibo.wb-dark 容器内、不跟深色模式）
+    // 顺手绑上 .wb-dm-item 点击 → _openDmThread（原来漏绑、陌生人私信列表项点击无反应）
     _showStrangerDms(strangerDms) {
         const html = `
-            <div class="wb-modal" id="wbStrangerModal">
                 <div class="wb-modal-bar">
                     <button class="wb-modal-close" id="wbStrangerClose">‹</button>
                     <div class="wb-modal-title">${I18n.t('weibo.stranger_dms_title', '陌生人私信')}</div>
@@ -2567,10 +2622,203 @@ TAG: [N2]
                 <div class="wb-modal-body">
                     ${strangerDms.map(d => this._renderDmItem(d)).join('')}
                 </div>
+        `;
+        const node = this._openSubScreen('wbStrangerDmsSubScreen', html);
+        if (!node) return;
+        document.getElementById('wbStrangerClose').onclick = () => this._closeSubScreen('wbStrangerDmsSubScreen');
+        node.querySelectorAll('.wb-dm-item').forEach(el => {
+            el.onclick = () => this._openDmThread(el.dataset.dmId);
+        });
+    },
+
+    // ========== v2.177.0 修 1-1：消息tab交互 ==========
+
+    // 通知项（@我的/评论）点击 → 跳原博文详情；博文已不存在则 toast 兜底
+    _openNotifTarget(id, kind) {
+        if (!id) return;
+        const wd = AppState.data.weiboData;
+        const notif = wd?.notifications || {};
+        const list = kind === 'mention' ? (notif.mentions || []) : (notif.comments || []);
+        const item = list.find(i => i.id === id);
+        if (!item) return;
+        const postExists = item.postId && (
+            (wd.posts || []).some(p => p.id === item.postId)
+            || (this._searchResults || []).some(p => p.id === item.postId)
+        );
+        if (postExists) {
+            this.openPostDetail(item.postId);
+        } else {
+            Utils.showToast(I18n.t('weibo.notif_post_deleted', '微博已被删除'));
+        }
+    },
+
+    // 「感谢 Ta」→ toast 回礼 + 标记 thanked（轻量本地状态、不改动既有 like 数据结构其它字段）
+    _thankLike(likeId) {
+        const notif = AppState.data.weiboData?.notifications;
+        const like = (notif?.likes || []).find(l => l.id === likeId);
+        if (!like || like.thanked) return;
+        like.thanked = true;
+        Utils.saveData();
+        Utils.showToast(I18n.t('weibo.notif_thanks_sent', '已送出感谢'));
+        this._renderNotifContent('like');
+    },
+
+    // 私信项点击 → 最简会话页（历史消息 + 回复 + NPC 轻量异步回复）；打开即清未读
+    _openDmThread(dmId) {
+        if (!dmId) return;
+        const wd = AppState.data.weiboData;
+        const dm = (wd?.notifications?.dms || []).find(d => d.id === dmId);
+        if (!dm) return;
+        const npc = (wd.fanFriends || []).find(f => f.id === dm.npcId);
+        if (!npc) return;
+
+        dm.lastReadAt = Date.now();
+        Utils.saveData();
+
+        const inner = `
+            <div class="wb-modal-bar">
+                <button class="wb-modal-close" id="wbDmThreadBack">‹</button>
+                <div class="wb-modal-title">${this._escapeHtml(npc.name)}</div>
+                <span></span>
+            </div>
+            <div class="wb-dm-thread-body" id="wbDmThreadBody"></div>
+            <div class="wb-dm-thread-input-bar">
+                <input type="text" id="wbDmThreadInput" class="wb-dm-thread-input" placeholder="${I18n.t('weibo.dm_input_placeholder', '发送私信…')}" maxlength="200">
+                <button class="wb-dm-thread-send" id="wbDmThreadSend">${I18n.t('weibo.dm_send', '发送')}</button>
             </div>
         `;
-        document.body.insertAdjacentHTML('beforeend', html);
-        document.getElementById('wbStrangerClose').onclick = () => document.getElementById('wbStrangerModal').remove();
+        const node = this._openSubScreen('wbDmThreadSubScreen', inner);
+        if (!node) return;
+        // 记下当前打开的会话 id、供 _triggerDmReply 异步回调校验（防 A 会话回复串进 B 窗口 / B 被看着时 A 误标已读）
+        node.dataset.dmId = dm.id;
+        document.getElementById('wbDmThreadBack').onclick = () => {
+            this._closeSubScreen('wbDmThreadSubScreen');
+            // 返回消息列表：重渲染让未读徽章消失
+            if (this.currentTab === 'notif') this.renderNotif();
+        };
+        this._renderDmThreadMessages(dm, npc);
+
+        const input = document.getElementById('wbDmThreadInput');
+        const sendBtn = document.getElementById('wbDmThreadSend');
+        const send = () => this._sendDmMessage(dm.id);
+        if (sendBtn) sendBtn.onclick = send;
+        if (input) {
+            input.onkeydown = (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); send(); }
+            };
+        }
+    },
+
+    // 私信子屏是否正开着 dmId 这条会话（dataset 值是字符串、dm.id 本身即 'dm_' 前缀字符串，String() 对齐类型防漂移）
+    _isDmThreadOpen(dmId) {
+        const node = document.getElementById('wbDmThreadSubScreen');
+        return !!node && node.dataset.dmId === String(dmId);
+    },
+
+    // 清扫遗留 loading 占位：生成中途关 App 会把 _loading 占位落盘（saveData 防抖/退出兜底），
+    // 重开后 _dmReplyPending 已空 → 孤儿占位在此静默移除；生成在途时 Map 里 dmId 计数 >0 不会误伤
+    // （参照 lofter._buildCommentRenderList 同款清扫）
+    _sweepDmLoadingOrphans(dms) {
+        let cleaned = false;
+        (dms || []).forEach(d => {
+            if (!Array.isArray(d.messages) || !d.messages.some(m => m._loading)) return;
+            if (this._dmReplyPending && this._dmReplyPending.has(d.id)) return;
+            d.messages = d.messages.filter(m => !m._loading);
+            cleaned = true;
+        });
+        if (cleaned) Utils.saveData();
+        return cleaned;
+    },
+
+    _renderDmThreadMessages(dm, npc) {
+        const body = document.getElementById('wbDmThreadBody');
+        if (!body) return;
+        this._sweepDmLoadingOrphans([dm]);
+        const msgs = dm.messages || [];
+        body.innerHTML = msgs.length > 0
+            ? msgs.map(m => {
+                const mine = m.from === 'me';
+                return `
+                    <div class="wb-dm-bubble-row ${mine ? 'me' : 'them'}${m._loading ? ' wb-dm-bubble-loading' : ''}">
+                        ${!mine ? `<div class="wb-avatar wb-avatar-sm" style="background:${npc.avatarColor}">${npc.name[0]}</div>` : ''}
+                        <div class="wb-dm-bubble ${mine ? 'wb-dm-bubble-me' : 'wb-dm-bubble-them'}">
+                            <div class="wb-dm-bubble-text">${this._escapeHtml(m.content || '')}</div>
+                            ${m._loading ? '' : `<div class="wb-dm-bubble-time">${this._formatTime(m.createdAt)}</div>`}
+                        </div>
+                    </div>
+                `;
+            }).join('')
+            : `<div class="wb-empty">${I18n.t('weibo.notif_empty_dm', '还没有私信')}</div>`;
+        body.scrollTop = body.scrollHeight;
+    },
+
+    _sendDmMessage(dmId) {
+        const wd = AppState.data.weiboData;
+        const dm = (wd?.notifications?.dms || []).find(d => d.id === dmId);
+        if (!dm) return;
+        const npc = (wd.fanFriends || []).find(f => f.id === dm.npcId);
+        if (!npc) return;
+        const input = document.getElementById('wbDmThreadInput');
+        const text = (input?.value || '').trim();
+        if (!text) return;
+
+        dm.messages = dm.messages || [];
+        dm.messages.push({ from: 'me', content: text, createdAt: Date.now() });
+        dm.lastReadAt = Date.now();
+        Utils.saveData();
+        if (input) input.value = '';
+        this._renderDmThreadMessages(dm, npc);
+
+        this._triggerDmReply(dm.id, npc, text);
+    },
+
+    // NPC 轻量异步回复：单次 LLM 调用（同 _generateNpcComment 模式）、loading 占位、失败静默移除
+    async _triggerDmReply(dmId, npc, userText) {
+        const wd = AppState.data.weiboData;
+        let dm = (wd?.notifications?.dms || []).find(d => d.id === dmId);
+        if (!dm) return;
+        const loadingMsg = { from: npc.id, content: '……', createdAt: Date.now(), _loading: true };
+        dm.messages = dm.messages || [];
+        // 在途标记：Map<dmId, count> 而非 Set —— 同会话连发时每条在途各自 +1/-1，归零才摘除保护，
+        // 防第一条 resolve 后 finally 清掉整个 dmId 保护、误伤同会话仍在途的第二条 loading 占位（被 sweep 当孤儿清掉）。
+        // 关 App 重启后 Map 天然为空 → 落盘孤儿仍会被清扫。
+        this._dmReplyPending = this._dmReplyPending || new Map();
+        this._dmReplyPending.set(dmId, (this._dmReplyPending.get(dmId) || 0) + 1);
+        dm.messages.push(loadingMsg);
+        if (this._isDmThreadOpen(dmId)) this._renderDmThreadMessages(dm, npc);
+
+        let reply = null;
+        try {
+            reply = await this._generateNpcDmReply(npc, userText).catch(() => null);
+        } finally {
+            const remaining = (this._dmReplyPending.get(dmId) || 1) - 1;
+            if (remaining <= 0) this._dmReplyPending.delete(dmId);
+            else this._dmReplyPending.set(dmId, remaining);
+        }
+
+        dm = (AppState.data.weiboData?.notifications?.dms || []).find(d => d.id === dmId);
+        if (!dm) return;
+        const idx = dm.messages.indexOf(loadingMsg);
+        if (idx === -1) return; // 会话数据已变化（如被清空），静默放弃
+        if (reply) {
+            dm.messages[idx] = { from: npc.id, content: reply, createdAt: Date.now() };
+            // 会话仍开着且开的正是这条会话 = 用户已读，避免刚回的这条被计入未读徽章（开着别的会话不算已读）
+            if (this._isDmThreadOpen(dmId)) dm.lastReadAt = Date.now();
+        } else {
+            dm.messages.splice(idx, 1);
+        }
+        Utils.saveData();
+        if (this._isDmThreadOpen(dmId)) this._renderDmThreadMessages(dm, npc);
+        if (this.currentTab === 'notif') this.renderNotif();
+    },
+
+    _generateNpcDmReply(npc, userText) {
+        const prompt = `你是中国微博用户「${npc.name}」(@${npc.handle})、简介：${npc.bio}。
+对方通过私信对你说：「${userText.slice(0, 200)}」
+请生成一句 5-40 字的私信回复、语气自然、贴合你的人设。
+【铁律】必须使用简体中文输出。严禁繁体字、严禁日语、严禁英语整句。
+直接输出回复文字、不要引号、不要 prefix。`;
+        return this._callLLM(prompt, { temperature: 0.9, maxTokens: 200 });
     },
 
     // ========== Phase 2: NPC 池 + 种子播种 ==========
@@ -3394,14 +3642,30 @@ REPLY_1: [评论者昵称]|[评论]
         if (!cp.cpCharA && !cp.cpCharB && !cp.productionName) return;
 
         const newTopics = [];
+        let topicsChanged = false; // v2.178.0 修 3-4：改名更新已有条目时也要触发持久化（不止靠 newTopics.length）
 
         if (cp.productionName) {
-            const exists = (wd.topics || []).some(t => t.type === 'production' && t.name.includes(cp.productionName));
-            if (!exists) {
+            // 按 kind==='production' 找已认领的作品超话（不看 name、避免作品名改变后 includes 匹配不到）
+            let existingProd = (wd.topics || []).find(t => t.kind === 'production');
+            if (!existingProd) {
+                // 惰性兜底：老存档没有 kind 字段的条目、退回旧的 includes 逻辑先认领一次并补上 kind
+                existingProd = (wd.topics || []).find(t => t.type === 'production' && t.name.includes(cp.productionName));
+                if (existingProd) existingProd.kind = 'production';
+            }
+            if (existingProd) {
+                // 作品名已改变：更新已有条目的 name/desc、而非新建重复超话（旧超话残留 bug 的根因）
+                const newName = `《${cp.productionName}》`;
+                if (existingProd.name !== newName) {
+                    existingProd.name = newName;
+                    existingProd.description = `${cp.productionName}同人创作交流`; // v2.73.8: i18n 黑名单
+                    topicsChanged = true;
+                }
+            } else {
                 newTopics.push({
                     id: 'tp_' + this._uuid(),
                     name: `《${cp.productionName}》`,
                     type: 'production',
+                    kind: 'production',
                     description: `${cp.productionName}同人创作交流`, // v2.73.8: i18n 黑名单 — 不走 I18n.t，避免存进 topic 后喂回 LLM 时混入非简中字符串
                     coverColor: '#ff5544',
                     memberCount: 2000 + Math.floor(Math.random() * 8000),
@@ -3444,9 +3708,11 @@ REPLY_1: [评论者昵称]|[评论]
 
         if (newTopics.length > 0) {
             wd.topics = (wd.topics || []).concat(newTopics);
+        }
+        if (newTopics.length > 0 || topicsChanged) {
             wd._lastTopicSeedPlotId = currentPlotId;
             Utils.saveData();
-            console.log(`[Weibo topics] seeded ${newTopics.length} topics`);
+            console.log(`[Weibo topics] seeded ${newTopics.length} topics${topicsChanged ? '、更新了改名的作品超话' : ''}`);
         }
     },
 

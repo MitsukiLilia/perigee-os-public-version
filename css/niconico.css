@@ -993,6 +993,30 @@
 .nico-pv-gallery-item.selected .nico-pv-gallery-check { display: flex; }
 .nico-pv-gallery-check svg { width: 11px; height: 11px; }
 
+/* 2026-07-06 参考图两来源分组：标题横跨整行；立绘卡角色名 badge */
+.nico-pv-gallery-section-title {
+    grid-column: 1 / -1;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 4px 2px 0;
+}
+.nico-pv-gallery-badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    max-width: calc(100% - 8px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    line-height: 1;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+}
+
 /* 空状態 */
 .nico-empty {
     display: flex;

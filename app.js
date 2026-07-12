@@ -196,6 +196,10 @@ const Navigation = {
         if (next) {
             next.classList.add('active');
             AppState.currentScreen = screenId;
+            // 回桌面：轮播抽新图 + 数据类 widget（情报/通知中心/メルカリ）定点刷新（v2.192 B2/B3/B4/B5）
+            if (screenId === 'desktop' && typeof Widgets !== 'undefined' && Widgets.onDesktopReturn) {
+                Widgets.onDesktopReturn();
+            }
             if (screenId === 'conversation' && data) Conversation.init(data);
             if (screenId === 'characterEditor') CharEditor.init();
             // my-profile-screen removed — identity management is in LINE Home

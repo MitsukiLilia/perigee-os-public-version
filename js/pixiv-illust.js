@@ -896,8 +896,12 @@ Generate image tags:`;
     },
 
     async _extractImageFromZip(zipBlob) {
+        // 按需注入本地 JSZip（不随启动加载，见 js/vendor/）
+        try {
+            await Utils.loadScriptOnce('js/vendor/jszip.min.js');
+        } catch (e) { /* 加载失败走下方兜底 */ }
         if (typeof JSZip === 'undefined') {
-            throw new Error(I18n.t('pixiv_illust.err_jszip_not_loaded', 'JSZip 库未加载，请刷新页面重试'));
+            throw new Error(I18n.t('pixiv_illust.err_jszip_not_loaded', 'JSZip 库未加载，请重试'));
         }
 
         const zip = await JSZip.loadAsync(zipBlob);

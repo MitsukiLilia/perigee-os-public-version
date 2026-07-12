@@ -538,13 +538,14 @@ const APISettings = {
 
 // 2. 系统配置模块
 const SystemConfig = {
-    THEMES: ['sakura', 'night-sky', 'summer-rain', 'journal', 'minimal', 'zelda', 'animal', 'strawberry', 'snow-country'],
+    THEMES: ['sakura', 'night-sky', 'summer-rain', 'journal', 'minimal', 'animal', 'strawberry', 'snow-country'],
     FONTS: ['cjk-serif', 'jp-mincho', 'sans', 'mono', 'system'],
 
     // 老 → 新主题映射（静默迁移）
     _LEGACY_THEME_MAP: {
         'winter-night': 'night-sky',
-        'spring-day': 'sakura'
+        'spring-day': 'sakura',
+        'zelda': 'night-sky'   // v2.184.0 希卡下架，存量用户迁夜空
     },
     // 老 activePreset → 新主题映射
     _LEGACY_PRESET_MAP: {
@@ -822,6 +823,7 @@ const SystemConfig = {
         if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
         if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
+        if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
         // 切主题后更新「动态特效开关」行（按当前主题显示对应开关 / 隐藏）
         if (typeof this._updateThemeEffectRow === 'function') this._updateThemeEffectRow();
         if (typeof this._updateGlassQualityRow === 'function') this._updateGlassQualityRow();
@@ -1279,6 +1281,7 @@ const IconCustomizer = {
         if (typeof JournalIcons !== 'undefined') JournalIcons.apply();
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
         if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
+        if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
     }
 };
 
@@ -1681,7 +1684,7 @@ const TTSSettings = {
             container.innerHTML = '<div class="reading-map-empty">尚未追加</div>';
             return;
         }
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         container.innerHTML = map.map((m, i) => `
             <div class="reading-map-row">
                 <span class="reading-map-from">${_esc(m.from)}</span>

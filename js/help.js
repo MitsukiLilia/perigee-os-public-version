@@ -5,11 +5,25 @@ const Help = {
     _rendered: false,
     _expandedId: null, // 当前展开项的 id
 
-    open(jumpToId) {
+    // v2.179.0：内容拆到 assets/help-content.json 懒加载，首次打开先 fetch 再渲染
+    async open(jumpToId) {
         if (typeof Navigation !== 'undefined') {
             Navigation.goTo('help-center');
         }
         if (!this._rendered) {
+            const scroll = document.getElementById('helpCenterScroll');
+            if (!HelpContent.sections && scroll) {
+                scroll.innerHTML = `<div class="help-intro"><div class="help-intro-sub">加载中…</div></div>`;
+            }
+            try {
+                await HelpContent.load();
+            } catch (e) {
+                if (scroll) {
+                    scroll.innerHTML = `<div class="help-intro"><div class="help-intro-sub">帮助内容加载失败、请检查网络后重试。</div></div>`;
+                    scroll.onclick = () => { scroll.onclick = null; this.open(jumpToId); };
+                }
+                return;
+            }
             this.render();
             this._rendered = true;
         }

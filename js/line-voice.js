@@ -144,7 +144,7 @@ const LineVoice = {
         ${msg.expanded ? `<div class="line-voice-text-expanded">${preview}</div>` : ''}`;
     },
 
-    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
+    _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }, // ⚠️ 保留独立实现勿收编 Utils.escapeHtml：模块内有先转义后 .slice() 的预览截断，多转义 ' 会挪动截断点
 
     // ── 展开/收起文字 ──
     toggleExpand(msgId) {

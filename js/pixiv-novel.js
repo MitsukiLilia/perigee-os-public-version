@@ -10,6 +10,53 @@ const PixivNovel = {
     _pendingNextChapterNovelId: null,  // deprecated, kept for compat
     _pendingChapterAction: null,       // { type:'next'|'reroll', novelId, chapterIdx? }
     _isGeneratingChapter: false,       // 并发锁：续章/重写生成中、防双击重复生成
+
+    // ── 章节点赞档C建模（v2.190）─────────────────────────────
+    // 公式定稿见 docs/superpowers/specs/2026-07-09-pixiv-hearts-model-design.md
+    // twitterData 一律显式传参：迁移执行时 AppState.data 尚未赋值，禁止在这组函数里读 AppState
+
+    _rollVirtualFc() {
+        return 3000 + Math.floor(Math.random() * 17001);   // 3,000〜20,000
+    },
+
+    _resolveAuthorFc(novel, twitterData) {
+        if (novel.author_npc_id) {
+            const fan = ((twitterData || {}).fanFriends || []).find(f => f.id === novel.author_npc_id);
+            if (fan) return Twitter._npcFollowerCount(fan);
+            return Twitter._genFollowerCount(novel.author_npc_id);
+        }
+        if (typeof novel.virtualFc !== 'number') novel.virtualFc = this._rollVirtualFc();
+        return novel.virtualFc;
+    },
+
+    _rollHeatBase(fc) {
+        const r = Math.random();
+        let m = 1;                                          // 70% 无加成
+        if (r >= 0.98) m = 8 + Math.random() * 6;           // 2% 大爆 ×8〜14
+        else if (r >= 0.90) m = 4 + Math.random() * 3;      // 8% 中爆 ×4〜7
+        else if (r >= 0.70) m = 1.8 + Math.random() * 1.2;  // 20% 小爆 ×1.8〜3
+        return Math.min(30000, Math.round(fc * (0.01 + Math.random() * 0.02) * m));
+    },
+
+    _rollChapterHearts(heatBase) {
+        return Math.max(3, Math.round((heatBase || 0) * (0.75 + Math.random() * 0.5)));
+    },
+
+    // novel.hearts = 最高章 hearts 缓存（不含 likeBoost：玩家点赞不改变 popular 排序）
+    _recalcNovelHearts(novel) {
+        novel.hearts = (novel.chapters || []).reduce((mx, ch) => Math.max(mx, ch.hearts || 0), 0);
+    },
+
+    // 创建路径/迁移共用的一站式初始化；只填缺失章的 hearts（幂等友好）
+    _initNovelPopularity(novel, twitterData) {
+        const fc = this._resolveAuthorFc(novel, twitterData);
+        novel.heatBase = this._rollHeatBase(fc);
+        (novel.chapters || []).forEach(ch => {
+            if (typeof ch.hearts !== 'number') ch.hearts = this._rollChapterHearts(novel.heatBase);
+        });
+        this._recalcNovelHearts(novel);
+    },
+
     _seedingDoujin: false,             // v2.123.0 并发锁：doujin_writer 种子播种中、防并发重复种
 
     // ===== 初始化 =====
@@ -353,6 +400,8 @@ ${count}人分繰り返してください。`;
             return;
         }
         row.style.display = 'flex';
+        // ⚠️ 保留独立实现，勿收编 Utils.escapeHtml（那边会把 ' 转成 &#39;）：
+        // 下方 _jsAttrEsc 依赖本函数不转义单引号，先转义会击穿 onclick 字符串（原因见其注释）
         const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         // onclick 参数需在 HTML 属性转义之外，再做 JS 字符串层转义（反斜杠先于单引号）：
         // 浏览器解析 onclick 属性值时会先做 HTML 实体解码，再把解码后的文本当 JS 源码解析，
@@ -421,7 +470,7 @@ ${count}人分繰り返してください。`;
         const isFav = (data.favorites || []).includes(novel.id);
         const totalWords = (novel.chapters || []).reduce((s, c) => s + (c.wordCount || 0), 0);
         const chapterCount = (novel.chapters || []).length;
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         const titleDisplay = _esc(this.stripHtml(novel.title || ''));
         const timeAgo = this._timeAgo(novel.updatedAt || novel.timestamp);
 
@@ -518,7 +567,7 @@ ${count}人分繰り返してください。`;
         const totalWords = (novel.chapters || []).reduce((s, c) => s + (c.wordCount || 0), 0);
         const infoDiv = document.getElementById('pixivNovelInfo');
 
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         const coverColor = this._hashColor(novel.title || '');
         const coverHtml = `<div class="pixiv-novel-cover" style="background:${coverColor}"><div class="pixiv-novel-cover-title">${_esc(novel.title || '')}</div></div>`;
         const synopsisRaw = novel.synopsis || novel.description || '';
@@ -707,7 +756,7 @@ ${count}人分繰り返してください。`;
         const el = document.getElementById('pixivReaderAuthorAvatar');
         if (!el) return;
         const { avatarImage, avatarColor, letter } = this._resolveAuthorAvatar(novel);
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         if (avatarImage) {
             el.innerHTML = `<img src="${_esc(avatarImage)}" alt="" onerror="this.parentNode.style.background='${_esc(avatarColor)}';this.parentNode.textContent='${_esc(letter)}'">`;
             el.style.background = '';
@@ -723,7 +772,7 @@ ${count}人分繰り返してください。`;
     // ===== 作者头像 HTML（detail modal 用、不操作 DOM）=====
     _buildAuthorAvatarHtml(novel, sizeClass) {
         const { avatarImage, avatarColor, letter } = this._resolveAuthorAvatar(novel);
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         const cls = `pixiv-reader-author-avatar ${sizeClass || ''}`.trim();
         if (avatarImage) {
             return `<div class="${cls}"><img src="${_esc(avatarImage)}" alt=""></div>`;
@@ -745,7 +794,7 @@ ${count}人分繰り返してください。`;
         const novel = (data.novels || []).find(n => n.id === this.currentNovelId);
         if (!novel) return;
 
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         const isSerial = novel.isSerial;
         const currentChapter = isSerial && novel.chapters ? novel.chapters[this.currentChapterIdx] : null;
 
@@ -767,6 +816,12 @@ ${count}人分繰り返してください。`;
             : _esc(novel.title);
 
         const authorAvatarHtml = this._buildAuthorAvatarHtml(novel, 'pixiv-detail-author-avatar');
+        // v2.181.0 関注作者接线：author_npc_id 为空时（玩家自建/无名册作者）不显示关注按钮
+        const authorNpcId = novel.author_npc_id || '';
+        const isAuthorFollowed = this._isAuthorFollowed(authorNpcId);
+        const followBtnHtml = authorNpcId
+            ? `<button class="pixiv-detail-follow-btn${isAuthorFollowed ? ' active' : ''}" onclick="PixivNovel.toggleAuthorFollow('${_esc(authorNpcId)}')">${isAuthorFollowed ? I18n.t('pixiv.detail_following_btn', 'フォロー中') : I18n.t('pixiv.detail_follow_btn', '+ 关注')}</button>`
+            : '';
 
         const seriesRowHtml = isSerial
             ? `<div class="pixiv-detail-series-row"><span class="pixiv-detail-series-name">${_esc(novel.title)}</span><button class="pixiv-detail-series-chip" onclick="document.getElementById('pixivDetailModal').classList.remove('active');PixivNovel.showSeriesToc('${novel.id}');">${I18n.t('pixiv.series_list_chip', '系列列表 ›')}</button></div>`
@@ -791,7 +846,7 @@ ${count}人分繰り返してください。`;
                         <div class="pixiv-detail-author-info">
                             <div class="pixiv-detail-author-name">${_esc(novel.author || I18n.t('pixiv.anonymous', '匿名'))}</div>
                         </div>
-                        <button class="pixiv-detail-follow-btn" onclick="PixivNovel.showFollowPlaceholder()">${I18n.t('pixiv.detail_follow_btn', '+ 关注')}</button>
+                        ${followBtnHtml}
                     </div>
                     <div class="pixiv-detail-sibling-grid">
                         ${siblings.map(({ ch, i }) => `
@@ -813,7 +868,7 @@ ${count}人分繰り返してください。`;
                 <div class="pixiv-detail-author-info">
                     <div class="pixiv-detail-author-name">${_esc(novel.author || I18n.t('pixiv.anonymous', '匿名'))}</div>
                 </div>
-                <button class="pixiv-detail-follow-btn" onclick="PixivNovel.showFollowPlaceholder()">${I18n.t('pixiv.detail_follow_btn', '+ 关注')}</button>
+                ${followBtnHtml}
             </div>`;
 
         document.getElementById('pixivDetailContent').innerHTML = `
@@ -838,8 +893,30 @@ ${count}人分繰り返してください。`;
         document.getElementById('pixivDetailModal').classList.add('active');
     },
 
-    showFollowPlaceholder() {
-        Utils.showToast(I18n.t('pixiv.detail_follow_coming_soon', '关注功能即将上线'));
+    // ===== 关注作者接线（v2.181.0）：novel.author_npc_id 指向 Twitter/微博共享的粉丝NPC池，
+    // 状态存在 AppState.data.twitterData.followedNpcIds（全局、跟 NPC id 走、不分模块）——
+    // 直接复用 Twitter._toggleFollow 写同一份状态，Twitter 侧的粉丝主页会自动同步显示「フォロー中」。 =====
+    _isAuthorFollowed(npcId) {
+        if (!npcId) return false;
+        return (AppState.data.twitterData?.followedNpcIds || []).includes(npcId);
+    },
+    toggleAuthorFollow(npcId) {
+        if (!npcId || typeof Twitter === 'undefined' || typeof Twitter._toggleFollow !== 'function') return;
+        Twitter._toggleFollow(npcId);
+        this._refreshAuthorFollowUI();
+    },
+    // 关注态变了之后，把当前正打开的界面（详情modal/目录页/阅读器末尾卡）重渲一遍刷新按钮文字
+    _refreshAuthorFollowUI() {
+        if (document.getElementById('pixivDetailModal')?.classList.contains('active')) {
+            this.showNovelDetail();
+        }
+        if (document.getElementById('pixivTocModal')?.classList.contains('active')) {
+            this.showSeriesToc(this.currentNovelId);
+        }
+        const novel = (AppState.data.pixivData.novels || []).find(n => n.id === this.currentNovelId);
+        if (novel && document.getElementById('pixivChapterBody')) {
+            this.renderChapterContent(novel);
+        }
     },
     showCommentPlaceholder() {
         Utils.showToast(I18n.t('pixiv.detail_comment_coming_soon', '评论功能即将上线'));
@@ -917,7 +994,7 @@ ${count}人分繰り返してください。`;
         const novel = (data.novels || []).find(n => n.id === novelId);
         if (!novel) return;
 
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         const chapters = novel.chapters || [];
         const totalWords = chapters.reduce((s, c) => s + (c.wordCount || 0), 0);
         // 500 字/分钟（中文阅读速度、跟真 pixiv 同字数估算时长对齐）
@@ -929,6 +1006,12 @@ ${count}人分繰り返してください。`;
         // 作者头部
         const authorAvatarHtml = this._buildAuthorAvatarHtml(novel, 'pixiv-toc-author-avatar');
         const authorName = _esc(novel.author || I18n.t('pixiv.anonymous', '匿名'));
+        // v2.181.0 関注作者接线：author_npc_id 为空时（玩家自建/无名册作者）不显示关注按钮
+        const authorNpcId = novel.author_npc_id || '';
+        const isAuthorFollowed = this._isAuthorFollowed(authorNpcId);
+        const authorFollowBtnHtml = authorNpcId
+            ? `<button class="pixiv-toc-follow-author${isAuthorFollowed ? ' active' : ''}" onclick="PixivNovel.toggleAuthorFollow('${_esc(authorNpcId)}')">${isAuthorFollowed ? I18n.t('pixiv.detail_following_btn', 'フォロー中') : I18n.t('pixiv.detail_follow_btn', '加关注')}</button>`
+            : '';
 
         // 简介（短/全文都不截断、CSS 控两行省略）
         const synopsisText = _esc(novel.synopsis || novel.description || '');
@@ -948,9 +1031,8 @@ ${count}人分繰り返してください。`;
             const dateStr = d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` : '';
             const isActive = i === this.currentChapterIdx;
             const isLiked = !!ch.isLiked;
-            // 每章 hearts = novel.hearts × 衰减系数（首章最高、后续递减、跟真 pixiv 视觉一致）+ 用户点赞累加
-            const baseHearts = Math.max(1, Math.round((novel.hearts || 0) * Math.pow(0.65, i)));
-            const chapterHearts = baseHearts + (ch.likeBoost || 0);
+            // 章 hearts 创建/迁移时按档C落盘（v2.190），likeBoost 为玩家点赞增量
+            const chapterHearts = (ch.hearts || 0) + (ch.likeBoost || 0);
             const itemTitle = `${_esc(novel.title)} ${i + 1}${ch.title ? '　ー' + _esc(ch.title) + 'ー' : ''}`;
             const heartIcon = isLiked
                 ? `<svg viewBox="0 0 24 24" fill="#e74c3c" stroke="none" style="width:22px;height:22px;"><path d="M12 21s-7-4.5-9.5-9C.8 8 3 4 7 4c2 0 3.5 1.2 5 3 1.5-1.8 3-3 5-3 4 0 6.2 4 4.5 8-2.5 4.5-9.5 9-9.5 9z"/></svg>`
@@ -980,7 +1062,7 @@ ${count}人分繰り返してください。`;
                 </button>
                 ${authorAvatarHtml}
                 <span class="pixiv-toc-author-name">${authorName}</span>
-                <button class="pixiv-toc-follow-author" onclick="PixivNovel.showFollowPlaceholder()">${I18n.t('pixiv.detail_follow_btn', '加关注')}</button>
+                ${authorFollowBtnHtml}
                 <button class="pixiv-toc-more" aria-label="${I18n.t('pixiv.toc_more', '更多')}">⋯</button>
             </div>
             <div class="pixiv-toc-series-section">
@@ -1101,7 +1183,7 @@ ${count}人分繰り返してください。`;
         const avatarEl = document.getElementById('pixivProfileAvatar');
         const nameEl = document.getElementById('pixivProfileName');
         if (!avatarEl || !nameEl) return;
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         if (userAvatarImage) {
             avatarEl.innerHTML = `<img src="${_esc(userAvatarImage)}" alt="">`;
             avatarEl.style.background = '';
@@ -1212,7 +1294,7 @@ ${count}人分繰り返してください。`;
 
     // ===== 子页通用：novel row 渲染（参考真 pixiv 收藏页样式）=====
     _renderProfileNovelRow(novel) {
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         const coverColor = this._hashColor(novel.title || '');
         const wordCount = (novel.chapters || []).reduce((s, c) => s + (c.wordCount || 0), 0)
             || (novel.content ? novel.content.length : 0);
@@ -1265,7 +1347,7 @@ ${count}人分繰り返してください。`;
             // v2.74.1: 写 chapterBody（不动 pixivReaderContent 滚动容器自身、保留 infoDiv 兄弟节点）
             const content = document.getElementById('pixivChapterBody');
             if (content) {
-                const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                const _esc = s => Utils.escapeHtml(s || '');
                 const synopsisText = novel.synopsis ? `<div class="melon-sample-text" style="margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:8px;font-size:13px;color:var(--text-secondary);line-height:1.6;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-0.15em;margin-right:4px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>${I18n.t('pixiv.synopsis_label', 'あらすじ')}：${_esc(novel.synopsis).replace(/\n/g, '<br>')}</div>` : '';
                 content.innerHTML = `
                     <div style="text-align:center;padding:40px 20px;">
@@ -1280,6 +1362,9 @@ ${count}人分繰り返してください。`;
         const chapter = novel.chapters[this.currentChapterIdx];
         if (!chapter) return;
 
+        // ⚠️ 保留独立实现，勿收编 Utils.escapeHtml（那边会把 ' 转成 &#39;）：
+        // 下方 _sanitizeDetailsBlock 的还原正则用 [^&] 匹配已转义标签内容，
+        // 多转义 ' 产生的 &#39; 会让带单引号属性的白名单标签不再还原
         const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         // <details> 译文折叠块白名单清洗：LLM 正文属不可信输入，格式漂移/幻觉可能在块内夹带 img/onerror 等标签。
         // 先整体转义（起点变成纯文本），再只把 details/summary/span/br 这四个折叠机制自用的标签换回真实标签——
@@ -1383,14 +1468,23 @@ ${count}人分繰り返してください。`;
             }).join('');
             const endAuthorAvatarHtml = this._buildAuthorAvatarHtml(novel, 'pixiv-end-author-avatar');
             const endAuthorName = _esc(novel.author || I18n.t('pixiv.anonymous', '匿名'));
+            // v2.181.0 関注作者接线：author_npc_id 为空时（玩家自建/无名册作者）不显示关注按钮/个人资料入口
+            const authorNpcId = novel.author_npc_id || '';
+            const isAuthorFollowed = this._isAuthorFollowed(authorNpcId);
+            const endFollowBtnHtml = authorNpcId
+                ? `<button class="pixiv-end-author-follow${isAuthorFollowed ? ' active' : ''}" onclick="PixivNovel.toggleAuthorFollow('${_esc(authorNpcId)}')">${isAuthorFollowed ? I18n.t('pixiv.detail_following_btn', 'フォロー中') : I18n.t('pixiv.detail_follow_btn', '加关注')}</button>`
+                : '';
+            const endProfileLinkHtml = authorNpcId
+                ? `<button class="pixiv-end-profile-link" onclick="Twitter.openFanProfile('${_esc(authorNpcId)}')">${I18n.t('pixiv.end_view_profile', '查看个人资料')}</button>`
+                : '';
             siblingsCard = `<div class="pixiv-end-author-card">
                 <div class="pixiv-end-author-row">
                     ${endAuthorAvatarHtml}
                     <span class="pixiv-end-author-name">${endAuthorName}</span>
-                    <button class="pixiv-end-author-follow" onclick="PixivNovel.showFollowPlaceholder()">${I18n.t('pixiv.detail_follow_btn', '加关注')}</button>
+                    ${endFollowBtnHtml}
                 </div>
                 <div class="pixiv-end-sibling-grid">${siblingsThumbs}</div>
-                <button class="pixiv-end-profile-link" onclick="PixivNovel.showFollowPlaceholder()">${I18n.t('pixiv.end_view_profile', '查看个人资料')}</button>
+                ${endProfileLinkHtml}
             </div>`;
         }
 
@@ -1604,6 +1698,8 @@ Full chapter text. Do NOT repeat the title. Start immediately.
             }
 
             const wordCount = content.replace(/<[^>]*>/g, '').length;
+            // 兜底：极端情况下（导入未迁移旧包后 _v 已对齐）老连载缺 heatBase
+            if (typeof novel.heatBase !== 'number') this._initNovelPopularity(novel, AppState.data.twitterData);
             const newChapterData = {
                 id: Utils.generateId(),
                 chapterNum,
@@ -1612,6 +1708,7 @@ Full chapter text. Do NOT repeat the title. Start immediately.
                 synopsis: synopsis || '',
                 userHint: userHint || '',
                 wordCount,
+                hearts: this._rollChapterHearts(novel.heatBase),
                 createdAt: Date.now()
             };
 
@@ -1629,6 +1726,7 @@ Full chapter text. Do NOT repeat the title. Start immediately.
                 novel.chapters.push(newChapterData);
                 if (stillOnThisNovel) this.currentChapterIdx = novel.chapters.length - 1;
             }
+            this._recalcNovelHearts(novel);
 
             novel.updatedAt = Date.now();
             this._recordNovelAngle({ title: chapterTitle, tags: novel.tags || [] });
@@ -1661,6 +1759,7 @@ Full chapter text. Do NOT repeat the title. Start immediately.
         if (!confirm(msg)) return;
         novel.chapters = novel.chapters.slice(0, chapterIdx);   // 截断：本章及其后全部移除（含摘要）
         novel.chapters.forEach((ch, i) => { ch.chapterNum = i + 1; });   // 重排（前段不变，保险）
+        this._recalcNovelHearts(novel);   // 被截掉的章若是最高章，novel.hearts 缓存需随之重算，否则热度滞留旧最大值
         // 截断必然把结局章一并删掉，若原为完结状态则回退到连载中，否则续写/重写/完结按钮被 !completed 挡死
         if (novel.completed) { novel.completed = false; novel.completedAt = null; }
         novel.updatedAt = Date.now();
@@ -1793,10 +1892,11 @@ Full chapter text. Do NOT repeat the title. Start immediately.
             }],
             isSerial: type === 'serial',
             isUserCreated: true,  // 标记为用户创建
-            hearts: 0,
+            hearts: 0,   // 档C：随后 _initNovelPopularity 统一 roll（最高章缓存）
             timestamp: Date.now(),
             updatedAt: Date.now()
         };
+        this._initNovelPopularity(novel, AppState.data.twitterData);
 
         const data = AppState.data.pixivData;
         data.novels.unshift(novel);
@@ -1977,6 +2077,7 @@ Full chapter text. Do NOT repeat the title. Start immediately.
 
         const chapterNum = novel.chapters.length + 1;
         const wordCount = content.replace(/<[^>]*>/g, '').length;
+        if (typeof novel.heatBase !== 'number') this._initNovelPopularity(novel, AppState.data.twitterData);
 
         // 添加新章节
         novel.chapters.push({
@@ -1985,8 +2086,10 @@ Full chapter text. Do NOT repeat the title. Start immediately.
             title: title || `第${chapterNum} 章`,
             content: content,
             wordCount: wordCount,
+            hearts: this._rollChapterHearts(novel.heatBase),
             createdAt: Date.now()
         });
+        this._recalcNovelHearts(novel);
 
         novel.updatedAt = Date.now();
         Utils.saveData();
@@ -2400,10 +2503,11 @@ Make sure to include line breaks and dialogue as normal.
                     createdAt: Date.now()
                 }],
                 isSerial: type === 'serial',
-                hearts: Math.floor(Math.random() * 50) + 5,
+                hearts: 0,   // 档C：随后 _initNovelPopularity 统一 roll（最高章缓存）
                 timestamp: Date.now(),
                 updatedAt: Date.now()
             };
+            this._initNovelPopularity(novel, AppState.data.twitterData);
 
             const data = AppState.data.pixivData;
             data.novels.unshift(novel);
@@ -2428,7 +2532,7 @@ Make sure to include line breaks and dialogue as normal.
 
     // v2.68.10 生成失败友好提示：区分 timeout / network / api / safety / parse，给重试入口
     _showGenerateError(err) {
-        const esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const esc = s => Utils.escapeHtml(s || '');
         const listContainer = document.getElementById('pixivNovelList');
         if (!listContainer) {
             Utils.showToast((err && err.message) || I18n.t('pixiv.err_unknown_title', '生成失败'));
@@ -2647,11 +2751,12 @@ ${autoPerspectiveInstruction}
                     createdAt: Date.now()
                 }],
                 isSerial: false,
-                hearts: Math.floor(Math.random() * 50) + 5,
+                hearts: 0,   // 档C：随后 _initNovelPopularity 统一 roll（最高章缓存）
                 timestamp: Date.now(),
                 updatedAt: Date.now(),
                 createdAt: Date.now()  // v2.70.0 显式 createdAt（推特延迟 mention 用 3 天窗口）
             };
+            this._initNovelPopularity(novel, AppState.data.twitterData);
 
             AppState.data.pixivData.novels.unshift(novel);
             this._recordNovelAngle(novel);
@@ -2818,11 +2923,12 @@ ${autoPerspectiveInstruction}
                     createdAt: Date.now()
                 }],
                 isSerial: false,
-                hearts: Math.floor(Math.random() * 50) + 5,
+                hearts: 0,   // 档C：随后 _initNovelPopularity 统一 roll（最高章缓存）
                 timestamp: Date.now(),
                 updatedAt: Date.now(),
                 createdAt: Date.now()
             };
+            this._initNovelPopularity(novel, AppState.data.twitterData);
 
             AppState.data.pixivData.novels.unshift(novel);
             this._recordNovelAngle(novel);
@@ -2965,7 +3071,7 @@ ${autoPerspectiveInstruction}
             return;
         }
 
-        const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const _esc = s => Utils.escapeHtml(s || '');
         container.innerHTML = styles.map(style => `
             <div class="pixiv-style-preset ${style.enabled ? '' : 'disabled'}" data-style-id="${style.id}">
                 <div class="preset-header">
@@ -3718,12 +3824,13 @@ ${autoPerspectiveInstruction}
             writingStyleId: null,
             chapters: [],
             isSerial: true,
-            hearts: Math.floor(Math.random() * 100) + 10,
+            hearts: 0,   // 档C：随后 _initNovelPopularity 统一 roll（最高章缓存）
             timestamp: Date.now(),
             updatedAt: Date.now(),
             melonbooksProductId: product.id,
             synopsis: product.sampleText || ''
         };
+        this._initNovelPopularity(novel, AppState.data.twitterData);
 
         data.novels.unshift(novel);
         product.pixivNovelId = novel.id;

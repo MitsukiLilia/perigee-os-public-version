@@ -71,6 +71,10 @@
     border-bottom-color: var(--accent-color);
 }
 
+.forum-tab:active {
+    opacity: .6;
+}
+
 /* 论坛搜索栏 */
 .forum-search-bar {
     padding: 8px 12px;

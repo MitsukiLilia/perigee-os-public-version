@@ -74,7 +74,14 @@ const WorldBook = {
         const count = book.entries ? book.entries.length : 0;
         if (!confirm(I18n.t('t.wb_delete_confirm', { name: book.name, count: count }))) return;
 
-        AppState.data.worldBooks = (AppState.data.worldBooks || []).filter(b => b.id !== this.currentBookId);
+        const deletedId = this.currentBookId;
+        AppState.data.worldBooks = (AppState.data.worldBooks || []).filter(b => b.id !== deletedId);
+        // v2.178.0 P3 3-6: 世界书删除后清理 lofter 合集里的悬空引用，避免续章静默拿不到世界观
+        (AppState.data.lofterData?.collections || []).forEach(c => {
+            if (Array.isArray(c.worldBookIds) && c.worldBookIds.includes(deletedId)) {
+                c.worldBookIds = c.worldBookIds.filter(id => id !== deletedId);
+            }
+        });
         this.currentBookId = null;
         Utils.saveData();
         Navigation.goTo('worldbook');
@@ -343,11 +350,9 @@ const WorldBook = {
 
     // ===== 导入：辅助 =====
 
-    // HTML 转义（用于把书名安全插进弹窗）
+    // HTML 转义（收口：转发 Utils.escapeHtml）
     _escapeHtml(str) {
-        return String(str == null ? '' : str)
-            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return Utils.escapeHtml(str);
     },
 
     // 生成不与现有世界书重名的名字

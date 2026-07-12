@@ -737,6 +737,14 @@
     border-left: 2px solid #f0eef0;
     margin-top: 2px;
 }
+/* v2.181.0 玩家自己发的评论：淡强调色底色区分一眼可辨；NPC 回复生成中：文字降低透明度当轻量占位 */
+.lof-comment-row-mine {
+    background: rgba(26, 188, 156, 0.06);
+    border-radius: 10px;
+    margin: 0 -8px;
+    padding: 10px 8px;
+}
+.lof-comment-row-loading .lof-comment-text { opacity: 0.55; }
 
 /* 浮动「稍后再看」按钮 */
 .lof-detail-readlater-fab {
@@ -772,17 +780,46 @@
     align-items: center;
     gap: 12px;
 }
-.lof-detail-bottom-input {
+/* v2.181.0 评论区玩家参与：底部 sticky bar 真输入框（原 mock 按钮就地升级） */
+.lof-detail-bottom-input-wrap {
+    position: relative;
     flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+.lof-detail-bottom-input-real {
+    width: 100%;
     background: #f3f3f5;
     border: 0;
     border-radius: 18px;
-    padding: 10px 14px;
-    color: var(--text-tertiary, #aaa);
+    padding: 10px 40px 10px 14px;
+    color: var(--text-primary, #1a1a1a);
     font-size: 14px;
-    text-align: left;
-    cursor: pointer;
+    font-family: inherit;
+    outline: none;
 }
+.lof-detail-bottom-input-real::placeholder { color: var(--text-tertiary, #aaa); }
+.lof-detail-bottom-input-real:disabled { opacity: 0.6; }
+.lof-detail-bottom-send {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 0;
+    background: #1abc9c;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    flex: 0 0 auto;
+}
+.lof-detail-bottom-send:disabled { background: #c8c8cc; cursor: not-allowed; }
 .lof-detail-bottom-act {
     background: none;
     border: 0;
@@ -840,9 +877,13 @@
     background: #1a1a1f;
     border-top-color: #2a2a30;
 }
-[data-theme="night-sky"] .lof-detail-bottom-input { background: #2a2a30; color: #6a6a72; }
+[data-theme="night-sky"] .lof-detail-bottom-input-real { background: #2a2a30; color: #e8e8ec; }
+[data-theme="night-sky"] .lof-detail-bottom-input-real::placeholder { color: #6a6a72; }
+[data-theme="night-sky"] .lof-detail-bottom-send { background: #36d8b8; color: #10221e; }
+[data-theme="night-sky"] .lof-detail-bottom-send:disabled { background: #4a4a52; color: #8a8a90; }
 [data-theme="night-sky"] .lof-detail-bottom-act { color: #6a6a72; }
 [data-theme="night-sky"] .lof-detail-bottom-act.liked { color: #ff8eb0; }
+[data-theme="night-sky"] .lof-comment-row-mine { background: rgba(54, 216, 184, 0.1); }
 
 /* ========== Phase 2a: 我的 tab ========== */
 
@@ -2663,3 +2704,109 @@
 .lof-next-ch-ending-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; opacity: 0.85; }
 .lof-next-ch-ending-row input { margin: 0; }
 .lof-col-finished-badge { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 9px; font-size: 11px; font-weight: 600; background: rgba(26, 188, 156, 0.14); color: #1abc9c; vertical-align: 2px; }
+
+/* ========== 可玩性 TOP2：Lofter 作者主页 ========== */
+
+/* 全站"点作者头像/名字进主页"入口统一手型反馈：只有真实带 data-npc-id 的才可点
+   （一次性笔名 / 已注销作者没有 data-npc-id，模板本来就没给，天然维持不可点） */
+.lof-card-author[data-npc-id],
+.lof-detail-author-head[data-npc-id],
+.lof-sub-author-head[data-npc-id],
+.lof-tag-author-mini[data-npc-id],
+.lof-comment-row[data-npc-id],
+.lof-update-avatar-wrap {
+    cursor: pointer;
+}
+.lof-card-author[data-npc-id]:active,
+.lof-detail-author-head[data-npc-id]:active,
+.lof-sub-author-head[data-npc-id]:active,
+.lof-tag-author-mini[data-npc-id]:active {
+    opacity: 0.6;
+}
+
+.lof-authp-head {
+    padding: 20px 16px 18px;
+    background: var(--bg-card, #fff);
+    display: flex;
+    gap: 14px;
+    border-bottom: 1px solid var(--border-light, #ecedf0);
+}
+.lof-authp-avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 26px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+}
+.lof-authp-info { flex: 1; min-width: 0; }
+.lof-authp-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+}
+.lof-authp-name {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary, #1a1a1a);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.lof-authp-bio {
+    font-size: 13px;
+    color: var(--text-secondary, #666);
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+.lof-authp-bio-empty { opacity: 0.6; }
+.lof-authp-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.lof-authp-tag-chip {
+    background: #f3f3f5;
+    color: #1abc9c;
+    font-size: 12px;
+    padding: 2px 9px;
+    border-radius: 10px;
+}
+.lof-authp-style {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+    line-height: 1.5;
+    margin-bottom: 8px;
+}
+.lof-authp-style-label {
+    font-weight: 600;
+    color: var(--text-primary, #1a1a1a);
+    margin-right: 4px;
+}
+.lof-authp-count {
+    font-size: 12px;
+    color: var(--text-secondary, #888);
+}
+.lof-authp-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    background: var(--bg-card, #fff);
+}
+
+[data-theme="night-sky"] .lof-authp-head { background: #1a1a1f; border-bottom-color: #2a2a30; }
+[data-theme="night-sky"] .lof-authp-body { background: #1a1a1f; }
+[data-theme="night-sky"] .lof-authp-name { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-authp-bio,
+[data-theme="night-sky"] .lof-authp-style,
+[data-theme="night-sky"] .lof-authp-count { color: #9a9a9f; }
+[data-theme="night-sky"] .lof-authp-style-label { color: #e8e8ec; }
+[data-theme="night-sky"] .lof-authp-tag-chip { background: #2a2a30; color: #36d8b8; }

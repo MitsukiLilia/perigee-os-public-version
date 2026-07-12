@@ -312,14 +312,25 @@ img.tw-profile-avatar { display: block; }
     transition: color 0.15s; line-height: 1; border-radius: 50px;
 }
 .tw-action-btn span { font-size: 12px; }
-.tw-action-btn:hover { color: var(--accent-color); }
-.tw-action-reply:hover { color: #1d9bf0; }
-.tw-action-rt:hover { color: #17bf63; }
-.tw-action-like:hover { color: #e0245e; }
+.tw-action-btn:hover, .tw-action-btn:active { color: var(--accent-color); }
+.tw-action-reply:hover, .tw-action-reply:active { color: #1d9bf0; }
+.tw-action-rt:hover, .tw-action-rt:active { color: #17bf63; }
+.tw-action-like:hover, .tw-action-like:active { color: #e0245e; }
 .tw-action-like.tw-liked { color: #e0245e; }
-.tw-action-bm:hover { color: #1d9bf0; }
+/* いいね pop（v2.182 backlog B）：挂一次性 .tw-like-pop（toggleLike/toggleReplyLike 点赞瞬间加、
+   animationend 移除）。不能挂持久的 .tw-liked——列表重渲时已点赞的心会集体重播动画，不拟真。 */
+@keyframes twLikePop {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.3); }
+    60% { transform: scale(0.92); }
+    100% { transform: scale(1); }
+}
+.tw-like-pop svg {
+    animation: twLikePop 0.3s ease;
+}
+.tw-action-bm:hover, .tw-action-bm:active { color: #1d9bf0; }
 .tw-action-bm.tw-bookmarked { color: var(--accent-color); }
-.tw-action-share:hover { color: #1d9bf0; }
+.tw-action-share:hover, .tw-action-share:active { color: #1d9bf0; }
 /* 时间分隔符 */
 .tw-time-sep { color: var(--text-secondary); font-size: 13px; margin: 0 1px; }
 .tw-saved-badge {
@@ -1290,7 +1301,8 @@ body.dark-mode .tw-profile-avatar-wrap { background: var(--bg-base); }
     border-radius: 999px;
     transition: background 0.15s, color 0.15s;
 }
-.tw-thread-actions-v2 .tw-action-btn:hover {
+.tw-thread-actions-v2 .tw-action-btn:hover,
+.tw-thread-actions-v2 .tw-action-btn:active {
     background: rgba(29, 155, 240, 0.08);
     color: var(--accent-color);
 }
@@ -1298,9 +1310,9 @@ body.dark-mode .tw-profile-avatar-wrap { background: var(--bg-base); }
     font-size: 13px;
     font-variant-numeric: tabular-nums;
 }
-.tw-thread-actions-v2 .tw-action-like:hover { color: #e0245e; background: rgba(224, 36, 94, 0.08); }
-.tw-thread-actions-v2 .tw-action-rt:hover { color: #00ba7c; background: rgba(0, 186, 124, 0.08); }
-.tw-thread-actions-v2 .tw-action-bookmark:hover { color: #f7b955; background: rgba(247, 185, 85, 0.08); }
+.tw-thread-actions-v2 .tw-action-like:hover, .tw-thread-actions-v2 .tw-action-like:active { color: #e0245e; background: rgba(224, 36, 94, 0.08); }
+.tw-thread-actions-v2 .tw-action-rt:hover, .tw-thread-actions-v2 .tw-action-rt:active { color: #00ba7c; background: rgba(0, 186, 124, 0.08); }
+.tw-thread-actions-v2 .tw-action-bookmark:hover, .tw-thread-actions-v2 .tw-action-bookmark:active { color: #f7b955; background: rgba(247, 185, 85, 0.08); }
 .tw-thread-actions-v2 .tw-action-btn.tw-liked { color: #e0245e; }
 .tw-thread-actions-v2 .tw-action-btn.tw-retweeted { color: #00ba7c; }
 

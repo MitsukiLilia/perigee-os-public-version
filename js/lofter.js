@@ -820,8 +820,9 @@ ${npcLines}
         return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
     },
 
+    // 收口：转发 Utils.escapeHtml；String(s) 保留原 null→"null" 行为
     _escapeHtml(s) {
-        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return Utils.escapeHtml(String(s));
     },
 
     _formatTime(ts) {
@@ -1138,6 +1139,7 @@ ${npcLines}
                         <div class="lof-compose-title">${I18n.t('lofter.next_ch_title', { n: targetNum })}</div>
                     </div>
                     <div class="lof-compose-note">${I18n.t('lofter.next_ch_desc', { name: collection.name, author: author?.name || '?' })}</div>
+                    ${collection.status === 'finished' ? `<div class="lof-compose-empty-warn">${I18n.t('lofter.next_ch_finished_notice', '本合集已完结、新章将作为番外生成')}</div>` : ''}
                     <div class="lof-next-ch-form">
                         <label class="lof-next-ch-label">${I18n.t('lofter.next_ch_hint_label', '本章方向（选填、留空让作者自由续写）')}</label>
                         <textarea id="lofNextChHint" rows="4" placeholder="${I18n.t('lofter.next_ch_hint_placeholder', '例：A 在雨夜中意外找到了独自疗伤的 B、终于说出了一直藏在心底的话。')}" class="lof-next-ch-textarea"></textarea>
@@ -1257,6 +1259,7 @@ ${npcLines}
                 if (articleId) this.openArticleDetail(articleId);
             };
         });
+        this._bindCardAuthorClicks(body);   // 可玩性 TOP2：作者头像/名字点进主页
     },
 
     _renderCategoryChips() {
@@ -1371,7 +1374,7 @@ ${npcLines}
                     ${summaryBlock}
                     ${tagsBlock}
                     <div class="lof-card-foot">
-                        <div class="lof-card-author">
+                        <div class="lof-card-author"${author.npcId ? ` data-npc-id="${author.npcId}"` : ''}>
                             <div class="lof-card-avatar" style="background:${author.avatarColor}">${author.avatarLetter}</div>
                             <span class="lof-card-author-name">${this._escapeHtml(author.name)}</span>
                         </div>
@@ -1420,6 +1423,7 @@ ${npcLines}
         const npc = (AppState.data.weiboData?.fanFriends || []).find(f => f.id === article.authorNpcId);
         if (npc) {
             return {
+                npcId: npc.id,   // 可玩性 TOP2：有真实 npc 才能点进作者主页，oneoff / 已注销都是 null
                 name: npc.name || article.authorName || '匿名',
                 avatarColor: npc.avatarColor || '#1abc9c',
                 avatarLetter: ((npc.name || article.authorName || 'A') + '')[0]
@@ -1428,6 +1432,7 @@ ${npcLines}
         // v2.170.0 一次性作者（其他 IP 合集）：无 npc id 但有笔名 → 正常显示笔名
         if (!article.authorNpcId && article.authorName) {
             return {
+                npcId: null,   // 一次性笔名不进名册、没有主页可看，保持不可点
                 name: article.authorName,
                 avatarColor: this._colorFromString(article.authorName),
                 avatarLetter: (article.authorName + '')[0]
@@ -1435,6 +1440,7 @@ ${npcLines}
         }
         // v2.141.0 作者已删号退圈：不再显示原名、统一「已注销作者」+ 灰头像
         return {
+            npcId: null,
             name: I18n.t('lofter.deleted_author', '已注销作者'),
             avatarColor: '#bcbcc4',
             avatarLetter: '—'
@@ -1462,20 +1468,9 @@ ${npcLines}
         const isFavorited = (ld.myFavoritedArticleIds || []).includes(articleId);
         const isReadLater = (ld.myReadLaterArticleIds || []).includes(articleId);
 
-        // 评论树
-        const allComments = (article.commentsList || []).map(c => ({
-            id: c.id,
-            fromNpcId: c.npcId,
-            author: c.author,
-            content: c.content,
-            createdAt: c.createdAt,
-            likes: c.likes || 0,
-            replyToCommentId: c.replyToCommentId || null,
-            isOpReply: !!c.isOpReply
-        }));
-        const commentTreeHtml = allComments.length > 0
-            ? this._renderCommentTree(allComments, 'time')
-            : `<div class="lof-detail-empty">${I18n.t('lofter.detail_no_comments', '还没有评论、来抢沙发吧')}</div>`;
+        // 评论树（v2.181.0 玩家评论落地：抽出 _buildCommentRenderList/_commentTreeOrEmptyHtml，供详情页初次渲染 + 评论区局部刷新共用）
+        const allComments = this._buildCommentRenderList(article);
+        const commentTreeHtml = this._commentTreeOrEmptyHtml(allComments);
 
         // 标签 chip
         const tagsHtml = (article.tags || []).map(t =>
@@ -1511,7 +1506,7 @@ ${npcLines}
         const inner = `
             <div class="lof-detail-bar">
                 <button class="lof-detail-back" id="lofDetailBack">‹</button>
-                <div class="lof-detail-author-head">
+                <div class="lof-detail-author-head"${npc ? ` data-npc-id="${npc.id}"` : ''}>
                     <div class="lof-detail-author-avatar" style="background:${author.avatarColor}">${author.avatarLetter}</div>
                     <span class="lof-detail-author-name">${this._escapeHtml(author.name)}</span>
                 </div>
@@ -1541,9 +1536,9 @@ ${npcLines}
                 <div class="lof-detail-comment-section">
                     <div class="lof-detail-section-title">${I18n.t('lofter.detail_comments_title', '最新评论')} <span class="lof-detail-comment-count">(${allComments.length})</span></div>
                     <div class="lof-detail-comment-input-wrap">
-                        <div class="lof-detail-comment-input-mock">${I18n.t('lofter.comment_placeholder', '来写评论~')}</div>
+                        <div class="lof-detail-comment-input-mock" id="lofCommentJumpToInput">${I18n.t('lofter.comment_placeholder', '来写评论~')}</div>
                     </div>
-                    ${commentTreeHtml}
+                    <div class="lof-comment-tree-wrap" id="lofCommentTreeWrap">${commentTreeHtml}</div>
                 </div>
             </div>
             <button class="lof-detail-readlater-fab ${isReadLater ? 'active' : ''}" id="lofDetailReadLater" aria-label="read later">
@@ -1551,22 +1546,26 @@ ${npcLines}
                 <span>${I18n.t('lofter.btn_read_later', '稍后再看')}</span>
             </button>
             <div class="lof-detail-bottom-bar">
-                <button class="lof-detail-bottom-input">
-                    <span>${I18n.t('lofter.comment_placeholder', '来写评论~')}</span>
-                </button>
+                <div class="lof-detail-bottom-input-wrap">
+                    <input type="text" class="lof-detail-bottom-input-real" id="lofCommentInputReal" maxlength="300" placeholder="${I18n.t('lofter.comment_placeholder', '来写评论~')}">
+                    <button class="lof-detail-bottom-send" id="lofCommentSendBtn" aria-label="${I18n.t('lofter.comment_send', '发送')}" title="${I18n.t('lofter.comment_send', '发送')}">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    </button>
+                </div>
                 <button class="lof-detail-bottom-act ${isLiked ? 'liked' : ''}" id="lofDetailLikeBtn">
                     <svg viewBox="0 0 24 24" width="22" height="22" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
                     <span>${article.stats?.hearts || 0}</span>
                 </button>
                 <button class="lof-detail-bottom-act" id="lofDetailCommentBtn">
                     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    <span>${allComments.length}</span>
+                    <span id="lofCommentCountBottom">${allComments.length}</span>
                 </button>
             </div>
         `;
 
         const node = this._openSubScreen('lofArticleDetailSubScreen', inner);
         if (!node) return;
+        node.dataset.articleId = articleId;   // 异步回调（评论刷新/回复落地）用它判断详情页是否还停在本文，防跨文章状态互串
         // 绑定事件
         document.getElementById('lofDetailBack').onclick = () => this._closeSubScreen('lofArticleDetailSubScreen');
         const followEl = node.querySelector('.lof-detail-follow-btn');
@@ -1576,6 +1575,11 @@ ${npcLines}
                 this._closeSubScreen('lofArticleDetailSubScreen');
                 this.openArticleDetail(articleId);
             };
+        }
+        // 可玩性 TOP2：头部作者头像/名字点进主页（无 npc 时——oneoff 笔名 / 已注销作者——不绑，模板本来就没给 data-npc-id）
+        const authorHeadEl = node.querySelector('.lof-detail-author-head[data-npc-id]');
+        if (authorHeadEl) {
+            authorHeadEl.onclick = () => this.openAuthorProfile(authorHeadEl.dataset.npcId);
         }
         // v2.171.0 不感兴趣：短文/长评删单篇；连载章节删整个合集（单删章节会断章、语义上是「弃这个坑」）
         const moreBtn = document.getElementById('lofDetailMore');
@@ -1604,10 +1608,26 @@ ${npcLines}
         };
         const readLaterBtn = document.getElementById('lofDetailReadLater');
         if (readLaterBtn) readLaterBtn.onclick = () => this._handleAddToReadLater(articleId);
-        // 评论输入框点击 toast 占位
-        node.querySelectorAll('.lof-detail-comment-input-mock, .lof-detail-bottom-input').forEach(el => {
-            el.onclick = () => Utils.showToast(I18n.t('lofter.toast_comment_coming_soon', 'lofter 评论功能即将上线'), 2000);
-        });
+        // v2.181.0 评论区玩家参与做实：顶部「来写评论~」跳到底部真输入框并聚焦（仿真态 → 真输入）
+        const jumpToInput = document.getElementById('lofCommentJumpToInput');
+        if (jumpToInput) jumpToInput.onclick = () => {
+            const realInput = document.getElementById('lofCommentInputReal');
+            if (realInput) {
+                realInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                realInput.focus();
+            }
+        };
+        const commentInput = document.getElementById('lofCommentInputReal');
+        const commentSendBtn = document.getElementById('lofCommentSendBtn');
+        const submitComment = () => this._submitLofterComment(articleId);
+        if (commentSendBtn) commentSendBtn.onclick = submitComment;
+        if (commentInput) {
+            commentInput.onkeydown = (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); submitComment(); }
+            };
+        }
+        // 若这篇文章还有一条上次提交未完成的 NPC 回复在生成中（用户中途退出详情页又返回），恢复输入区禁用态
+        if (this._commentPending && this._commentPending[articleId]) this._setCommentComposerPending(articleId, true);
         // tag chip click → 跳 tag 详情页（Phase 3b 已实装）
         node.querySelectorAll('.lof-detail-tag-chip').forEach(el => {
             el.onclick = () => {
@@ -1618,6 +1638,16 @@ ${npcLines}
                 }
             };
         });
+        // 可玩性 TOP2：评论区博主头像/名字点进主页——绑在 wrap 容器上用事件委托，
+        // 因为 _refreshArticleDetailComments 只替换 wrap 的 innerHTML（评论树局部刷新），
+        // 委托监听挂在 wrap 本身上不会被那次替换冲掉，不用每次刷新后重新绑定。
+        const commentTreeWrap = document.getElementById('lofCommentTreeWrap');
+        if (commentTreeWrap) {
+            commentTreeWrap.onclick = (e) => {
+                const row = e.target.closest('.lof-comment-row[data-npc-id]');
+                if (row) this.openAuthorProfile(row.dataset.npcId);
+            };
+        }
     },
 
     // ========== 评论嵌套树渲染（仿微博 v2.72.6）==========
@@ -1651,16 +1681,29 @@ ${npcLines}
     },
 
     _renderCommentRow(comment, depth) {
-        const fan = comment.fromNpcId
+        // v2.181.0 玩家自己的评论：from === 'me'，走「我的」资料昵称 + 固定强调色，不查 NPC 池
+        const isMine = comment.from === 'me';
+        const fan = (!isMine && comment.fromNpcId)
             ? (AppState.data.weiboData?.fanFriends || []).find(f => f.id === comment.fromNpcId)
             : null;
-        const name = fan?.name || comment.author || I18n.t('lofter.deleted_user', '已注销用户');
-        const colorBg = fan?.avatarColor || this._colorFromString(name);
+        const name = isMine ? this._myNickname() : (fan?.name || comment.author || I18n.t('lofter.deleted_user', '已注销用户'));
+        const colorBg = isMine ? '#1abc9c' : (fan?.avatarColor || this._colorFromString(name));
         const opBadge = comment.isOpReply
             ? `<span class="lof-comment-op-badge">${I18n.t('lofter.comment_op_badge', '博主')}</span>`
             : '';
+        const isLoading = !!comment._loading;
+        const rowCls = `lof-comment-row${isMine ? ' lof-comment-row-mine' : ''}${isLoading ? ' lof-comment-row-loading' : ''}`;
+        // loading 占位（NPC 回复生成中）：只显示头像 + 名字 + 「……」，先不显示点赞/时间行（还没有真实 createdAt/likes）
+        const footHtml = isLoading ? '' : `
+                    <div class="lof-comment-foot">
+                        <span class="lof-comment-time">${this._formatTime(comment.createdAt)}</span>
+                        <span class="lof-comment-like">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                            ${comment.likes > 0 ? `<span>${comment.likes}</span>` : ''}
+                        </span>
+                    </div>`;
         return `
-            <div class="lof-comment-row" data-depth="${depth}">
+            <div class="${rowCls}" data-depth="${depth}"${fan ? ` data-npc-id="${fan.id}"` : ''}>
                 <div class="lof-comment-avatar" style="background:${colorBg}">${(name || '?')[0]}</div>
                 <div class="lof-comment-body">
                     <div class="lof-comment-head">
@@ -1668,13 +1711,7 @@ ${npcLines}
                         ${opBadge}
                     </div>
                     <div class="lof-comment-text">${this._escapeHtml(comment.content)}</div>
-                    <div class="lof-comment-foot">
-                        <span class="lof-comment-time">${this._formatTime(comment.createdAt)}</span>
-                        <span class="lof-comment-like">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-                            ${comment.likes > 0 ? `<span>${comment.likes}</span>` : ''}
-                        </span>
-                    </div>
+                    ${footHtml}
                 </div>
             </div>
         `;
@@ -1685,6 +1722,184 @@ ${npcLines}
         let h = 0;
         for (let i = 0; i < (s || '').length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
         return palette[h % palette.length];
+    },
+
+    // ========== 玩家评论 + NPC 轻量回复（v2.181.0 可玩性 TOP1：Lofter 评论区玩家参与）==========
+
+    // 玩家昵称：沿用「我的」tab 现有惯例（renderMe 同款读法，userProfile.nickname 目前项目里还没有编辑入口能写入、
+    // 但读法保持和 renderMe 完全一致 —— 以后「编辑资料」接线后这里自动跟着生效，不用改）
+    _myNickname() {
+        const userProfile = AppState.data.userProfile || {};
+        return userProfile.nickname || I18n.t('lofter.default_user_name', 'Perigee 用户');
+    },
+
+    // 原始 commentsList → _renderCommentTree 需要的渲染形状（详情页初次渲染 + 局部刷新共用、避免两处字段映射漂移）
+    // from / _loading 是玩家评论 + NPC 回复新增字段；旧数据没有这两个字段时按 falsy 处理，不影响历史评论渲染
+    _buildCommentRenderList(article) {
+        // 清扫遗留 loading 占位：生成中途关 App 会把 _loading 占位落盘（saveData 防抖/退出兜底），
+        // 重开后 _commentPending 已空 → 这些孤儿占位在此静默移除；生成在途时 pending=true 不会误伤
+        if (Array.isArray(article.commentsList)
+            && article.commentsList.some(c => c._loading)
+            && !(this._commentPending && this._commentPending[article.id])) {
+            article.commentsList = article.commentsList.filter(c => !c._loading);
+            Utils.saveData();
+        }
+        return (article.commentsList || []).map(c => ({
+            id: c.id,
+            fromNpcId: c.npcId,
+            author: c.author,
+            content: c.content,
+            createdAt: c.createdAt,
+            likes: c.likes || 0,
+            replyToCommentId: c.replyToCommentId || null,
+            isOpReply: !!c.isOpReply,
+            from: c.from || null,
+            _loading: !!c._loading
+        }));
+    },
+
+    _commentTreeOrEmptyHtml(allComments) {
+        return allComments.length > 0
+            ? this._renderCommentTree(allComments, 'time')
+            : `<div class="lof-detail-empty">${I18n.t('lofter.detail_no_comments', '还没有评论、来抢沙发吧')}</div>`;
+    },
+
+    // 评论区局部刷新：只重建评论树 + 计数，不重开整个详情页（重开会重置滚动位置、体验差）
+    _refreshArticleDetailComments(articleId) {
+        const node = document.getElementById('lofArticleDetailSubScreen');
+        if (!node) return; // 详情页已经关闭（用户提交评论后又退出了）、静默跳过
+        if (node.dataset.articleId !== articleId) return; // 详情页已切到别的文章、不能把本文的评论树刷进去
+        const ld = AppState.data.lofterData;
+        const article = ld && (ld.articles || []).find(a => a.id === articleId);
+        if (!article) return;
+        const allComments = this._buildCommentRenderList(article);
+        const treeWrap = node.querySelector('#lofCommentTreeWrap');
+        if (treeWrap) treeWrap.innerHTML = this._commentTreeOrEmptyHtml(allComments);
+        const countTop = node.querySelector('.lof-detail-comment-count');
+        if (countTop) countTop.textContent = `(${allComments.length})`;
+        const countBottom = node.querySelector('#lofCommentCountBottom');
+        if (countBottom) countBottom.textContent = String(allComments.length);
+    },
+
+    // 提交输入区禁用态（并发锁的可见反馈；元素可能已经随详情页关闭而不存在，逐个判空）
+    _setCommentComposerPending(articleId, pending) {
+        const node = document.getElementById('lofArticleDetailSubScreen');
+        if (!node || node.dataset.articleId !== articleId) return; // 详情页已关/已切别的文章，禁用态不跨文章串
+        const input = document.getElementById('lofCommentInputReal');
+        const btn = document.getElementById('lofCommentSendBtn');
+        if (input) input.disabled = pending;
+        if (btn) btn.disabled = pending;
+    },
+
+    // 玩家提交评论：本地 push + 渲染是同步的，随后异步触发一次 NPC 作者轻量回复（全程含等待回复都算 pending，
+    // 与 lofter 自己的 _genLock 惯例一致）。按 articleId 隔离 pending（不能用单一全局 flag，否则在 A 篇文章回复
+    // 生成期间切去 B 篇文章会被误挡）。
+    async _submitLofterComment(articleId) {
+        this._commentPending = this._commentPending || {};
+        if (this._commentPending[articleId]) return; // 并发锁：pending 期间去重，防连点/连按 Enter 双发
+        const ld = AppState.data.lofterData;
+        const article = ld && (ld.articles || []).find(a => a.id === articleId);
+        if (!article) return;
+        const input = document.getElementById('lofCommentInputReal');
+        const text = (input?.value || '').trim();
+        if (!text) return;
+
+        this._commentPending[articleId] = true;
+        this._setCommentComposerPending(articleId, true);
+        try {
+            const myComment = {
+                id: 'lcm_' + this._uuid(),
+                npcId: null,
+                author: this._myNickname(),
+                content: text.slice(0, 300),
+                createdAt: Date.now(),
+                likes: 0,
+                replyToCommentId: null,
+                isOpReply: false,
+                from: 'me'
+            };
+            article.commentsList = article.commentsList || [];
+            article.commentsList.push(myComment);
+            article.stats = article.stats || {};
+            article.stats.comments = (article.stats.comments || 0) + 1;
+            if (input) input.value = '';
+            Utils.saveData();
+            this._refreshArticleDetailComments(articleId);
+
+            await this._triggerLofterAuthorReply(articleId, myComment);
+        } finally {
+            this._commentPending[articleId] = false;
+            this._setCommentComposerPending(articleId, false);
+        }
+    },
+
+    // NPC 作者轻量异步回复：loading 占位 → 单次 LLM 调用 → 成功替换 / 失败静默移除（同微博 v2.177 私信模式）
+    async _triggerLofterAuthorReply(articleId, myComment) {
+        const ld = AppState.data.lofterData;
+        let article = ld && (ld.articles || []).find(a => a.id === articleId);
+        if (!article) return;
+        const npc = article.authorNpcId
+            ? (AppState.data.weiboData?.fanFriends || []).find(f => f.id === article.authorNpcId)
+            : null;
+        // 已注销作者（无 npc、也无笔名可用）不回复评论 —— 维持「已注销作者」的沉浸感，不能凭空复活回复
+        if (!npc && !article.authorName) return;
+
+        const loadingReply = {
+            id: 'lcm_' + this._uuid(),
+            npcId: article.authorNpcId || null,
+            author: npc?.name || article.authorName || null,
+            content: '……',
+            createdAt: Date.now(),
+            likes: 0,
+            replyToCommentId: myComment.id,
+            isOpReply: true,
+            _loading: true
+        };
+        article.commentsList.push(loadingReply);
+        Utils.saveData();
+        this._refreshArticleDetailComments(articleId);
+
+        const replyText = await this._generateLofterCommentReply(npc, article, myComment.content).catch(() => null);
+
+        // 数据可能已经变化（文章被「不感兴趣」删除等）、重新取一次
+        article = (AppState.data.lofterData?.articles || []).find(a => a.id === articleId);
+        if (!article) return;
+        const idx = (article.commentsList || []).indexOf(loadingReply);
+        if (idx === -1) return; // loading 占位对象已经不在列表里（数据已变化），静默放弃
+        if (replyText) {
+            article.commentsList[idx] = {
+                id: loadingReply.id,
+                npcId: loadingReply.npcId,
+                author: loadingReply.author,
+                content: replyText,
+                createdAt: Date.now(),
+                likes: 0,
+                replyToCommentId: loadingReply.replyToCommentId,
+                isOpReply: true
+            };
+            article.stats = article.stats || {};
+            article.stats.comments = (article.stats.comments || 0) + 1;
+        } else {
+            article.commentsList.splice(idx, 1);
+        }
+        Utils.saveData();
+        this._refreshArticleDetailComments(articleId);
+    },
+
+    // prompt：NPC 作者人设（bio/contentTags/writingStyle 已有字段）+ 文章标题/标签 + 玩家评论原文
+    // 不塞具体网络梗词清单，让模型自己发挥同人圈太太回评论的口吻
+    _generateLofterCommentReply(npc, article, playerCommentText) {
+        const authorDesc = npc
+            ? `你是中文 lofter 平台的同人作者「${npc.name}」。${npc.bio ? '简介：' + npc.bio + '。' : ''}${(npc.contentTags || []).length ? '常写主题：' + npc.contentTags.join('、') + '。' : ''}${npc.writingStyle ? '你的写作风格：' + String(npc.writingStyle).slice(0, 80) + '。' : ''}`
+            : `你是中文 lofter 平台的同人作者「${article.authorName}」。`;
+        const titleLine = article.title ? `你刚发的这篇文章标题是《${article.title}》。` : '';
+        const tagsLine = (article.tags && article.tags.length) ? `标签：${article.tags.join('、')}。` : '';
+        const prompt = `${authorDesc}${titleLine}${tagsLine}
+一位读者在你这篇文章下面留言：「${playerCommentText.slice(0, 200)}」
+请以同人圈太太回复读者评论的口吻，生成一句 5-40 字的自然回复，语气亲切、贴合你的人设与这篇文章的调性。
+【铁律】必须使用简体中文输出。严禁繁体字、严禁日语、严禁英语整句。
+直接输出回复文字、不要引号、不要 prefix。`;
+        return this._callLLM(prompt);
     },
 
     // ========== 合集悬浮卡（详情页用、Phase 3 collection schema 落地）==========
@@ -1812,6 +2027,112 @@ ${npcLines}
         Utils.saveData();
     },
 
+    // ========== 可玩性 TOP2：作者主页（纯渲染、零 LLM）==========
+    // 入口统一走这里：feed 卡作者区 / 详情页头像 / 关注 tab 更新头像 / tag 详情"我圈太太" / 合集页作者区 / 评论区博主头像。
+    // 一次性笔名作者（authorNpcId 为空、见 v2.170.0）不进 weiboData.fanFriends 名册、也没有 bio/文风可看，
+    // 沿用现状不给主页入口（跟"关注"按钮一样，凡是 !author.id 的地方都不出现可点入口）。
+
+    // 卡片作者区点击统一绑定：card 本身已经绑了"点卡进详情"，这里补一个更靠前的作者区点击、
+    // stopPropagation 防止同时触发卡片的详情跳转。_renderArticleCard 4 处消费点（首页/关注 feed/tag 详情/本页自己）共用。
+    _bindCardAuthorClicks(root) {
+        if (!root) return;
+        root.querySelectorAll('.lof-card-author[data-npc-id]').forEach(el => {
+            el.onclick = (e) => {
+                e.stopPropagation();
+                this.openAuthorProfile(el.dataset.npcId);
+            };
+        });
+    },
+
+    openAuthorProfile(npcId) {
+        const npc = (AppState.data.weiboData?.fanFriends || []).find(f => f.id === npcId);
+        if (!npc) {
+            Utils.showToast(I18n.t('lofter.toast_author_profile_not_found', '这位太太的账号已经找不到了'));
+            return;
+        }
+        this._renderAuthorProfile(npc);
+    },
+
+    _renderAuthorProfile(npc) {
+        const ld = AppState.data.lofterData;
+        const isFollowed = (ld?.followedAuthorIds || []).includes(npc.id);
+        const articles = (ld?.articles || [])
+            .filter(a => a.authorNpcId === npc.id)
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+        const bioHtml = npc.bio
+            ? `<div class="lof-authp-bio">${this._escapeHtml(npc.bio)}</div>`
+            : `<div class="lof-authp-bio lof-authp-bio-empty">${I18n.t('lofter.authp_bio_empty', '这个人很懒、什么都没写')}</div>`;
+        const tagsHtml = (npc.contentTags || []).length > 0
+            ? `<div class="lof-authp-tags">${npc.contentTags.slice(0, 6).map(t => `<span class="lof-authp-tag-chip">${this._escapeHtml(t)}</span>`).join('')}</div>`
+            : '';
+        const styleHtml = npc.writingStyle
+            ? `<div class="lof-authp-style"><span class="lof-authp-style-label">${I18n.t('lofter.authp_style_label', '文风')}</span>${this._escapeHtml(String(npc.writingStyle).slice(0, 60))}</div>`
+            : '';
+
+        const inner = `
+            <div class="lof-sub-bar">
+                <button class="lof-sub-back" id="lofAuthPBack">‹</button>
+                <div class="lof-sub-title">${I18n.t('lofter.authp_title', '太太主页')}</div>
+                <span></span>
+            </div>
+            <div class="lof-authp-head">
+                <div class="lof-authp-avatar" style="background:${npc.avatarColor || this._colorFromString(npc.name || '')}">${this._escapeHtml((npc.name || '?')[0])}</div>
+                <div class="lof-authp-info">
+                    <div class="lof-authp-name-row">
+                        <span class="lof-authp-name">${this._escapeHtml(npc.name || '?')}</span>
+                        <button class="lof-detail-follow-btn ${isFollowed ? 'followed' : ''}" id="lofAuthPFollow">${isFollowed ? I18n.t('lofter.btn_followed', '已关注') : I18n.t('lofter.btn_follow', '关注')}</button>
+                    </div>
+                    ${bioHtml}
+                    ${tagsHtml}
+                    ${styleHtml}
+                    <div class="lof-authp-count">${I18n.t('lofter.article_count', { n: articles.length })}</div>
+                </div>
+            </div>
+            <div class="lof-authp-body" id="lofAuthPBody">
+                <div class="lof-feed-wrap">${this._renderAuthorProfileFeed(articles)}</div>
+            </div>
+        `;
+
+        const node = this._openSubScreen('lofAuthorProfileSubScreen', inner);
+        if (!node) return;
+        document.getElementById('lofAuthPBack').onclick = () => this._closeSubScreen('lofAuthorProfileSubScreen');
+        const followBtn = document.getElementById('lofAuthPFollow');
+        if (followBtn) {
+            // 就地刷新：不重开整个 subScreen（会丢文章流滚动位置），只切按钮态
+            followBtn.onclick = () => {
+                this._toggleFollowAuthor(npc.id);
+                const nowFollowed = (AppState.data.lofterData?.followedAuthorIds || []).includes(npc.id);
+                followBtn.classList.toggle('followed', nowFollowed);
+                followBtn.textContent = nowFollowed ? I18n.t('lofter.btn_followed', '已关注') : I18n.t('lofter.btn_follow', '关注');
+            };
+        }
+        node.querySelectorAll('.lof-card').forEach(card => {
+            card.onclick = (e) => {
+                if (e.target.closest('button, a')) return;
+                const id = card.dataset.articleId;
+                if (id) this.openArticleDetail(id);
+            };
+        });
+        this._bindCardAuthorClicks(node);   // 主页文章流里卡片自己的作者区点了还是原地刷新本页（同一 npc），无害
+    },
+
+    _renderAuthorProfileFeed(articles) {
+        if (articles.length === 0) {
+            return `<div class="lof-empty"><div class="lof-empty-text">${I18n.t('lofter.authp_empty', '这位太太还没有发布过文章')}</div></div>`;
+        }
+        // 双栏瀑布流，和发现页/关注页同款切分
+        const left = [];
+        const right = [];
+        articles.forEach((a, i) => (i % 2 === 0 ? left : right).push(a));
+        return `
+            <div class="lof-feed">
+                <div class="lof-col">${left.map(a => this._renderArticleCard(a)).join('')}</div>
+                <div class="lof-col">${right.map(a => this._renderArticleCard(a)).join('')}</div>
+            </div>
+        `;
+    },
+
     _toggleSubscribeCollection(collectionId) {
         const ld = AppState.data.lofterData;
         if (!ld) return;
@@ -1844,6 +2165,7 @@ ${npcLines}
                 if (articleId) this.openArticleDetail(articleId);
             };
         });
+        this._bindCardAuthorClicks(body);   // 可玩性 TOP2：作者头像/名字点进主页
         // 绑定 tag chip 进 tag 详情（Phase 3b 实现）
         body.querySelectorAll('.lof-sub-tag-row').forEach(row => {
             row.onclick = () => {
@@ -1858,11 +2180,12 @@ ${npcLines}
                 if (id) this.openCollectionPage(id);
             };
         });
-        // 头像 click → openTagDetail 暂不直接进、Phase 3b 加 author profile
-        body.querySelectorAll('.lof-update-avatar').forEach(av => {
-            av.onclick = () => {
-                Utils.showToast(I18n.t('lofter.toast_author_profile_coming_soon', '作者主页 Phase 4 上线'));
-            };
+        // 头像 click → 作者主页（可玩性 TOP2 落地，_renderFollowingFeed 里已经给每个头像标了 data-npc-id）
+        // 绑在整个 wrap（头像+昵称）上，不只是圆头像——不然名字那行会显示手型光标却点不动，变成假死点击
+        body.querySelectorAll('.lof-update-avatar-wrap').forEach(wrap => {
+            const npcId = wrap.querySelector('.lof-update-avatar')?.dataset.npcId;
+            if (!npcId) return;
+            wrap.onclick = () => this.openAuthorProfile(npcId);
         });
         // 筛选 chip 切换
         body.querySelectorAll('.lof-sub-filter-chip').forEach(c => {
@@ -2108,7 +2431,7 @@ ${npcLines}
         const myAuthorsBlock = myAuthorsUniq.length > 0
             ? `<div class="lof-tag-my-authors">
                 <div class="lof-tag-my-authors-avatars">
-                    ${myAuthorsUniq.map(a => `<div class="lof-tag-author-mini" style="background:${a.avatarColor || '#1abc9c'}">${this._escapeHtml((a.name || '?')[0])}</div>`).join('')}
+                    ${myAuthorsUniq.map(a => `<div class="lof-tag-author-mini" data-npc-id="${a.id}" style="background:${a.avatarColor || '#1abc9c'}">${this._escapeHtml((a.name || '?')[0])}</div>`).join('')}
                 </div>
                 <div class="lof-tag-my-authors-label">${I18n.t('lofter.tag_my_authors', '我圈太太')}</div>
             </div>`
@@ -2240,6 +2563,10 @@ ${npcLines}
                 const id = card.dataset.articleId;
                 if (id) this.openArticleDetail(id);
             };
+        });
+        this._bindCardAuthorClicks(node);   // 可玩性 TOP2：作者头像/名字点进主页
+        node.querySelectorAll('.lof-tag-author-mini[data-npc-id]').forEach(el => {
+            el.onclick = () => this.openAuthorProfile(el.dataset.npcId);
         });
         node.querySelector('.lof-tag-search-mock')?.addEventListener('click', () => {
             Utils.showToast(I18n.t('lofter.toast_search_coming_soon', '搜索功能 Phase 4 上线'));
@@ -2412,19 +2739,26 @@ COMMENT_1: [昵称]|[内容]
         if (articles.length === 0 && !this._chapterLock) {
             const npc = this._getCollectionAuthor(collection);   // v2.170.0
             if (npc) {
+                // v2.177.0 P1-2: 锁在 setTimeout 之前、同步设上（比照 2581/2649 行写法），
+                // 防止 100ms 窗口内用户退出重进 / 点"续写下一章"触发并发生成两个第1章
+                this._chapterLock = collection.id;
                 Utils.showToast(I18n.t('lofter.toast_generating_chapter', '正在生成首章、请稍等...'), 6000);
                 setTimeout(async () => {
-                    const ch = await this._generateLofterChapterImpl(npc, collection, 1);
-                    if (ch) {
-                        collection.chapterCount = 1;
-                        collection.updatedAt = Date.now();
-                        AppState.data.lofterData.articles.unshift(ch);
-                        if (npc.lofter) npc.lofter.articleCount = (npc.lofter.articleCount || 0) + 1;
-                        Utils.saveData();
-                        if (document.getElementById('lofCollectionSubScreen')) {
-                            this._closeSubScreen('lofCollectionSubScreen');
-                            this.openCollectionPage(collection.id);
+                    try {
+                        const ch = await this._generateLofterChapterImpl(npc, collection, 1);
+                        if (ch) {
+                            collection.chapterCount = 1;
+                            collection.updatedAt = Date.now();
+                            AppState.data.lofterData.articles.unshift(ch);
+                            if (npc.lofter) npc.lofter.articleCount = (npc.lofter.articleCount || 0) + 1;
+                            Utils.saveData();
+                            if (document.getElementById('lofCollectionSubScreen')) {
+                                this._closeSubScreen('lofCollectionSubScreen');
+                                this.openCollectionPage(collection.id);
+                            }
                         }
+                    } finally {
+                        this._chapterLock = null;
                     }
                 }, 100);
             }
@@ -2458,7 +2792,7 @@ COMMENT_1: [昵称]|[内容]
         const inner = `
             <div class="lof-sub-bar">
                 <button class="lof-sub-back" id="lofColBack">‹</button>
-                <div class="lof-sub-author-head">
+                <div class="lof-sub-author-head"${(author && author.id) ? ` data-npc-id="${author.id}"` : ''}>
                     <div class="lof-sub-author-avatar" style="background:${author?.avatarColor || this._colorFromString(authorName)}">${this._escapeHtml((authorName + '')[0])}</div>
                     <span class="lof-sub-author-name">${this._escapeHtml(authorName)}</span>
                 </div>
@@ -2488,7 +2822,7 @@ COMMENT_1: [昵称]|[内容]
                 <div class="lof-col-toolbar-right">
                     <button class="lof-col-write-btn" id="lofColWriteBtn">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                        <span>${I18n.t('lofter.btn_write_next_chapter', '续写下一章')}</span>
+                        <span>${collection.status === 'finished' ? I18n.t('lofter.btn_write_epilogue', '续写番外') : I18n.t('lofter.btn_write_next_chapter', '续写下一章')}</span>
                     </button>
                     <button class="lof-view-toggle" id="lofColViewToggle" aria-label="toggle view">
                         ${this._viewToggleIcon(this._collectionView)}
@@ -2514,6 +2848,11 @@ COMMENT_1: [昵称]|[内容]
                 this._toggleFollowAuthor(author.id);
                 this._renderCollectionPage(collection);
             };
+        }
+        // 可玩性 TOP2：作者区点进主页（oneoff 合集 author.id 为 null，模板没给 data-npc-id、querySelector 天然找不到）
+        const colAuthorHeadEl = node.querySelector('.lof-sub-author-head[data-npc-id]');
+        if (colAuthorHeadEl) {
+            colAuthorHeadEl.onclick = () => this.openAuthorProfile(colAuthorHeadEl.dataset.npcId);
         }
         document.getElementById('lofColSubBtn').onclick = () => {
             this._toggleSubscribeCollection(collection.id);
@@ -2691,11 +3030,17 @@ COMMENT_1: [昵称]|[内容]
             return `【第 ${ch.chapterNum || (i + 1)} 章「${ch.title || ''}」— 摘要】\n${synopsis}`;
         }).join('\n\n');
 
+        // v2.178.0 P3 3-5: collection.status 在这里读到的是「本章生成前」的状态——
+        // _generateNextLofterChapter 只在 isEnding 且成功后才把它设成 finished，
+        // 所以 alreadyFinished 只在「合集本来就已完结、这次是完结后加更」时为真。
+        const alreadyFinished = collection.status === 'finished';
         const positionNote = isEnding
             ? `你在写本合集的**最终章（结局）**。前序章节见上方。收束主要的伏笔、矛盾与情感线，给出完整、有余韵的结局；不要再留待续的悬念、不要写成又一个普通过渡章；是否圆满由剧情自然决定、不强行 HE/BE。`
             : (chapterNum === 1
                 ? '你在写第 1 章 — 这是**长篇连载的开篇**、不是一篇 oneshot。你的任务是：建立基调、引入角色、抛出一个能撑起后续章节的核心张力（一个未解的关系状态 / 一个悬而未决的处境 / 一个刚被点燃的情绪），让读者读完想追下一章。**不要在第 1 章里把故事讲完** — 一切情节都是"刚开始"。'
-                : `你在写第 ${chapterNum} 章。前序章节见上方（最近 ${FULL_TEXT_WINDOW} 章给全文、更早章节给摘要）。第 ${chapterNum - 1} 章是故事当前到达的位置。新一章从那个状态后**自然推进** — 不要重述前一章结尾、不要复述已发生的对话。`);
+                : alreadyFinished
+                    ? `本合集正篇已完结、结局章已经写过。本章是**完结后的番外／后日谈**——不要重新推进主线冲突、不要引入新的核心矛盾；写完结后角色的日常生活、感情落定后的温情片段、或某个小事件的后日谈即可，调性可以比正篇更轻松。`
+                    : `你在写第 ${chapterNum} 章。前序章节见上方（最近 ${FULL_TEXT_WINDOW} 章给全文、更早章节给摘要）。第 ${chapterNum - 1} 章是故事当前到达的位置。新一章从那个状态后**自然推进** — 不要重述前一章结尾、不要复述已发生的对话。`);
 
         // userHint block（pixiv 同款独立性原则：仅本章适用、不延续）
         const userHintBlock = userHint
@@ -2929,16 +3274,23 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
     _deleteArticle(articleId) {
         const ld = AppState.data.lofterData;
         if (!ld) return;
+        const article = (ld.articles || []).find(a => a.id === articleId);
         ld.articles = (ld.articles || []).filter(a => a.id !== articleId);
         ['myLikedArticleIds', 'myFavoritedArticleIds', 'myFootprintArticleIds', 'myReadLaterArticleIds'].forEach(k => {
             if (Array.isArray(ld[k])) ld[k] = ld[k].filter(id => id !== articleId);
         });
+        // v2.178.0 P2 2-5: 回退作者 articleCount，避免虚高把零产出 NPC 拉进「够格文手」池
+        if (article?.authorNpcId) {
+            const npc = (AppState.data.weiboData?.fanFriends || []).find(f => f.id === article.authorNpcId);
+            if (npc?.lofter) npc.lofter.articleCount = Math.max(0, (npc.lofter.articleCount || 0) - 1);
+        }
         Utils.saveData();
     },
 
     _deleteCollection(collectionId) {
         const ld = AppState.data.lofterData;
         if (!ld) return;
+        const collection = (ld.collections || []).find(c => c.id === collectionId);
         const chapterIds = new Set((ld.articles || []).filter(a => a.collectionId === collectionId).map(a => a.id));
         ld.articles = (ld.articles || []).filter(a => a.collectionId !== collectionId);
         ld.collections = (ld.collections || []).filter(c => c.id !== collectionId);
@@ -2946,6 +3298,11 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
         ['myLikedArticleIds', 'myFavoritedArticleIds', 'myFootprintArticleIds', 'myReadLaterArticleIds'].forEach(k => {
             if (Array.isArray(ld[k])) ld[k] = ld[k].filter(id => !chapterIds.has(id));
         });
+        // v2.178.0 P2 2-5: 按实际删除的章节数回退作者 articleCount；oneoff 合集无真实 NPC，跳过
+        if (collection?.authorNpcId && chapterIds.size > 0) {
+            const npc = (AppState.data.weiboData?.fanFriends || []).find(f => f.id === collection.authorNpcId);
+            if (npc?.lofter) npc.lofter.articleCount = Math.max(0, (npc.lofter.articleCount || 0) - chapterIds.size);
+        }
         (AppState.data.weiboData?.fanFriends || []).forEach(npc => {
             if (npc.lofter?.collectionIds) npc.lofter.collectionIds = npc.lofter.collectionIds.filter(id => id !== collectionId);
         });
@@ -3315,11 +3672,11 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
                 }
             }
 
-            // ② 续章（v2.141.0 只续作者还在的合集、跳过已删号作者的旧合集、避免白占配额）
+            // ② 续章（v2.141.0 只续作者还在的合集、跳过已删号作者的旧合集，避免白占配额；
+            //     v2.178.0 P2 2-4 改用 _getCollectionAuthor —— oneoff 合集派生虚拟作者可续，
+            //     npc 合集作者已删号则 _getCollectionAuthor 返回 null 照样跳过，两个条件都保住）
             if (remaining > 0 && collections.length > 0) {
-                const liveCollections = collections.filter(c =>
-                    (AppState.data.weiboData?.fanFriends || []).some(f => f.id === c.authorNpcId)
-                );
+                const liveCollections = collections.filter(c => !!this._getCollectionAuthor(c));
                 if (liveCollections.length > 0) {
                     const target = liveCollections[Math.floor(Math.random() * liveCollections.length)];
                     if ((target.chapterCount || 0) < 10) {  // v2.73.9: 防 undefined（老存档合集没 chapterCount 字段、undefined < 10 是 false → 永远跳过续章）
@@ -3391,9 +3748,8 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
         const ld = AppState.data.lofterData;
         if (!ld) return;
 
-        const userProfile = AppState.data.userProfile || {};
-        // 默认占位昵称（隐私铁律：不用用户真名）
-        const nickname = userProfile.nickname || I18n.t('lofter.default_user_name', 'Perigee 用户');
+        // 默认占位昵称（隐私铁律：不用用户真名）；v2.181.0 抽到 _myNickname() 共享给评论区玩家发言用同一读法
+        const nickname = this._myNickname();
         const avatarLetter = (nickname + '')[0] || 'P';
         // 4 数据
         const articleCount = 0;  // 用户没发文（沉浸感铁律：lofter 用户不发文 in MVP）

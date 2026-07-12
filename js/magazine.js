@@ -272,7 +272,7 @@ const Magazine = {
         // 渲染预览
         const body = document.getElementById('audioDramaModalBody');
         if (body) {
-            const _esc = s => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const _esc = s => Utils.escapeHtml(s || '');
             const summaryHtml = summary.map(s => {
                 if (s.speaker === '__interviewer__') {
                     return `<li><span class="ad-check ad-ok">✓</span><b>${I18n.t('mag.ad_interviewer', 'インタビュアー')}</b> <span class="ad-meta">${I18n.t('mag.ad_count', { n: s.count })}</span></li>`;
@@ -1049,14 +1049,7 @@ TITLE: [タイトル、例：「最新話までの人物相関図」]
             return;
         }
 
-        const TYPE_LABELS = {
-            plot_published: '新話公開',
-            goods_announced: 'グッズ情報',
-            official_info_added: '公式情報',
-            novel_published: '二次創作',
-            tweet_event: 'SNS話題',
-            magazine_published: '雑誌記事'
-        };
+        const TYPE_LABELS = Utils.EVENT_TYPE_LABELS;   // 收口权威表（v2.192）
 
         const eventSummary = recentEvents.map(e => {
             const label = TYPE_LABELS[e.type] || e.type;
@@ -1966,10 +1959,7 @@ ${tocHtml}
     },
 
     _escHtml(str) {
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+        // 收口：转发 Utils.escapeHtml；String(str) 保留原 null→"null" 行为
+        return Utils.escapeHtml(String(str));
     }
 };

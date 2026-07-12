@@ -11,6 +11,8 @@ const VideoGen = {
     POLL_INTERVAL: 15000,
     MAX_NET_FAILS: 5,
     MAX_CONCURRENT: 3,
+    MAX_REF_IMG_BYTES: 30 * 1024 * 1024,      // 单图上限（火山文档：单图 <30MB）
+    MAX_REF_REQUEST_BYTES: 60 * 1024 * 1024,  // 累计请求体上限（火山文档 <64MB，留余量）
 
     _store: null,
     _urlCache: new Map(),   // videoBlobId -> ObjectURL（会话级缓存，照 IllustGallery）
@@ -51,10 +53,22 @@ const VideoGen = {
         if (this.activeTasks().length >= this.MAX_CONCURRENT) throw new Error(I18n.t('vg.err_concurrent', '同时最多 3 个生成任务'));
 
         const content = [{ type: 'text', text: params.prompt }];
+        let refBytesTotal = 0, refIndex = 0;
         for (const imgId of (params.refImgIds || [])) {
             const blob = await IllustGallery.getBlob(imgId);
             if (!blob) continue;
-            content.push({ type: 'image_url', image_url: { url: await this._blobToDataUrl(blob) }, role: 'reference_image' });
+            refIndex++;
+            const dataUrl = await this._blobToDataUrl(blob);
+            const base64Len = dataUrl.length - (dataUrl.indexOf(',') + 1);   // 去掉 'data:...;base64,' 头部再估算
+            const bytes = Math.floor(base64Len * 3 / 4);
+            if (bytes > this.MAX_REF_IMG_BYTES) {
+                throw new Error(I18n.t('vg.err_img_too_large', { n: refIndex, size: (bytes / 1024 / 1024).toFixed(1) }));
+            }
+            refBytesTotal += bytes;
+            if (refBytesTotal > this.MAX_REF_REQUEST_BYTES) {
+                throw new Error(I18n.t('vg.err_req_too_large', { size: (refBytesTotal / 1024 / 1024).toFixed(1) }));
+            }
+            content.push({ type: 'image_url', image_url: { url: dataUrl }, role: 'reference_image' });
         }
 
         // ratio：1.0 系文生视频不接受 adaptive（联调实测报错），无参考图统一 16:9；有参考图 adaptive 跟图走
@@ -155,8 +169,16 @@ ${autoCreate ? 'OFFICIAL_HANDLE: 告知する公式アカウントのハンド�
 
             const messages = [{ role: 'user', content: 'PVの投稿情報を生成してください。' }];
             const raw = await Utils.callChatAPI(messages, systemPrompt);
-            task.packaging = VideoGen.parsePackaging(raw);
-            Utils.saveData();
+            const pk = VideoGen.parsePackaging(raw);
+            const stillPending = this.tasks().find(t => t.id === task.id);
+            if (stillPending) {
+                stillPending.packaging = pk;
+                Utils.saveData();
+            } else if (typeof Niconico !== 'undefined' && Niconico.applyPackagingBackfill) {
+                // 包装 LLM 比視頻生成慢：_onSucceeded 已用占位値把視頻入库、task 已出列。
+                // 按 videoBlobId 逆引きして本物の情報を埋め直す（見つからなければ動画削除済み=放弃）
+                Niconico.applyPackagingBackfill(task.id, pk);
+            }
         } catch (e) {
             // 包装失败不阻塞视频（_onSucceeded 有占位默认值兜底）
             console.warn('[VideoGen] packaging LLM failed', e);
@@ -219,12 +241,15 @@ ${autoCreate ? 'OFFICIAL_HANDLE: 告知する公式アカウントのハンド�
             if (data.status === 'succeeded') {
                 task.status = 'downloading'; task.updatedAt = Date.now(); Utils.saveData();
                 this._notifyUI(task);
+                // 终态：这次轮询后不会再有 _schedulePoll，清掉 Map 里的句柄引用（v2.178.0 P2-3-8）
+                clearTimeout(this._timers.get(localId)); this._timers.delete(localId);
                 await this._onSucceeded(task, data);
             } else if (data.status === 'failed' || data.status === 'expired' || data.status === 'cancelled') {
                 task.status = data.status === 'failed' ? 'failed' : 'expired';
                 task.error = data.error?.message || data.status;
                 task.updatedAt = Date.now(); Utils.saveData();
                 this._notifyUI(task);
+                clearTimeout(this._timers.get(localId)); this._timers.delete(localId);
             } else {   // queued / running
                 task.status = data.status; task.updatedAt = Date.now(); Utils.saveData();
                 this._notifyUI(task);
@@ -255,10 +280,11 @@ ${autoCreate ? 'OFFICIAL_HANDLE: 告知する公式アカウントのハンド�
             // 竞态防护：下载期间用户可能已删任务
             if (!this.tasks().find(t => t.id === task.id)) return;
 
-            // 配额检查（拿不到 estimate 的浏览器直接放行）
+            // 配额检查（拿不到 estimate 的浏览器直接放行）——空间不足直接中止，不写入 blob（走 failed 分支，用户可重试）
             const est = await (navigator.storage?.estimate?.() || Promise.resolve(null));
             if (est && est.quota - est.usage < blob.size * 1.5) {
                 Utils.showToast(I18n.t('vg.err_quota', '存储空间不足，请清理后重试'));
+                throw new Error(I18n.t('vg.err_quota', '存储空间不足，请清理后重试'));
             }
 
             const videoBlobId = 'vid-' + task.id;
@@ -266,11 +292,27 @@ ${autoCreate ? 'OFFICIAL_HANDLE: 告知する公式アカウントのハンド�
             const thumbBlob = await this._extractThumb(blob).catch(() => null);   // 抽帧失败不阻塞
             if (thumbBlob) await this.saveBlob('thumb:' + videoBlobId, thumbBlob);
 
+            // 竞态防护二查：saveBlob→抽帧（iOS 最长 8s）→saveBlob 这条 await 链是取消窗口，
+            // 期间 abandonTask 会先删 blob 再被上面重写（孤儿）、或视频落库指向已删 blob（死视频）。
+            // 任务没了=用户已取消：清掉本函数刚写的两个 blob（与 abandonTask 交错时 remove 幂等）后静默退出
+            if (!this.tasks().find(t => t.id === task.id)) {
+                await this.removeBlob(videoBlobId).catch(() => {});
+                await this.removeBlob('thumb:' + videoBlobId).catch(() => {});
+                return;
+            }
+
             // 包装未就绪（LLM 慢/失败）→ 占位默认值，标题=提示词前 20 字
             const pk = task.packaging || { title: task.prompt.slice(0, 20), description: task.prompt, tags: [], danmaku: [], comments: [], views: 1000, tweetText: null };
 
             const video = Niconico.addRealVideo(task, pk, videoBlobId);           // Task 8
-            if (task.tweetAccountId) Twitter.postOfficialPVTweet(task, pk, video); // Task 9
+            if (task.tweetAccountId) {
+                // 发推单独兜底：视频已成功入库，发推失败不该把这条任务连累成 failed（否则重试=重复付费生成）
+                try {
+                    Twitter.postOfficialPVTweet(task, pk, video);                 // Task 9
+                } catch (tweetErr) {
+                    console.warn('[VideoGen] PV tweet failed', tweetErr);
+                }
+            }
 
             AppState.data.videoGenTasks = this.tasks().filter(t => t.id !== task.id);
             Utils.saveData();
@@ -285,24 +327,44 @@ ${autoCreate ? 'OFFICIAL_HANDLE: 告知する公式アカウントのハンド�
     },
 
     async _download(videoUrl) {
-        // 直连优先（TOS 可能本身带 CORS），失败走 worker /fetch 兜底
+        // 直连优先（TOS 可能本身带 CORS），失败走 worker /fetch 兜底；视频文件大，超时给足 120s 余量
         try {
-            const r = await fetch(videoUrl);
+            const r = await Utils._fetchWithTimeout(videoUrl, {}, 120000);
             if (r.ok) return await r.blob();
             throw new Error('direct ' + r.status);
         } catch (_) {
             const base = (this.config().workerUrl || '').replace(/\/+$/, '');
-            const r2 = await fetch(`${base}/fetch?url=${encodeURIComponent(videoUrl)}`);
+            const r2 = await Utils._fetchWithTimeout(`${base}/fetch?url=${encodeURIComponent(videoUrl)}`, {}, 120000);
             if (!r2.ok) throw new Error(I18n.t('vg.err_download', '视频下载失败') + ` (${r2.status})`);
             return await r2.blob();
         }
     },
 
     _extractThumb(videoBlob) {
+        // v2.177.0 P1-3: video 元素挂进 DOM（部分 iOS Safari 版本对未挂载的 video 不可靠触发解码事件）
+        // + 8s 超时兜底（onloadeddata/onseeked 不触发时 reject，避免上游 await 永久挂起）
+        // + 所有退出路径（成功/onerror/超时）都清理一次：revoke objectURL、移除 DOM 节点、settle promise
         return new Promise((resolve, reject) => {
             const v = document.createElement('video');
             v.muted = true; v.playsInline = true; v.preload = 'auto';
-            v.src = URL.createObjectURL(videoBlob);
+            v.style.cssText = 'position:fixed; left:-9999px; width:1px; height:1px;';
+            let settled = false;
+            let objectUrl = null;
+
+            const cleanup = () => {
+                clearTimeout(timer);
+                if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+                if (v.parentNode) v.parentNode.removeChild(v);
+            };
+            const settle = (isResolve, value) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                isResolve ? resolve(value) : reject(value);
+            };
+
+            const timer = setTimeout(() => settle(false, new Error('extract thumb timeout')), 8000);
+
             v.onloadeddata = () => {
                 v.currentTime = 0.1;   // iOS 首帧黑屏规避
             };
@@ -310,10 +372,13 @@ ${autoCreate ? 'OFFICIAL_HANDLE: 告知する公式アカウントのハンド�
                 const c = document.createElement('canvas');
                 c.width = v.videoWidth; c.height = v.videoHeight;
                 c.getContext('2d').drawImage(v, 0, 0);
-                URL.revokeObjectURL(v.src);
-                c.toBlob(b => b ? resolve(b) : reject(new Error('toBlob null')), 'image/jpeg', 0.8);
+                c.toBlob(b => settle(!!b, b || new Error('toBlob null')), 'image/jpeg', 0.8);
             };
-            v.onerror = () => { URL.revokeObjectURL(v.src); reject(new Error('video load fail')); };
+            v.onerror = () => settle(false, new Error('video load fail'));
+
+            document.body.appendChild(v);
+            objectUrl = URL.createObjectURL(videoBlob);
+            v.src = objectUrl;
         });
     },
 

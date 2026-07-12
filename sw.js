@@ -1,7 +1,10 @@
 // Service Worker for Perigee OS
 // 版本号：每次更新代码时修改此版本号以强制更新缓存
-const VERSION = '2.175.0';
+const VERSION = '2.198.0';
 const CACHE_NAME = `perigee-os-v${VERSION}`;
+// vendor 大库独立持久缓存（js/vendor/ 内容不随版本变，activate 清理旧缓存时不删，
+// 避免每次发版重拉 ~1MB；不进 precache，首次用到时缓存、之后离线可用）
+const VENDOR_CACHE = 'perigee-vendor-v1';
 
 // 核心本地资源（必须全部成功，否则 SW 安装失败）
 const coreUrls = [
@@ -30,11 +33,16 @@ const coreUrls = [
   './js/music.js',
   './js/fortune.js',
   './js/tarot.js',
+  './js/world-context.js',
   './js/forum.js',
   './js/broadcast.js',
   './js/pixiv-novel.js',
   './js/illust-gallery.js',
   './js/twitter.js',
+  './js/twitter-thread.js',
+  './js/twitter-social.js',
+  './js/twitter-spaces.js',
+  './js/twitter-profile.js',
   './js/wandoro.js',
   './js/weibo.js',
   './js/lofter.js',
@@ -57,6 +65,7 @@ const coreUrls = [
   './js/journal-icons.js',
   './js/strawberry-icons.js',
   './js/snow-icons.js',
+  './js/sakura-icons.js',
   './js/desktop-edit.js',
   './js/liquid-glass.js',
   './js/i18n.js',
@@ -64,6 +73,7 @@ const coreUrls = [
   './js/i18n-ja.js',
   './js/i18n-en.js',
   './js/help-content.js',
+  './assets/help-content.json',
   './js/help.js',
   './js/onboarding.js',
   './js/changelog.js',
@@ -89,7 +99,6 @@ const coreUrls = [
   './assets/textures/flowers.svg',
   './assets/textures/grid.svg',
   './assets/textures/frosted.svg',
-  './assets/textures/sheikah.svg',
   './assets/textures/leaf.svg',
   './assets/textures/seascape-bg.webp',
   './assets/textures/seascape-bg-blur.webp',
@@ -98,6 +107,7 @@ const coreUrls = [
   './assets/textures/magazine-cover-bg.webp',
   './assets/textures/strawberry-bg.webp',
   './assets/textures/snow-country-bg.webp',
+  './assets/textures/sakura-bg.webp',
   './assets/icons/journal/book-chat.webp',
   './assets/icons/journal/book-globe.webp',
   './assets/icons/journal/globe.webp',
@@ -159,6 +169,26 @@ const coreUrls = [
   './assets/icons/snow-country/payment-tracker.webp',
   './assets/icons/snow-country/travel-account.webp',
   './assets/icons/snow-country/settings.webp',
+  './assets/icons/sakura/broadcast.webp',
+  './assets/icons/sakura/chat.webp',
+  './assets/icons/sakura/worldbook.webp',
+  './assets/icons/sakura/language.webp',
+  './assets/icons/sakura/forum.webp',
+  './assets/icons/sakura/pixiv-novel.webp',
+  './assets/icons/sakura/twitter.webp',
+  './assets/icons/sakura/magazine.webp',
+  './assets/icons/sakura/melonbooks.webp',
+  './assets/icons/sakura/niconico.webp',
+  './assets/icons/sakura/weibo.webp',
+  './assets/icons/sakura/lofter.webp',
+  './assets/icons/sakura/writer.webp',
+  './assets/icons/sakura/lyric-lab.webp',
+  './assets/icons/sakura/mercari.webp',
+  './assets/icons/sakura/tarot.webp',
+  './assets/icons/sakura/fortune.webp',
+  './assets/icons/sakura/payment-tracker.webp',
+  './assets/icons/sakura/travel-account.webp',
+  './assets/icons/sakura/settings.webp',
   './assets/textures/tw-placeholder/1.webp',
   './assets/textures/tw-placeholder/2.webp',
   './assets/textures/tw-placeholder/3.webp',
@@ -205,7 +235,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME) {
+          if (cacheName !== CACHE_NAME && cacheName !== VENDOR_CACHE) {
             console.log(`[SW] Deleting old cache: ${cacheName}`);
             return caches.delete(cacheName);
           }
@@ -234,6 +264,24 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+
+  // vendor 大库：Cache First + 独立持久缓存（要放在下面 .js 的 Network First 分支之前）
+  if (url.pathname.includes('/js/vendor/')) {
+    event.respondWith(
+      caches.open(VENDOR_CACHE).then(cache =>
+        cache.match(event.request).then(cached => {
+          if (cached) return cached;
+          return fetch(event.request).then(response => {
+            if (response && response.status === 200) {
+              cache.put(event.request, response.clone());
+            }
+            return response;
+          });
+        })
+      )
+    );
+    return;
+  }
 
   // 对于 HTML/JS/CSS 文件使用 Network First 策略
   if (url.pathname.endsWith('.html') ||

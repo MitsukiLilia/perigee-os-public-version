@@ -1,31 +1,32 @@
 {
-    "name": "Perigee OS",
-    "short_name": "Perigee",
-    "description": "Smart Office Assistant - AI-powered chat, document, and learning platform",
-    "lang": "en",
-    "start_url": "./index.html",
-    "display": "standalone",
-    "orientation": "portrait",
-    "background_color": "#f2f4f6",
-    "theme_color": "#007AFF",
-    "icons": [
-        {
-            "src": "icon-192-v5.png",
-            "sizes": "192x192",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "icon-512-v5.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "any"
-        },
-        {
-            "src": "icon-512-maskable-v5.png",
-            "sizes": "512x512",
-            "type": "image/png",
-            "purpose": "maskable"
-        }
-    ]
+  "name": "Perigee OS",
+  "short_name": "Perigee",
+  "description": "Smart Office Assistant - AI-powered chat, document, and learning platform",
+  "lang": "en",
+  "start_url": "./index.html",
+  "id": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2f4f6",
+  "theme_color": "#007AFF",
+  "icons": [
+    {
+      "src": "icon-192-v5.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-v5.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable-v5.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }

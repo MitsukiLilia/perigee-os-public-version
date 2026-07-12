@@ -41,7 +41,9 @@ const ChangelogPrompt = {
         // 绑定按钮
         overlay.querySelector('.changelog-modal-refresh')?.addEventListener('click', () => {
             this._markSeen();
-            location.reload();
+            // reload 前必须 flushSave：迁移推进的 _v 走防抖 saveData，本弹窗 600ms 后才弹出，
+            // 用户看到就立点刷新可能抢在防抖窗口前丢那次落盘（flushSave 的 promise 永远 resolve，直接 then 即可）
+            Utils.flushSave().then(() => location.reload());
         });
         overlay.querySelector('.changelog-modal-later')?.addEventListener('click', () => {
             this._markSeen();
@@ -108,14 +110,13 @@ const ChangelogPrompt = {
         `;
     },
 
-    _esc(s) {
-        const d = document.createElement('div');
-        d.textContent = String(s || '');
-        return d.innerHTML;
-    }
+    // 收口：转发 Utils.escapeHtml（s||'' 保留原 falsy→'' 语义）
+    _esc(s) { return Utils.escapeHtml(s || ''); }
 };
 
 // 历史更新页（设置→关于→往期更新）
+// v2.179.0：条目按月冻结在归档 JSON（见 changelog.js 头注释），本页先渲染当前月，
+// 底部「加载更早」按钮逐月懒加载。已加载过的月缓存在 Changelog._archiveCache，重进页面不重复请求。
 const ChangelogHistory = {
     open() {
         if (typeof Navigation !== 'undefined') {
@@ -128,13 +129,62 @@ const ChangelogHistory = {
         const scroll = document.getElementById('changelogHistoryScroll');
         if (!scroll || typeof Changelog === 'undefined') return;
         const versions = Changelog.getHistory();
+        // 已缓存的归档月（连续前缀）直接一起渲染，避免重进页面后"已加载的又缩回去"
+        let archived = [];
+        let nextIdx = 0;
+        const archives = Changelog.ARCHIVES || [];
+        while (nextIdx < archives.length && Changelog._archiveCache[archives[nextIdx].id]) {
+            archived = archived.concat(Changelog._archiveCache[archives[nextIdx].id]);
+            nextIdx++;
+        }
         scroll.innerHTML = `
             <div class="changelog-history-intro">
                 <div class="changelog-history-title">往期更新</div>
                 <div class="changelog-history-sub">从开始到现在，作者一路记录的每一版。</div>
             </div>
-            ${versions.map((v, i) => this._renderEntry(v, i === 0)).join('')}
+            <div id="changelogEntries">
+                ${versions.map((v, i) => this._renderEntry(v, i === 0)).join('')}
+                ${archived.map(v => this._renderEntry(v, false)).join('')}
+            </div>
+            <div id="changelogLoadMoreWrap">${this._renderLoadMore(nextIdx)}</div>
         `;
+        this._bindLoadMore(nextIdx);
+    },
+
+    // nextIdx = 下一个待加载的归档下标；到头了显示收尾语
+    _renderLoadMore(nextIdx) {
+        const archives = (typeof Changelog !== 'undefined' && Changelog.ARCHIVES) || [];
+        if (nextIdx >= archives.length) {
+            return archives.length ? `<div class="changelog-history-end">已经到最开始的地方了。</div>` : '';
+        }
+        const a = archives[nextIdx];
+        const label = `${a.id.slice(0, 4)} 年 ${parseInt(a.id.slice(5), 10)} 月`;
+        return `<button class="changelog-load-more" data-next="${nextIdx}">加载 ${label}的更新（${a.count} 版）</button>`;
+    },
+
+    _bindLoadMore(nextIdx) {
+        const btn = document.querySelector('#changelogLoadMoreWrap .changelog-load-more');
+        if (!btn) return;
+        btn.onclick = async () => {
+            const idx = parseInt(btn.dataset.next, 10);
+            const a = Changelog.ARCHIVES[idx];
+            if (!a) return;
+            btn.disabled = true;
+            btn.textContent = '加载中…';
+            try {
+                const entries = await Changelog.loadArchive(a.id);
+                const container = document.getElementById('changelogEntries');
+                if (container) container.insertAdjacentHTML('beforeend', entries.map(v => this._renderEntry(v, false)).join(''));
+                const wrap = document.getElementById('changelogLoadMoreWrap');
+                if (wrap) {
+                    wrap.innerHTML = this._renderLoadMore(idx + 1);
+                    this._bindLoadMore(idx + 1);
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.textContent = '加载失败、点击重试';
+            }
+        };
     },
 
     _renderEntry(v, isLatest) {
@@ -154,9 +204,6 @@ const ChangelogHistory = {
         `;
     },
 
-    _esc(s) {
-        const d = document.createElement('div');
-        d.textContent = String(s || '');
-        return d.innerHTML;
-    }
+    // 收口：转发 Utils.escapeHtml（s||'' 保留原 falsy→'' 语义）
+    _esc(s) { return Utils.escapeHtml(s || ''); }
 };

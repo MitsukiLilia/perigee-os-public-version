@@ -2,10 +2,10 @@
    themes.css — 主题皮肤层（外观系统）
    从 style.css 剪出（v2.114.0、CSS 拆分收尾）。本文件 = 用户在设置里
    可切换的「外观」全部覆盖，按「改 CSS 变量 / 桌面装饰」组织：
-   · 8 个主题变量覆盖：夏雨 / 柔粉 / 夜空 / 手帐 / 极简 / 希卡 / 动森
+   · 8 个主题变量覆盖：夏雨 / 柔粉 / 夜空 / 手帐 / 极简 / 动森
      （default 冬夜在 style.css 的 :root{} 里、不在这）
    · 字体系统 [data-font]（独立于主题、同属外观层一起管）
-   · 桌面沉浸装饰：手帐贴纸卡 / 夜空磨砂星空 / 希卡荧光 / 动森 3D /
+   · 桌面沉浸装饰：手帐贴纸卡 / 夜空磨砂星空 / 动森 3D /
      夏雨玻璃 / 各自壁纸 / 页码点
    · 深色可读性适配：[data-theme] .fch-post / .tw-screen / inline 色修正 /
      论坛 5ch 色（靠特异性赢、覆盖 forum.css/twitter.css 基础样式、与加载顺序无关）
@@ -81,40 +81,89 @@
     backdrop-filter: url(#lg-clock) blur(3px) saturate(140%);
 }
 
-/* 柔粉主题 — 暖粉色系 */
+/* 梦之芭蕾主题 — 法式芭蕾：纸粉白底 + 灰玫瑰 + 黑缎带深棕 */
 [data-theme="sakura"] {
-    --bg-base: #faf5f5;
-    --bg-secondary: #fdf8f8;
-    --bg-elevated: #fefafa;
-    --bg-hover: rgba(196, 153, 157, 0.08);
-    --bg-card: #ffffff;
-    --glass-panel: rgba(255, 255, 255, 0.82);
-    --glass-border: rgba(255, 255, 255, 0.6);
-    --accent-color: #C4999D;
-    --accent-soft: #E8C8CB;
-    --accent-shadow: rgba(196, 153, 157, 0.3);
-    --text-primary: #5a4245;
-    --text-secondary: #9a7e82;
-    --text-tertiary: #bfa5a8;
-    --border-light: #f0e4e5;
-    --border-medium: #e8d8da;
-    --border-dark: #dccacd;
-    --bubble-me: #C4999D;
-    --bubble-me-text: #ffffff;
-    --bubble-ai: #fdf8f8;
-    --bubble-ai-text: #5a4245;
-    --summary-bg: #F0D5D8;
-    --summary-text: #5a4245;
-    --icon-bg: var(--accent-color);
-    --app-icon-bg: rgba(255, 255, 255, 0.90);
-    --app-icon-color: rgba(90, 66, 69, 0.7);
-    --wallpaper-gradient: linear-gradient(135deg, #e4cfd2 0%, #f0dde0 50%, #f8ecee 100%);
-    --icon-gradient-1: linear-gradient(135deg, #C4999D 0%, #dbb5b8 100%);
-    --icon-gradient-2: linear-gradient(135deg, #E8C8CB 0%, #f2dfe1 100%);
-    --desktop-text: #5a4245;
-    --danger-color: #e85d5d;
+    --bg-base: #f8f1f1;
+    --bg-secondary: #fbf5f5;
+    --bg-elevated: #fdf9f9;
+    --bg-hover: rgba(176, 138, 144, 0.08);
+    --bg-card: #fffcfc;
+    --glass-panel: rgba(255, 252, 252, 0.85);
+    --glass-border: rgba(240, 226, 228, 0.65);
+    --accent-color: #b08a90;
+    --accent-soft: #dcc0c4;
+    --accent-shadow: rgba(176, 138, 144, 0.28);
+    --text-primary: #463a3c;
+    --text-secondary: #7d6367;
+    --text-tertiary: #b5a1a4;
+    --border-light: #f0e3e4;
+    --border-medium: #e6d5d7;
+    --border-dark: #d8c3c6;
+    --bubble-me: #a8828a;
+    --bubble-me-text: #fffcfc;
+    --bubble-ai: #f6ecec;
+    --bubble-ai-text: #463a3c;
+    --summary-bg: #eedbde;
+    --summary-text: #463a3c;
+    --icon-bg: #b08a90;
+    --app-icon-bg: rgba(255, 252, 252, 0.92);
+    --app-icon-color: rgba(70, 58, 60, 0.72);
+    --wallpaper-gradient: url('assets/textures/sakura-bg.webp') center / cover no-repeat;
+    --icon-gradient-1: #b08a90;                /* 渐变 token 改平色（无渐变铁律，草莓有先例） */
+    --icon-gradient-2: #dcc0c4;
+    --desktop-text: #5a4548;
+    --danger-color: #e05d5d;
     --success-color: #6db87a;
-    --warning-color: #e8a44c;
+    --warning-color: #dfa04e;
+}
+
+/* 图标 = 手绘法式芭蕾贴纸(webp)，撕纸毛边 + 珍珠蝴蝶结蕾丝。
+   .app-icon 退成透明托盘（去掉玻璃卡背景/边框/磨砂），投影用 img 的
+   drop-shadow 贴合贴纸 alpha 轮廓而非方框。图标替换由 js/sakura-icons.js 负责。
+   v2.193：选择器收窄到 .app-item .app-icon——贴纸只贴在 .app-item[data-app]（sakura-icons.js:40），
+   B4 通知中心的 .nh-icon .app-icon 拿不到贴纸、仍是原生 SVG，之前被这条规则误剥掉磁贴背景/边框。 */
+[data-theme="sakura"] .app-item .app-icon {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: visible;
+}
+[data-theme="sakura"] .app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    filter: drop-shadow(0 3px 4px rgba(150, 95, 105, 0.22));
+    pointer-events: none;
+}
+
+/* widget 卡片：纸粉白 + 灰玫瑰淡边 + 柔光（法式克制，不加花边装饰） */
+[data-theme="sakura"] .widget-card {
+    background: rgba(253, 248, 248, 0.90);
+    border: 1.5px solid rgba(176, 138, 144, 0.28);
+    box-shadow: 0 2px 12px rgba(150, 95, 105, 0.10);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+[data-theme="sakura"] .widget-clock,
+[data-theme="sakura"] .widget-vinyl {
+    background: rgba(253, 248, 248, 0.90);
+}
+
+/* 时钟时间染灰玫瑰 */
+[data-theme="sakura"] .widget-clock .clock-time-wide,
+[data-theme="sakura"] .widget-clock .clock-time-small {
+    color: var(--accent-color);
+}
+
+/* 页码点：灰玫瑰（用真正生效的 .page-dots .dot，journal 的 .page-dot 选择器已失效勿抄） */
+[data-theme="sakura"] .page-dots .dot {
+    background: rgba(176, 138, 144, 0.35);
+}
+[data-theme="sakura"] .page-dots .dot.active {
+    background: #b08a90;
 }
 
 /* 夜空主题 — 深色 */
@@ -199,22 +248,24 @@
     background-position: center top;
 }
 
-/* 图标贴纸卡：米白底 + 细棕边 + 手帐投影 */
-[data-theme="journal"] .app-icon {
-    background: rgba(255, 253, 248, 0.90);
-    border: 1.5px solid rgba(160, 140, 110, 0.32);
-    box-shadow:
-        0 3px 10px rgba(120, 90, 50, 0.12),
-        0 1px 3px rgba(120, 90, 50, 0.08);
-    border-radius: 20px;
+/* 图标 = 手绘贴纸(webp)，自带白色 die-cut 描边。
+   .app-icon 退成透明托盘（与草莓/雪国同模式；旧版米白卡是透明托盘模式出现前的设计、
+   贴纸装白卡=双重包装显突兀），投影用 img 的 drop-shadow 贴合贴纸 alpha 轮廓而非方框。
+   v2.193：选择器收窄到 .app-item .app-icon——贴纸只贴在 .app-item[data-app]（journal-icons.js:38），
+   B4 通知中心的 .nh-icon .app-icon 拿不到贴纸、仍是原生 SVG，之前被这条规则误剥掉磁贴背景/边框。 */
+[data-theme="journal"] .app-item .app-icon {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    overflow: visible;
 }
-
-/* 图标贴纸图片填满容器 */
 [data-theme="journal"] .app-icon img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    padding: 4px;
+    filter: drop-shadow(0 3px 4px rgba(120, 90, 50, 0.22));
     pointer-events: none;
 }
 
@@ -251,84 +302,61 @@
     background: #8a6a44;
 }
 
-/* ミニマル主题 — 纯白干净 */
+/* 极简主题 — 利休鼠 · 带绿意的暖灰白 + 抹茶灰绿，茶室/青苔/石庭（v2.184.0 重设计） */
 [data-theme="minimal"] {
-    --bg-base: #ffffff;
-    --bg-secondary: #f7f7f7;
-    --bg-elevated: #fafafa;
-    --bg-card: #ffffff;
-    --glass-panel: rgba(255, 255, 255, 0.92);
-    --glass-border: rgba(255, 255, 255, 0.7);
-    --bg-hover: rgba(0, 0, 0, 0.04);
-    --accent-color: #2a2a2a;
-    --accent-soft: #888888;
-    --accent-shadow: rgba(0, 0, 0, 0.10);
-    --text-primary: #1a1a1a;
-    --text-secondary: #6a6a6a;
-    --text-tertiary: #9a9a9a;
-    --border-light: #ececec;
-    --border-medium: #d8d8d8;
-    --border-dark: #c0c0c0;
-    --bubble-me: #2a2a2a;
-    --bubble-me-text: #ffffff;
-    --bubble-ai: #f3f3f3;
-    --bubble-ai-text: #1a1a1a;
-    --summary-bg: #ececec;
-    --summary-text: #1a1a1a;
-    --icon-bg: #2a2a2a;
-    --app-icon-bg: rgba(255, 255, 255, 0.96);
-    --app-icon-color: rgba(26, 26, 26, 0.75);
-    --wallpaper-gradient: linear-gradient(135deg, #ffffff 0%, #f3f3f3 100%);
-    --icon-gradient-1: linear-gradient(135deg, #2a2a2a 0%, #555555 100%);
-    --icon-gradient-2: linear-gradient(135deg, #888888 0%, #aaaaaa 100%);
-    --desktop-text: #1a1a1a;
-    --danger-color: #d04545;
-    --success-color: #4ca866;
-    --warning-color: #cc8a30;
+    --bg-base: #f5f6f3;
+    --bg-secondary: #f1f3ef;
+    --bg-elevated: #fafbf8;
+    --bg-card: #fafbf8;
+    --glass-panel: rgba(250, 251, 248, 0.92);
+    --glass-border: rgba(221, 225, 218, 0.7);
+    --bg-hover: rgba(93, 110, 99, 0.06);
+    --accent-color: #5d6e63;
+    --accent-soft: #8a988c;
+    --accent-shadow: rgba(93, 110, 99, 0.14);
+    --text-primary: #333833;
+    --text-secondary: #767d74;
+    --text-tertiary: #a3aaa0;
+    --border-light: #e3e7e0;
+    --border-medium: #dde1da;
+    --border-dark: #cdd2c9;
+    --bubble-me: #5d6e63;
+    --bubble-me-text: #fafbf8;
+    --bubble-ai: #eceee9;
+    --bubble-ai-text: #333833;
+    --summary-bg: #e6ebe3;
+    --summary-text: #333833;
+    --icon-bg: #5d6e63;
+    --app-icon-bg: rgba(250, 251, 248, 0.96);
+    --app-icon-color: rgba(93, 110, 99, 0.9);
+    /* 壁纸纯色（无渐变铁律）；--icon-gradient-* 改平色，消费方只当 background 用（草莓先例） */
+    --wallpaper-gradient: #f1f3ef;
+    --icon-gradient-1: #5d6e63;
+    --icon-gradient-2: #8a988c;
+    --desktop-text: #333833;
+    --danger-color: #c05a50;
+    --success-color: #6f9d76;
+    --warning-color: #bd8f45;
     --radius-sm: 4px;
     --radius-md: 6px;
     --radius-lg: 8px;
 }
 
-/* ゼルダ主题 — 希卡之石 Sheikah Slate / 深黑蓝 + 青蓝荧光 + 金橙（暗色） */
-[data-theme="zelda"] {
-    --bg-base: #0e1726;
-    --bg-secondary: #132033;
-    --bg-elevated: #1a2a3e;
-    --bg-hover: rgba(60, 211, 252, 0.10);
-    --bg-card: #16243a;
-    --glass-panel: rgba(16, 26, 42, 0.88);
-    --glass-border: rgba(60, 211, 252, 0.22);
-    --accent-color: #3CD3FC;          /* 希卡青蓝 — 描边 / 焦点 / 灵魂色 */
-    --accent-soft: #8fe6ff;
-    --accent-shadow: rgba(60, 211, 252, 0.30);
-    --text-primary: #e9e1d1;          /* 暖米白 */
-    --text-secondary: #a9b6c4;
-    --text-tertiary: #6f8094;
-    --border-light: #213750;
-    --border-medium: #2d4a68;
-    --border-dark: #3a5d80;
-    --bubble-me: #2b7fa8;
-    --bubble-me-text: #eaf6fc;
-    --bubble-ai: #1a2a3e;
-    --bubble-ai-text: #e9e1d1;
-    --summary-bg: #213750;
-    --summary-text: #e9e1d1;
-    --icon-bg: var(--accent-color);
-    --app-icon-bg: rgba(22, 36, 58, 0.92);
-    --app-icon-color: rgba(233, 225, 209, 0.82);
-    /* 壁纸用纯色（守无渐变铁律）；Sheikah 眼符号纹理走 .wallpaper 层 */
-    --wallpaper-gradient: #0e1726;
-    --icon-gradient-1: #3CD3FC;
-    --icon-gradient-2: #FCC413;
-    --desktop-text: #e9e1d1;
-    --danger-color: #ff6b6b;
-    --success-color: #6bdca0;
-    --warning-color: #FCC413;         /* 金橙 — 激活 / 确认强调 */
+/* 利休鼠装饰：细罫线 + 消投影 + 细线条图标（stroke-width CSS 特异性盖过全局 .app-icon svg 的 1.8） */
+[data-theme="minimal"] .app-icon {
+    border: 1px solid var(--border-medium);
+    box-shadow: none;
+}
+[data-theme="minimal"] .app-icon svg {
+    stroke-width: 1;
+}
+[data-theme="minimal"] .widget-card {
+    border: 1px solid var(--border-light);
+    box-shadow: 0 1px 2px rgba(51, 56, 51, 0.04);
 }
 
 /* 动物森友会 / Cozy Island —— 暖羊皮纸 + 薄荷青 + 草绿主页 + 深棕字。
-   亮色主题、跟希卡冷暗调冷暖+明暗对照。参考 guokaigdg/animal-island-ui 设计 token。 */
+   亮色主题。参考 guokaigdg/animal-island-ui 设计 token。 */
 [data-theme="animal"] {
     --bg-base: #f8f8f0;               /* 暖羊皮纸 */
     --bg-secondary: #f0e8d8;
@@ -419,8 +447,11 @@
 }
 
 /* 星座图标填满方块：全局把 .app-icon svg 钉死 24-28px，星座这种「连线 + 散点」内容在小尺寸下显得小、四周留白多；
-   填满后星座占比跟设计稿一致（svg = 图标尺寸、星座主体恒占约 67%），饱满不空。仅夜空、不影响其他主题。 */
-[data-theme="night-sky"] .app-icon svg {
+   填满后星座占比跟设计稿一致（svg = 图标尺寸、星座主体恒占约 67%），饱满不空。仅夜空、不影响其他主题。
+   v2.193：选择器收窄到 .app-item .app-icon svg——星座图标只贴在桌面/Dock 的 .app-item 里（constellation-icons.js
+   只选 .app-item[data-app]），B4 通知中心的 .nh-icon .app-icon svg 刻意不带贴图、要保留 style.css:5135 的 22px
+   限宽，此前同特异性靠后加载赢，把通知中心图标顶到 44px 满溢磁贴，收窄后两者互不相干、无需 !important。 */
+[data-theme="night-sky"] .app-item .app-icon svg {
     width: 100%;
     height: 100%;
 }
@@ -531,142 +562,31 @@
 /* 5ch 串标题/链接：浅色保留经典 #0000EE 链接蓝，深色底上不可读 → 换可读亮蓝 */
 [data-theme="night-sky"] .fch-thread-title { color: #6fa8ff; }
 
-/* ============ 深色主题（夜空/希卡）— 论坛帖子底色 + 推特内容区 统一适配 ============
+/* ============ 深色主题（夜空）— 论坛帖子底色 + 推特内容区 统一适配 ============
    两处同一类病：「文字跟着主题变浅，但背景没跟着变深 → 浅底浅字看不清」。
    · 论坛 .fch-post / .fch-thread-body 底色写死 #efefef（浅灰），之前只覆盖了文字色 → 补深色底
    · 推特 .tw-screen 等底色写死 #ffffff（白），原 body.dark-mode 那套覆盖是死代码（无 JS 加 dark-mode class）
      → 改用主题选择器接通（方案B：内容区跟随深色，与深色顶/底栏、论坛保持统一） */
 [data-theme="night-sky"] .fch-thread-body,
-[data-theme="night-sky"] .fch-post,
-[data-theme="zelda"] .fch-thread-body,
-[data-theme="zelda"] .fch-post {
+[data-theme="night-sky"] .fch-post {
     background: var(--bg-secondary);
     border-bottom-color: var(--border-light);
 }
 [data-theme="night-sky"] .tw-screen,
-[data-theme="zelda"] .tw-screen,
 [data-theme="night-sky"] .tw-search-bar-wrap,
-[data-theme="zelda"] .tw-search-bar-wrap,
-[data-theme="night-sky"] .tw-profile-avatar-wrap,
-[data-theme="zelda"] .tw-profile-avatar-wrap {
+[data-theme="night-sky"] .tw-profile-avatar-wrap {
     background: var(--bg-base);
 }
 [data-theme="night-sky"] .tw-search-input,
-[data-theme="zelda"] .tw-search-input,
-[data-theme="night-sky"] .tw-search-input:focus,
-[data-theme="zelda"] .tw-search-input:focus {
+[data-theme="night-sky"] .tw-search-input:focus {
     background: var(--bg-secondary);
 }
-
-/* ============ ゼルダ主题 — 专属覆盖（希卡之石质感 + 暗色可读性） ============ */
-/* 沉浸版：仅作用于桌面 chrome / 设置 / 论坛可读性，仿真 app 内部色系不动。
-   暗色可读性修正独立复制自夜空，夜空规则一字不改，方便随时回滚。 */
-
-/* 壁纸：纯深色底 + Sheikah 眼符号纹理（利用闲置的 .wallpaper 磨砂层）。
-   注意：#desktop > * { position: relative } 这个 ID 规则会把 .wallpaper 压成
-   relative + 0 高（inset 失效，符号没显示空间）。提高 selector 特异性
-   （class 数 2 > ID 规则的 0）恢复 absolute 撑满，无需 !important。 */
-[data-theme="zelda"] #desktop > .wallpaper {
-    position: absolute;
-    inset: 0;
-    background-color: transparent;
-    background-image: url('../assets/textures/sheikah.svg');
-    background-repeat: repeat;
-    background-size: 240px 240px;
-    background-position: center;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    opacity: 0.9;
-}
-
-/* app 图标青蓝荧光描边 */
-[data-theme="zelda"] .app-icon {
-    border: 1px solid rgba(60, 211, 252, 0.35);
-    box-shadow:
-        0 4px 16px rgba(0, 0, 0, 0.35),
-        0 0 14px rgba(60, 211, 252, 0.12),
-        inset 0 1px 0 rgba(60, 211, 252, 0.10);
-}
-[data-theme="zelda"] .app-label {
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 0 8px rgba(60, 211, 252, 0.15);
-}
-
-/* 状态栏文字淡青光 */
-[data-theme="zelda"] .status-bar {
-    text-shadow: 0 0 6px rgba(60, 211, 252, 0.25);
-}
-
-/* 希卡页码点：菱形几何 + 金橙激活 */
-[data-theme="zelda"] .page-dots .dot {
-    background: rgba(60, 211, 252, 0.30);
-    border-radius: 2px;
-    transform: rotate(45deg);
-}
-[data-theme="zelda"] .page-dots .dot.active {
-    background: #FCC413;
-    box-shadow: 0 0 8px rgba(252, 196, 19, 0.6);
-    transform: rotate(45deg) scale(1.2);
-}
-
-/* 设置卡阴影 + 主题卡激活金橙边 */
-[data-theme="zelda"] .settings-card {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-}
-[data-theme="zelda"] .theme-card.is-active {
-    border-color: #FCC413;
-    box-shadow: 0 0 0 1px #FCC413, 0 0 12px rgba(252, 196, 19, 0.25);
-}
-
-/* —— 暗色可读性修正（独立复制自夜空，selector 换 zelda） —— */
-[data-theme="zelda"] input,
-[data-theme="zelda"] textarea,
-[data-theme="zelda"] select {
-    background: var(--bg-elevated);
-    color: var(--text-primary);
-    border-color: var(--border-medium);
-}
-[data-theme="zelda"] .settings-card p[style*="color"],
-[data-theme="zelda"] .setting-row p[style*="color"],
-[data-theme="zelda"] .setting-row small[style*="color"],
-[data-theme="zelda"] .modal-window label[style*="color"],
-[data-theme="zelda"] .modal-window div[style*="color:#666"],
-[data-theme="zelda"] .modal-window div[style*="color: #666"] {
-    color: var(--text-secondary) !important;
-}
-[data-theme="zelda"] .settings-card p[style*="background:#f9f9f9"],
-[data-theme="zelda"] .settings-card p[style*="background: #f9f9f9"],
-[data-theme="zelda"] .settings-card div[style*="background:#f9f9f9"],
-[data-theme="zelda"] .settings-card div[style*="background: #f9f9f9"],
-[data-theme="zelda"] .modal-window div[style*="background:#f9f9f9"],
-[data-theme="zelda"] .modal-window div[style*="background: #f9f9f9"],
-[data-theme="zelda"] div[style*="background: #fff;"],
-[data-theme="zelda"] div[style*="background:#fff;"] {
-    background: var(--bg-secondary) !important;
-}
-[data-theme="zelda"] textarea[style*="border: 1px solid #e5e5ea"],
-[data-theme="zelda"] textarea[style*="border:1px solid #e5e5ea"],
-[data-theme="zelda"] select[style*="border: 1px solid #e5e5ea"],
-[data-theme="zelda"] select[style*="border:1px solid #e5e5ea"] {
-    border-color: var(--border-medium) !important;
-    background: var(--bg-elevated) !important;
-    color: var(--text-primary) !important;
-}
-/* 論壇 5ch 表示色修正 */
-[data-theme="zelda"] .fch-post-num { color: var(--text-primary); }
-[data-theme="zelda"] .fch-post-label { color: var(--text-secondary); }
-[data-theme="zelda"] .fch-post-author { color: #5cb85c; }
-[data-theme="zelda"] .fch-post-date { color: var(--text-secondary); }
-[data-theme="zelda"] .fch-post-content { color: var(--text-primary); }
-[data-theme="zelda"] .fch-tl-content { color: var(--text-secondary); background: var(--bg-elevated); }
-[data-theme="zelda"] .fch-tl-block { border-top-color: var(--border-light); }
-/* 5ch 串标题/链接：深色底上 #0000EE 不可读 → 换可读亮蓝 */
-[data-theme="zelda"] .fch-thread-title { color: #6fa8ff; }
 
 /* ============ 动物森友会 / Cozy Island 沉浸细节 ============
    亮色主题、暖底深字本就可读 —— 不需要夜空那套暗色可读性修正（input/#fff/#666/论坛 5ch 色）。
    只加桌面 chrome 的动森质感：叶子壁纸 / 图标 3D 按压 / 圆润页码 / 暖阴影卡片。 */
 
-/* 壁纸：草绿纯底 + 散落叶子/草点 motif（同希卡那条 #desktop>* ID 规则的坑、提高特异性恢复 absolute） */
+/* 壁纸：草绿纯底 + 散落叶子/草点 motif（同 #desktop>* ID 规则的坑、提高特异性恢复 absolute） */
 [data-theme="animal"] #desktop > .wallpaper {
     position: absolute;
     inset: 0;
@@ -876,8 +796,10 @@
 
 /* 图标 = 手绘草莓蛋糕贴纸(webp)，自带奶油白卡造型 + 奶盖 + 草莓。
    .app-icon 退成透明托盘（去掉玻璃卡背景/边框/磨砂），投影用 img 的
-   drop-shadow 贴合蛋糕 alpha 轮廓而非方框。图标替换由 js/strawberry-icons.js 负责。 */
-[data-theme="strawberry"] .app-icon {
+   drop-shadow 贴合蛋糕 alpha 轮廓而非方框。图标替换由 js/strawberry-icons.js 负责。
+   v2.193：选择器收窄到 .app-item .app-icon——贴纸只贴在 .app-item[data-app]（strawberry-icons.js:39），
+   B4 通知中心的 .nh-icon .app-icon 拿不到贴纸、仍是原生 SVG，之前被这条规则误剥掉磁贴背景/边框。 */
+[data-theme="strawberry"] .app-item .app-icon {
     background: transparent;
     border: none;
     box-shadow: none;
@@ -989,8 +911,10 @@
 /* 图标 = 手绘雪国水彩贴纸(webp)，自带白模切边 + 落雪 + 雪花，由 js/snow-icons.js 注入。
    .app-icon 退成透明托盘（去掉冰玻璃卡背景/边框/磨砂），投影用 img 的 drop-shadow
    贴合贴纸 alpha 轮廓而非方框（与草莓/手帐同机制，四方守卫对称）。
-   APP_REGISTRY 21 个 app 全部有贴纸、无 SVG 兜底，故可整块透明。 */
-[data-theme="snow-country"] .app-icon {
+   APP_REGISTRY 21 个 app 全部有贴纸、无 SVG 兜底，故可整块透明——但这指的是 .app-item[data-app]
+   （snow-icons.js:39 只选这个），B4 通知中心的 .nh-icon 刻意不带 data-app、拿不到贴纸仍是原生 SVG。
+   v2.193：选择器收窄到 .app-item .app-icon，把 .nh-icon .app-icon 排除在外，还原它的磁贴背景/边框。 */
+[data-theme="snow-country"] .app-item .app-icon {
     background: transparent;
     border: none;
     box-shadow: none;
@@ -1114,4 +1038,321 @@
 }
 [data-theme="snow-country"] .page-dots .dot.active {
     background: #6d8fb2;
+}
+
+/* ============================================================
+   动森テーマ widget 深度スキン（v2.191 A1「奶油缝线」·作者选型）
+   结构照雪国块（上方 :928 起）clone。卡面=奶油底+虚线缝边+布偶厚投影(实心无模糊)。
+   ============================================================ */
+[data-theme="animal"] .widget-card,
+[data-theme="animal"] .widget-clock,
+[data-theme="animal"] .widget-vinyl,
+[data-theme="animal"] .widget-polaroid,
+[data-theme="animal"] .widget-polaroid-j {
+    background: #fdf9e8;
+    border: 2px dashed #d8c9a3;
+    border-radius: 22px;
+    box-shadow: 0 3px 0 rgba(121, 79, 39, .18);
+}
+[data-theme="animal"] {
+    --polaroid-paper: #fdf9e8;
+}
+
+/* 时钟 hero：时间深棕、weekday 薄荷 */
+[data-theme="animal"] .widget-clock .clock-time-wide,
+[data-theme="animal"] .widget-clock .clock-time-small {
+    color: var(--text-primary);
+}
+[data-theme="animal"] .widget-clock.clock-wide .clock-time-wide {
+    font-size: 48px;
+    letter-spacing: -2px;
+}
+[data-theme="animal"] .widget-clock .clock-weekday {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+/* 黑胶进度条薄荷 */
+[data-theme="animal"] .vinyl-progress-fill {
+    background: var(--accent-color);
+}
+
+/* 拍立得：胶带薄荷半透明、caption 深棕 */
+[data-theme="animal"] .widget-polaroid-j .pj-tape {
+    background: rgba(25, 200, 185, .4);
+}
+[data-theme="animal"] .widget-polaroid-j .pj-caption {
+    color: var(--text-primary);
+}
+
+/* 装饰件不隐藏（动森不忌暖装饰），蝴蝶结/爱心染主题黄 */
+[data-theme="animal"] .polaroid-bow-top,
+[data-theme="animal"] .polaroid-bow-corner,
+[data-theme="animal"] .polaroid-bow-deco,
+[data-theme="animal"] .vinyl-bow-top,
+[data-theme="animal"] .vinyl-bow-corner,
+[data-theme="animal"] .polaroid-heart,
+[data-theme="animal"] .vinyl-heart {
+    color: #f5c31c;
+}
+
+/* 角落小件（照雪国雪花 ::before 结构；::after 不占用）
+   时钟/相册=薄荷叶子，黑胶/拍立得=铃钱袋 */
+[data-theme="animal"] .widget-clock::before,
+[data-theme="animal"] .widget-polaroid::before {
+    content: "";
+    position: absolute;
+    top: 10px; right: 12px;
+    width: 15px; height: 15px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2319c8b9' stroke='%23794f27' stroke-width='1.2' stroke-linejoin='round'%3E%3Cpath d='M12 3C7 8 4 13 6 18c5 2 10-1 15-6-2-5-5-8-9-9z'/%3E%3Cpath d='M6 18C10 13 14 9 18 6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
+    opacity: .85;
+    z-index: 4;
+    pointer-events: none;
+}
+[data-theme="animal"] .widget-vinyl::before,
+[data-theme="animal"] .widget-polaroid-j::before {
+    content: "";
+    position: absolute;
+    top: 10px; right: 12px;
+    width: 15px; height: 15px;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f5c31c' stroke='%23794f27' stroke-width='1.2' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='14' r='7'/%3E%3Cpath d='M9 7l3-3 3 3-3 2z'/%3E%3Cpath d='M10 14h4' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
+    opacity: .85;
+    z-index: 4;
+    pointer-events: none;
+}
+/* 拍立得顶部有胶带，铃钱袋挪左上避让（雪国同款处理） */
+[data-theme="animal"] .widget-polaroid-j::before {
+    right: auto; left: 10px;
+}
+
+/* A2 内部元素：日历/情报 */
+[data-theme="animal"] .widget-cal-day {
+    color: var(--text-primary);
+}
+[data-theme="animal"] .widget-cal-month,
+[data-theme="animal"] .widget-cal-weekday {
+    color: var(--accent-color);
+}
+[data-theme="animal"] .widget-news-dot.is-new {
+    background: var(--accent-color);
+}
+[data-theme="animal"] .widget-news-badge {
+    background: #f5c31c;
+    color: #794f27;
+}
+[data-theme="animal"] .widget-news-label {
+    color: var(--text-primary);
+}
+
+/* ============================================================
+   手帐テーマ widget 深度スキン（v2.191 A1「横线信纸」·作者选型）
+   卡面=白纸+细纸边+浅纸影；罫线只上文字卡（时钟/日历/情报），
+   图像卡（相册/拍立得/黑胶）不铺——图下露线会脏。
+   ⚠️ 上方 :279-288 有 journal 旧浅条目，本块靠书写顺序压过，旧行不动。
+   ============================================================ */
+[data-theme="journal"] .widget-card,
+[data-theme="journal"] .widget-clock,
+[data-theme="journal"] .widget-vinyl,
+[data-theme="journal"] .widget-polaroid,
+[data-theme="journal"] .widget-polaroid-j {
+    background: #fffdf8;
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(90, 80, 60, .12);
+}
+[data-theme="journal"] {
+    --polaroid-paper: #fffdf8;
+}
+
+/* 罫线（纹理线非背景渐变）：只上文字卡 */
+[data-theme="journal"] .widget-clock,
+[data-theme="journal"] .widget-calendar,
+[data-theme="journal"] .widget-news {
+    background-image: repeating-linear-gradient(transparent, transparent 17px, #ece5d4 17px, #ece5d4 18px);
+}
+
+/* 日付印章框：时钟宽条右上、空框装饰、微旋转
+   （CSS 无法填动态日期，日期由时钟自带元素承担；验收观感鸡肋就删本条） */
+[data-theme="journal"] .widget-clock.clock-wide::before {
+    content: "";
+    position: absolute;
+    top: 10px; right: 12px;
+    width: 34px; height: 20px;
+    border: 1.5px solid rgba(122, 158, 138, .55);
+    border-radius: 4px;
+    transform: rotate(6deg);
+    z-index: 4;
+    pointer-events: none;
+}
+
+/* 时钟 hero：墨字 + 鼠尾草 weekday */
+[data-theme="journal"] .widget-clock .clock-time-wide,
+[data-theme="journal"] .widget-clock .clock-time-small {
+    color: var(--text-primary);
+}
+[data-theme="journal"] .widget-clock.clock-wide .clock-time-wide {
+    font-size: 48px;
+    letter-spacing: -2px;
+}
+[data-theme="journal"] .widget-clock .clock-weekday {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+/* 黑胶进度条鼠尾草 */
+[data-theme="journal"] .vinyl-progress-fill {
+    background: var(--accent-color);
+}
+
+/* 拍立得：胶带鼠尾草、caption 墨字 */
+[data-theme="journal"] .widget-polaroid-j .pj-tape {
+    background: rgba(122, 158, 138, .45);
+}
+[data-theme="journal"] .widget-polaroid-j .pj-caption {
+    color: var(--text-primary);
+}
+
+/* 装饰素雅化：蝴蝶结/爱心隐藏（星光 spark 保留作细碎点缀） */
+[data-theme="journal"] .polaroid-bow-top,
+[data-theme="journal"] .polaroid-bow-corner,
+[data-theme="journal"] .polaroid-bow-deco,
+[data-theme="journal"] .vinyl-bow-top,
+[data-theme="journal"] .vinyl-bow-corner,
+[data-theme="journal"] .polaroid-heart,
+[data-theme="journal"] .vinyl-heart {
+    display: none;
+}
+
+/* A2 内部元素：日历/情报 */
+[data-theme="journal"] .widget-cal-day {
+    color: var(--text-primary);
+}
+[data-theme="journal"] .widget-cal-month,
+[data-theme="journal"] .widget-cal-weekday {
+    color: var(--accent-color);
+}
+[data-theme="journal"] .widget-news-dot.is-new {
+    background: var(--accent-color);
+}
+[data-theme="journal"] .widget-news-label {
+    color: var(--text-primary);
+}
+
+/* ============================================================
+   极简「利休鼠」widget 深度スキン（v2.191 A1「纯 hairline」·作者选型）
+   1px 细线、零阴影、全平、字重降档；装饰全部隐藏（含 spark——
+   对齐利休鼠图标 1.0 线条的减法哲学，比手帐更彻底）。
+   ⚠️ 上方 :349 起有 minimal 旧浅条目（描边+浅影），本块靠顺序压过，旧行不动。
+   ============================================================ */
+[data-theme="minimal"] .widget-card,
+[data-theme="minimal"] .widget-clock,
+[data-theme="minimal"] .widget-vinyl,
+[data-theme="minimal"] .widget-polaroid,
+[data-theme="minimal"] .widget-polaroid-j {
+    background: var(--bg-card);
+    border: 1px solid var(--border-medium);
+    border-radius: 10px;
+    box-shadow: none;
+}
+[data-theme="minimal"] {
+    --polaroid-paper: #fafbf8;
+}
+
+/* 时钟：字重降档（700→600），weekday 抹茶 500 */
+[data-theme="minimal"] .widget-clock .clock-time-wide,
+[data-theme="minimal"] .widget-clock .clock-time-small {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+[data-theme="minimal"] .widget-clock .clock-weekday {
+    color: var(--accent-color);
+    font-weight: 500;
+}
+
+/* 黑胶进度条抹茶 */
+[data-theme="minimal"] .vinyl-progress-fill {
+    background: var(--accent-color);
+}
+
+/* 拍立得：胶带抹茶极淡、caption 墨字 */
+[data-theme="minimal"] .widget-polaroid-j .pj-tape {
+    background: rgba(93, 110, 99, .25);
+}
+[data-theme="minimal"] .widget-polaroid-j .pj-caption {
+    color: var(--text-primary);
+}
+
+/* 装饰全隐（蝴蝶结/爱心/星光一个不留） */
+[data-theme="minimal"] .polaroid-bow-top,
+[data-theme="minimal"] .polaroid-bow-corner,
+[data-theme="minimal"] .polaroid-bow-deco,
+[data-theme="minimal"] .vinyl-bow-top,
+[data-theme="minimal"] .vinyl-bow-corner,
+[data-theme="minimal"] .polaroid-heart,
+[data-theme="minimal"] .vinyl-heart,
+[data-theme="minimal"] .polaroid-spark,
+[data-theme="minimal"] .vinyl-spark,
+[data-theme="minimal"] .clock-spark {
+    display: none;
+}
+
+/* A2 内部元素：日历/情报 */
+[data-theme="minimal"] .widget-cal-day {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+[data-theme="minimal"] .widget-cal-month,
+[data-theme="minimal"] .widget-cal-weekday {
+    color: var(--accent-color);
+}
+[data-theme="minimal"] .widget-news-dot.is-new {
+    background: var(--accent-color);
+}
+[data-theme="minimal"] .widget-news-label {
+    color: var(--text-primary);
+}
+
+/* A2 补条（v2.191 CDP 验收产出）：利休鼠 NEW 徽章降噪成抹茶——红徽章违背零装饰减法 */
+[data-theme="minimal"] .widget-news-badge {
+    background: var(--accent-color);
+    color: #fafbf8;
+}
+
+/* A2 补条（v2.191 CDP 验收产出）：雪国情报未读点/NEW 徽章从暖红改冷蓝——冰主题里红色扎眼 */
+[data-theme="snow-country"] .widget-news-dot.is-new {
+    background: var(--accent-color);
+}
+[data-theme="snow-country"] .widget-news-badge {
+    background: #6d8fb2;
+    color: #ffffff;
+}
+
+/* ============================================================
+   夜空拍立得「星夜磨砂」（v2.191.1·作者真机反馈：暖白相纸浮在星河上太突兀）
+   相纸沉入夜空同款深磨砂玻璃，胶带改半透明星金、手写字改月光银——
+   形态（微旋转/胶带/白边构图）保留手帐灵魂，只换夜里的材质。
+   夜空 .widget-card 卡面规则本就盖到拍立得（blur/border/shadow），
+   这里只补它缺的背景与内部四件。
+   ============================================================ */
+[data-theme="night-sky"] .widget-polaroid-j {
+    background: rgba(40, 44, 78, 0.38);
+}
+/* 相框空窗：占位大块米白是主要亮源，压成夜色深井（pj-empty 自带 #faf6ef 底和米棕加号，一并沉底） */
+[data-theme="night-sky"] .widget-polaroid-j .pj-image {
+    background: rgba(20, 22, 44, 0.45);
+}
+[data-theme="night-sky"] .widget-polaroid-j .pj-empty {
+    background: rgba(20, 22, 44, 0.45);
+    color: rgba(200, 206, 236, 0.4);
+}
+/* 胶带：牛皮纸暖棕 → 半透明星金（撕口伪元素 background:inherit 自动跟随） */
+[data-theme="night-sky"] .widget-polaroid-j .pj-tape {
+    background: rgba(232, 210, 160, 0.32);
+}
+/* 手写说明：月光银；占位斜体降一档 */
+[data-theme="night-sky"] .widget-polaroid-j .pj-caption {
+    color: rgba(226, 230, 248, 0.92);
+}
+[data-theme="night-sky"] .widget-polaroid-j .pj-caption-placeholder {
+    color: rgba(226, 230, 248, 0.42);
 }

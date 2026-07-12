@@ -139,7 +139,8 @@ const GitHubBackup = {
             // 整库替换：直接赋值整个 AppState.data
             for (const k of Object.keys(AppState.data)) delete AppState.data[k];
             Object.assign(AppState.data, data);
-            await Utils.saveData();
+            AppState.data._v = 0;   // 导入可能带入旧结构数据：重置 _v，reload 后全量重跑迁移（各条自带幂等守卫，重跑无害）
+            await Utils.flushSave();   // 立即落盘（saveData 有 300ms 防抖且不返回 promise）
             Utils.showToast(I18n.t('t.ghb_restored', '✓ 已从云端恢复，即将刷新'));
             setTimeout(() => location.reload(), 1200);
         } catch (e) {
@@ -204,9 +205,6 @@ const GitHubBackup = {
         return new TextDecoder().decode(bytes);
     },
 
-    _esc(s) {
-        const d = document.createElement('div');
-        d.textContent = String(s || '');
-        return d.innerHTML;
-    }
+    // 收口：转发 Utils.escapeHtml（s||'' 保留原 falsy→'' 语义）
+    _esc(s) { return Utils.escapeHtml(s || ''); }
 };

@@ -4,7 +4,8 @@
    core(style.css) 先加载、本文件后加载
 
    ★留在 core 的 pixiv 相关项（不在本文件）：
-   - .icon-pixiv-novel ×2（桌面 app 图标色，桌面图标壳系统）
+   - .icon-pixiv-novel ×1（桌面 app 图标色，桌面图标壳系统；
+     2026-07-06 删了化石紫渐变副本 + 去掉 !important，让贴纸主题托盘能盖过它）
    - #pixiv-* 整体色系固定主题块（主题系统/跨板块 override，
      含 #pixiv-novel .forum-tabs 复用论坛 tab 的定制覆盖）
    ============================================================ */
@@ -63,7 +64,7 @@
     opacity: 0.85;
     flex-shrink: 0;
 }
-.pixiv-series-link:hover { opacity: 1; text-decoration: underline; }
+.pixiv-series-link:hover, .pixiv-series-link:active { opacity: 1; text-decoration: underline; }
 .pixiv-chapter-main-title {
     font-size: 17px;
     font-weight: 700;
@@ -115,6 +116,7 @@
     transition: background 0.15s;
 }
 .pixiv-toc-item:hover,
+.pixiv-toc-item:active,
 .pixiv-toc-item.active { background: var(--bg-secondary, #f5f7f9); }
 .pixiv-toc-num {
     font-size: 13px;
@@ -186,7 +188,8 @@
     transition: background 0.2s;
     max-width: 48%;
 }
-.pixiv-chapter-nav-btn:hover {
+.pixiv-chapter-nav-btn:hover,
+.pixiv-chapter-nav-btn:active {
     background: var(--bg-card, #fff);
 }
 .pixiv-chapter-nav-btn.prev { align-items: flex-start; }
@@ -319,7 +322,8 @@
     transition: opacity 0.2s;
 }
 
-.pixiv-illust-card:hover {
+.pixiv-illust-card:hover,
+.pixiv-illust-card:active {
     opacity: 0.9;
 }
 
@@ -341,7 +345,8 @@
     transition: opacity 0.2s;
 }
 
-.pixiv-illust-card:hover .pixiv-illust-overlay {
+.pixiv-illust-card:hover .pixiv-illust-overlay,
+.pixiv-illust-card:active .pixiv-illust-overlay {
     opacity: 1;
 }
 
@@ -359,7 +364,8 @@
     transition: background 0.2s;
 }
 
-.pixiv-illust-delete-btn:hover {
+.pixiv-illust-delete-btn:hover,
+.pixiv-illust-delete-btn:active {
     background: rgba(255, 0, 0, 1);
 }
 
@@ -380,7 +386,8 @@
 }
 
 .pixiv-illust-fav-btn.active,
-.pixiv-illust-fav-btn:hover {
+.pixiv-illust-fav-btn:hover,
+.pixiv-illust-fav-btn:active {
     color: #FFD700;
     background: rgba(0, 0, 0, 0.65);
 }
@@ -483,7 +490,8 @@
 }
 
 .pixiv-tag-chip.active,
-.pixiv-tag-chip:hover {
+.pixiv-tag-chip:hover,
+.pixiv-tag-chip:active {
     background: var(--accent-color);
     color: white;
     border-color: var(--accent-color);
@@ -518,7 +526,8 @@
     border-color: var(--text-primary);
 }
 
-.pixiv-sort-btn:not(.active):hover {
+.pixiv-sort-btn:not(.active):hover,
+.pixiv-sort-btn:not(.active):active {
     border-color: var(--text-secondary);
 }
 
@@ -1020,7 +1029,8 @@
     text-decoration: none;
     cursor: pointer;
 }
-.pixiv-novel-author-link:hover {
+.pixiv-novel-author-link:hover,
+.pixiv-novel-author-link:active {
     text-decoration: underline;
 }
 
@@ -1286,6 +1296,11 @@
     cursor: pointer;
     flex-shrink: 0;
 }
+.pixiv-detail-follow-btn.active {
+    background: var(--bg-secondary, #e8eef3);
+    color: var(--text-secondary, #666);
+    border-color: var(--border-light, #ddd);
+}
 .pixiv-detail-section {
     margin-top: 8px;
     margin-bottom: 16px;
@@ -1333,7 +1348,8 @@
     font-size: 13px;
     cursor: pointer;
 }
-.pixiv-detail-comment-row:hover {
+.pixiv-detail-comment-row:hover,
+.pixiv-detail-comment-row:active {
     color: var(--text-primary);
 }
 
@@ -1470,6 +1486,10 @@ button.pixiv-detail-series-chip {
     font-weight: 700;
     cursor: pointer;
 }
+.pixiv-toc-follow-author.active {
+    background: var(--bg-secondary, #e8eef3);
+    color: var(--text-secondary, #666);
+}
 .pixiv-toc-more {
     background: none;
     border: none;
@@ -1523,7 +1543,7 @@ button.pixiv-detail-series-chip {
     text-align: center;
     transition: background 0.15s;
 }
-.pixiv-toc-cta-follow:hover { background: #1a8cd8; }
+.pixiv-toc-cta-follow:hover, .pixiv-toc-cta-follow:active { background: #1a8cd8; }
 .pixiv-toc-cta-follow.active {
     background: var(--bg-secondary, #e8eef3);
     color: var(--text-secondary, #666);
@@ -1543,7 +1563,7 @@ button.pixiv-detail-series-chip {
     text-align: center;
     transition: opacity 0.15s;
 }
-.pixiv-toc-cta-latest:hover { opacity: 0.88; }
+.pixiv-toc-cta-latest:hover, .pixiv-toc-cta-latest:active { opacity: 0.88; }
 
 /* ── TOC 章节条目（Phase 3 重做：main + like 双区） ── */
 .pixiv-toc-list .pixiv-toc-item {
@@ -1596,7 +1616,8 @@ button.pixiv-detail-series-chip {
     margin-bottom: 5px;
 }
 .pixiv-toc-item-hearts {
-    color: #e74c3c;
+    /* 统计数字用中性色——红色只留给「已点赞」按钮（红标签曾被误读成全章已点赞，2026-07-09 调研） */
+    color: var(--text-secondary, #999);
     font-weight: 500;
 }
 .pixiv-toc-item-tags {
@@ -1664,7 +1685,7 @@ button.pixiv-detail-series-chip {
     text-overflow: ellipsis;
     transition: background 0.15s;
 }
-.pixiv-end-next-pill:hover { background: var(--bg-card-hover, #fafbfc); }
+.pixiv-end-next-pill:hover, .pixiv-end-next-pill:active { background: var(--bg-card-hover, #fafbfc); }
 .pixiv-end-next-prefix {
     font-size: 12px;
     color: var(--text-secondary, #888);
@@ -1690,7 +1711,7 @@ button.pixiv-detail-series-chip {
     text-align: center;
     transition: background 0.15s;
 }
-.pixiv-end-follow-btn:hover { background: #1a8cd8; }
+.pixiv-end-follow-btn:hover, .pixiv-end-follow-btn:active { background: #1a8cd8; }
 .pixiv-end-follow-btn.active {
     background: var(--bg-card, #fff);
     color: var(--text-secondary, #666);
@@ -1747,6 +1768,10 @@ button.pixiv-detail-series-chip {
     font-weight: 700;
     cursor: pointer;
 }
+.pixiv-end-author-follow.active {
+    background: var(--bg-secondary, #e8eef3);
+    color: var(--text-secondary, #666);
+}
 .pixiv-end-sibling-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -1771,7 +1796,7 @@ button.pixiv-detail-series-chip {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
     transition: transform 0.15s;
 }
-.pixiv-end-sibling-card:hover .pixiv-end-sibling-cover { transform: translateY(-1px); }
+.pixiv-end-sibling-card:hover .pixiv-end-sibling-cover, .pixiv-end-sibling-card:active .pixiv-end-sibling-cover { transform: translateY(-1px); }
 .pixiv-end-sibling-title {
     color: rgba(255, 255, 255, 0.96);
     font-weight: 700;
@@ -1797,7 +1822,7 @@ button.pixiv-detail-series-chip {
     font-size: 13px;
     font-weight: 500;
 }
-.pixiv-end-profile-link:hover { text-decoration: underline; }
+.pixiv-end-profile-link:hover, .pixiv-end-profile-link:active { text-decoration: underline; }
 
 /* ============================================================
    v2.76.0 Phase 4 — 个人首页 + 子页（收藏 / 追更 / 浏览记录 / 设置）
@@ -1862,7 +1887,7 @@ button.pixiv-detail-series-chip {
     text-align: center;
     transition: background 0.15s;
 }
-.pixiv-profile-submit-btn:hover { background: #0085e0; }
+.pixiv-profile-submit-btn:hover, .pixiv-profile-submit-btn:active { background: #0085e0; }
 
 /* ── Menu list ── */
 .pixiv-profile-menu-list {
@@ -1889,7 +1914,7 @@ button.pixiv-detail-series-chip {
     text-align: left;
     transition: background 0.15s;
 }
-.pixiv-profile-row:hover { background: var(--bg-secondary, #f8fafc); }
+.pixiv-profile-row:hover, .pixiv-profile-row:active { background: var(--bg-secondary, #f8fafc); }
 .pixiv-profile-row:last-child { border-bottom: none; }
 .pixiv-profile-row-icon {
     width: 22px;
@@ -2007,7 +2032,7 @@ button.pixiv-detail-series-chip {
     text-align: left;
     transition: background 0.15s;
 }
-.pixiv-sub-novel-row:hover { background: var(--bg-secondary, #f8fafc); }
+.pixiv-sub-novel-row:hover, .pixiv-sub-novel-row:active { background: var(--bg-secondary, #f8fafc); }
 .pixiv-sub-novel-cover {
     width: 60px;
     height: 86px;

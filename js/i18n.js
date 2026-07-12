@@ -97,27 +97,46 @@ const I18n = {
         });
     },
 
-    // 设置语言
-    setLanguage(lang) {
-        if (!this.translations[lang]) {
+    // 设置语言。v2.196.0 起字典懒加载：目标字典未加载则先经 Utils.loadScriptOnce 补载
+    //（async；调用方均为 fire-and-forget，字典已在内存时与旧版同步时序完全一致——
+    // async 函数在首个 await 前同步执行）。镜像键 perigee_lang_mirror 供 index.html
+    // 解析期同步选字典（真身仍在 systemConfig.language，镜像只是启动加速缓存）。
+    async setLanguage(lang) {
+        if (lang !== 'zh' && lang !== 'ja' && lang !== 'en') {
             console.warn(`Language ${lang} not found, falling back to zh`);
             lang = 'zh';
         }
-
+        if (!this.translations[lang]) {
+            try {
+                await Utils.loadScriptOnce(`js/i18n-${lang}.js`);
+            } catch (e) {
+                console.warn(`i18n 字典加载失败: ${lang}`, e);
+            }
+            if (!this.translations[lang]) {
+                // v2.198.0 复检修复：回落 zh 前确保 zh 字典真在内存——启动按镜像预载的可能是
+                // 别的语言，此时裸赋值 'zh' 会让整站 t() 三层回退全落空（裸 key）。双失败则保持
+                // 现状语言，t() 走 fallback 文案，不写坏镜像。
+                lang = 'zh';
+                if (!this.translations.zh) {
+                    try { await Utils.loadScriptOnce('js/i18n-zh.js'); } catch (e) { /* 双失败，见上 */ }
+                }
+            }
+        }
         this.currentLang = lang;
+        // 镜像只记录字典真实可用的语言，避免把损坏状态持久化进下次启动的解析期选择
+        if (this.translations[lang]) {
+            try { localStorage.setItem('perigee_lang_mirror', lang); } catch (e) {}
+        }
         this.applyTranslations();
 
-        // 动态切换PWA manifest
         this.updateManifest(lang);
     },
 
-    // 更新PWA manifest链接
+    // ⚠️ 刻意 no-op（v2.192.1）：运行时替换 manifest link 会让 Chrome 判
+    // `manifest-location-changed`，安卓 WebAPK 铸造直接判死——PWA 永远降级成
+    // 带角标的快捷方式（长按只有「移除」没有「卸载」）。manifest 恒用 manifest.json，
+    // 三份语言 manifest 保留在仓库但不再引用（作者拍板方案 A：日语安装名让位给真安装）。
+    // manifest link 的 href 在页面生命周期内一个字都不能变。
     updateManifest(lang) {
-        const manifestLink = document.querySelector('link[rel="manifest"]');
-        if (manifestLink) {
-            const newManifest = `manifest-${lang}.json`;
-            manifestLink.href = newManifest;
-            console.log(`[I18n] Manifest updated to: ${newManifest}`);
-        }
     }
 };

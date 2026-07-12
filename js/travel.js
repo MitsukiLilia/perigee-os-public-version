@@ -519,9 +519,13 @@ const TravelAccount = {
     },
 
     // --- Export ---
-    exportToExcel() {
+    async exportToExcel() {
+        // 按需注入本地 SheetJS（不随启动加载，见 js/vendor/）
+        try {
+            await Utils.loadScriptOnce('js/vendor/xlsx.full.min.js');
+        } catch (e) { /* 加载失败走下方兜底提示 */ }
         if (typeof XLSX === 'undefined') {
-            Utils.showToast(I18n.t('t.travel_sheetjs_needed', '导出功能需要网络加载 SheetJS 库'));
+            Utils.showToast(I18n.t('t.travel_sheetjs_needed', 'SheetJS 库加载失败，请重试'));
             return;
         }
         if (this.expenses.length === 0) { Utils.showToast(I18n.t('t.travel_no_data_export', '暂无数据可导出')); return; }

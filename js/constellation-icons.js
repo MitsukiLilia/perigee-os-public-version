@@ -53,7 +53,8 @@ const ConstellationIcons = {
   // 用户自定义图标（customIcons）跳过不动，由 IconCustomizer 接管（优先级最高）。
   apply() {
     const isNight = document.documentElement.dataset.theme === this.THEME;
-    const customIcons = (window.AppState && AppState.data && AppState.data.customIcons) || {};
+    // AppState 是顶层词法声明、不在 window 上——用 typeof 探测（window.AppState 恒 undefined，曾使本守卫沦为死代码）
+    const customIcons = (typeof AppState !== 'undefined' && AppState.data && AppState.data.customIcons) || {};
     document.querySelectorAll('.app-item[data-app]').forEach(item => {
       const appId = item.dataset.app;
       const c = item.querySelector('.app-icon');
@@ -65,8 +66,8 @@ const ConstellationIcons = {
         if (!c.dataset.iconDefault) c.dataset.iconDefault = c.innerHTML;
         c.innerHTML = this.SVGS[appId];
       } else if (c.dataset.iconDefault && !customIcons[appId]) {
-        // 切走夜空 / 该 app 无星座版：恢复默认 SVG（仅在非手帐/草莓/雪国主题时；它们会自己接管）
-        if (document.documentElement.dataset.theme !== 'journal' && document.documentElement.dataset.theme !== 'strawberry' && document.documentElement.dataset.theme !== 'snow-country') {
+        // 切走夜空 / 该 app 无星座版：恢复默认 SVG（仅在非手帐/草莓/雪国/梦之芭蕾主题时；它们会自己接管）
+        if (document.documentElement.dataset.theme !== 'journal' && document.documentElement.dataset.theme !== 'strawberry' && document.documentElement.dataset.theme !== 'snow-country' && document.documentElement.dataset.theme !== 'sakura') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

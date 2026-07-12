@@ -1,12 +1,173 @@
 // 工具模块 - 包含数据持久化和API调用功能
+
+// ── Schema 迁移注册表 ──
+// 记账字段：AppState.data._v（loadData 里由 Utils._runMigrations 按 v 升序执行所有 v > 当前 的条目，
+// 与数组书写顺序无关——执行前会按 v 排序一份副本，未来 append 顺序不慎与 v 值错位也不会被静默跳过）
+// 铁律：
+//   ① 只 append 新条目、禁止修改/删除历史条目
+//   ② 每个迁移的 run() 必须自带幂等守卫（检测数据形状/标志位）——四个导入路径
+//      （Utils.importData / GithubBackup.handleRestore / DataExport._performImport / Forum.importForumData）
+//      会把 _v 重置为 0 触发全量重跑：分板块导入可能往新 _v 的树里塞旧结构板块数据，
+//      只有「全量重跑 + 各条幂等」才能兜住这种局部旧数据
+//   ③ run() 里不要自行 Utils.saveData()，执行器跑完统一落盘一次
+const MIGRATIONS = [
+    {
+        v: 1,
+        desc: 'v2.60 放送局重构：slots 扁平化 + broadcast 抽离 + officialPosts 并入 threads',
+        run(data) {
+            // 幂等守卫：forumData 残留旧字段 或 forumSlotsMeta 存在（即 v2.59 及更早的数据形状）才动手
+            const _fd = data.forumData || {};
+            const _hasLegacy = (_fd.worldSetting !== undefined)
+                || (_fd.plotProgress !== undefined)
+                || (_fd.officialInfo !== undefined)
+                || (_fd.officialNpcs !== undefined)
+                || (_fd.officialPosts !== undefined)
+                || (data.forumSlotsMeta !== undefined && data.forumSlotsMeta !== null);
+            if (!_hasLegacy) return;
+
+            // 1. 扁平化多板块：取 currentForumSlotId 对应的 archive 作为唯一 forumData
+            if (data.forumSlotsArchive && data.currentForumSlotId) {
+                const _active = data.forumSlotsArchive[data.currentForumSlotId];
+                if (_active && typeof _active === 'object') {
+                    data.forumData = _active;
+                }
+            }
+            delete data.forumSlotsMeta;
+            delete data.forumSlotsArchive;
+            delete data.currentForumSlotId;
+
+            const fd = data.forumData || (data.forumData = {});
+
+            // 2. broadcast 字段抽离
+            data.broadcast = {
+                worldSetting: fd.worldSetting || '',
+                worldBookId: fd.worldBookId || '',
+                worldBookIds: Array.isArray(fd.worldBookIds) && fd.worldBookIds.length
+                    ? fd.worldBookIds
+                    : (fd.worldBookId ? [fd.worldBookId] : []),
+                plotProgress: Array.isArray(fd.plotProgress) ? fd.plotProgress : [],
+                plotDrafts: Array.isArray(fd.plotDrafts) ? fd.plotDrafts : [],
+                officialInfo: Array.isArray(fd.officialInfo) ? fd.officialInfo : [],
+                officialNpcs: Array.isArray(fd.officialNpcs) ? fd.officialNpcs : [],
+                mergedSummaries: Array.isArray(fd.mergedSummaries) ? fd.mergedSummaries : [],
+                plotSummaries: Array.isArray(fd.plotSummaries) ? fd.plotSummaries : [],
+                officialSummaries: Array.isArray(fd.officialSummaries) ? fd.officialSummaries : [],
+                seriesEnded: typeof fd.seriesEnded === 'boolean' ? fd.seriesEnded : false   // v2.126.0 完結フラグ（ワンドロ 完結後ペース切替；未定義は falsy=連載中）
+            };
+
+            // 3. 旧 officialPosts → 合并进 threads（按 timestamp 倒序）
+            if (Array.isArray(fd.officialPosts) && fd.officialPosts.length > 0) {
+                if (!Array.isArray(fd.threads)) fd.threads = [];
+                fd.threads = [...fd.officialPosts, ...fd.threads]
+                    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            }
+
+            // 4. 从 forumData 删抽走的字段
+            ['worldSetting', 'worldBookId', 'worldBookIds',
+             'plotProgress', 'plotDrafts',
+             'officialInfo', 'officialNpcs', 'officialPosts',
+             'mergedSummaries', 'plotSummaries', 'officialSummaries']
+                .forEach(k => delete fd[k]);
+        }
+    },
+    {
+        v: 2,
+        desc: 'v2.128 一次性去重：修复链路A 历史重复自宣',
+        run(data) {
+            // 链路B 生成的小说曾漏进链路A 反查池被反复自宣 → 同一 pixivNovelId 出现多条 fan 推。
+            // 清掉冗余：点赞过的全留（回味用），否则只留最早一条（含链路B 原始安利推）。只碰 source==='fan'，npc 推不动。
+            const _twd = data.twitterData;
+            if (!_twd || _twd._dedupePromoV128) return;   // 幂等守卫：无 twitterData 或已打标
+            const _tws = Array.isArray(_twd.npcTweets) ? _twd.npcTweets : [];
+            const _likedIds = new Set((_twd.likedTweetIds || []).map(l => l.id));
+            const _byNovel = {};
+            _tws.forEach(tw => {
+                if (tw && tw.source === 'fan' && tw.pixivNovelId) {
+                    (_byNovel[tw.pixivNovelId] = _byNovel[tw.pixivNovelId] || []).push(tw);
+                }
+            });
+            const _dropIds = new Set();
+            Object.keys(_byNovel).forEach(nid => {
+                const group = _byNovel[nid];
+                if (group.length <= 1) return;   // 没重复
+                const _liked = group.filter(tw => _likedIds.has(tw.id));
+                const _keep = _liked.length
+                    ? _liked   // 点赞过的全留
+                    : [group.slice().sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))[0]];   // 否则留最早一条
+                const _keepSet = new Set(_keep.map(tw => tw.id));
+                group.forEach(tw => { if (!_keepSet.has(tw.id)) _dropIds.add(tw.id); });
+            });
+            if (_dropIds.size) {
+                _twd.npcTweets = _tws.filter(tw => !_dropIds.has(tw.id));
+                console.log(`[Migration v2.128] 链路A 重复自宣去重：清掉 ${_dropIds.size} 条冗余推文`);
+            }
+            _twd._dedupePromoV128 = true;
+        }
+    },
+    {
+        v: 3,
+        desc: 'v2.190 pixiv 章节点赞档C建模：存量 novel 补 heatBase/virtualFc + 逐章 hearts + novel.hearts 改最高章缓存',
+        run(data) {
+            // 裸标识符 + typeof 守卫：顶层 const 不上 window（v2.187 教训），
+            // 浏览器里 loadData 晚于全部模块脚本执行、必然已定义；node 单载 utils.js 时安全跳过
+            if (typeof PixivNovel === 'undefined' || typeof Twitter === 'undefined') return;
+            const novels = (data.pixivData || {}).novels;
+            if (!Array.isArray(novels)) return;
+            for (const novel of novels) {
+                // 幂等守卫（逐本）：分板块导入旧备份把 _v 重置 0 全量重跑时，已迁移本子不重抽
+                if (typeof novel.heatBase === 'number') continue;
+                PixivNovel._initNovelPopularity(novel, data.twitterData);
+            }
+        }
+    },
+    // ↑ 新迁移只在这里 append（v 递增），并遵守顶部铁律 ①②③
+];
+
 const Utils = {
     generateId: () => Date.now().toString(36) + Math.random().toString(36).substr(2),
     // parseFloat + 有限性兜底：v 解析为有限数则用之，否则 fallback（修「temperature 显式 0 被 || 吞成 0.7」）
     _num(v, fallback) { const n = parseFloat(v); return Number.isFinite(n) ? n : fallback; },
-    // fire-and-forget：86处调用无需改动
+    // fire-and-forget：400+处调用无需改动
+    // 300ms trailing debounce：连环调用只在末次 300ms 后真正落盘一次（序列化也推迟到落盘时，省掉中间几次全量 clone）
+    _saveTimer: null,
     saveData() {
-        localforage.setItem('PerigeeOS', JSON.parse(JSON.stringify(AppState.data)))
+        clearTimeout(Utils._saveTimer);
+        Utils._saveTimer = setTimeout(() => {
+            Utils._saveTimer = null;
+            Utils._saveNow();
+        }, 300);
+    },
+    // 真正落盘：全量序列化 + 写 IndexedDB；返回的 promise 永远 resolve（失败已内部 console + toast）
+    _saveNow() {
+        return localforage.setItem('PerigeeOS', JSON.parse(JSON.stringify(AppState.data)))
             .catch(e => { console.error('[Save Error]', e); Utils.showToast('⚠️ 保存失败：' + e.message, 6000); });
+    },
+    // 立即落盘（取消 pending 防抖，没有 pending 也照样写一次）
+    // reload / 跳转前必须 await Utils.flushSave()，否则防抖窗口内的数据只在内存里
+    flushSave() {
+        if (Utils._saveTimer) { clearTimeout(Utils._saveTimer); Utils._saveTimer = null; }
+        return Utils._saveNow();
+    },
+    // ── Schema 迁移执行器：按 data._v（缺省 0）顺序执行 MIGRATIONS 里所有 v > 当前 的条目 ──
+    // 单条抛错：_v 停在上一条不推进、console.error、不阻断 loadData 其余流程；有推进才落盘（防抖版）
+    _runMigrations() {
+        const data = AppState.data;
+        if (typeof data._v !== 'number' || !Number.isFinite(data._v)) data._v = 0;
+        const from = data._v;
+        // 按 v 升序执行，不依赖数组声明顺序：只排序副本，不改 MIGRATIONS 原数组本身
+        const ordered = [...MIGRATIONS].sort((a, b) => a.v - b.v);
+        for (const m of ordered) {
+            if (m.v <= data._v) continue;
+            try {
+                m.run(data);
+                data._v = m.v;
+                console.log(`[Migration v${m.v}] ${m.desc} — 完成`);
+            } catch (e) {
+                console.error(`[Migration v${m.v}] ${m.desc} — 失败，_v 停在 ${data._v}`, e);
+                break;
+            }
+        }
+        if (data._v !== from) Utils.saveData();
     },
     // async：在 app.js DOMContentLoaded 里 await 一次
     async loadData() {
@@ -23,95 +184,8 @@ const Utils = {
             const saved = await localforage.getItem('PerigeeOS');
             if (saved) AppState.data = { ...AppState.data, ...saved };
 
-            // ── 放送局重构迁移（v2.60）：扁平化 forumSlots + forumData → broadcast 抽离 + officialPosts 合并到 threads ──
-            // 触发条件：forumData 里还残留旧字段（worldSetting / plotProgress / officialInfo / officialNpcs / officialPosts），即从 v2.59 及更早升级上来
-            const _fd = AppState.data.forumData || {};
-            const _hasLegacy = (_fd.worldSetting !== undefined)
-                || (_fd.plotProgress !== undefined)
-                || (_fd.officialInfo !== undefined)
-                || (_fd.officialNpcs !== undefined)
-                || (_fd.officialPosts !== undefined)
-                || (AppState.data.forumSlotsMeta !== undefined && AppState.data.forumSlotsMeta !== null);
-            if (_hasLegacy) {
-                // 1. 扁平化多板块：取 currentForumSlotId 对应的 archive 作为唯一 forumData
-                if (AppState.data.forumSlotsArchive && AppState.data.currentForumSlotId) {
-                    const _active = AppState.data.forumSlotsArchive[AppState.data.currentForumSlotId];
-                    if (_active && typeof _active === 'object') {
-                        AppState.data.forumData = _active;
-                    }
-                }
-                delete AppState.data.forumSlotsMeta;
-                delete AppState.data.forumSlotsArchive;
-                delete AppState.data.currentForumSlotId;
-
-                const fd = AppState.data.forumData || (AppState.data.forumData = {});
-
-                // 2. broadcast 字段抽离
-                AppState.data.broadcast = {
-                    worldSetting: fd.worldSetting || '',
-                    worldBookId: fd.worldBookId || '',
-                    worldBookIds: Array.isArray(fd.worldBookIds) && fd.worldBookIds.length
-                        ? fd.worldBookIds
-                        : (fd.worldBookId ? [fd.worldBookId] : []),
-                    plotProgress: Array.isArray(fd.plotProgress) ? fd.plotProgress : [],
-                    plotDrafts: Array.isArray(fd.plotDrafts) ? fd.plotDrafts : [],
-                    officialInfo: Array.isArray(fd.officialInfo) ? fd.officialInfo : [],
-                    officialNpcs: Array.isArray(fd.officialNpcs) ? fd.officialNpcs : [],
-                    mergedSummaries: Array.isArray(fd.mergedSummaries) ? fd.mergedSummaries : [],
-                    plotSummaries: Array.isArray(fd.plotSummaries) ? fd.plotSummaries : [],
-                    officialSummaries: Array.isArray(fd.officialSummaries) ? fd.officialSummaries : [],
-                    seriesEnded: typeof fd.seriesEnded === 'boolean' ? fd.seriesEnded : false   // v2.126.0 完結フラグ（ワンドロ 完結後ペース切替；未定義は falsy=連載中）
-                };
-
-                // 3. 旧 officialPosts → 合并进 threads（按 timestamp 倒序）
-                if (Array.isArray(fd.officialPosts) && fd.officialPosts.length > 0) {
-                    if (!Array.isArray(fd.threads)) fd.threads = [];
-                    fd.threads = [...fd.officialPosts, ...fd.threads]
-                        .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-                }
-
-                // 4. 从 forumData 删抽走的字段
-                ['worldSetting', 'worldBookId', 'worldBookIds',
-                 'plotProgress', 'plotDrafts',
-                 'officialInfo', 'officialNpcs', 'officialPosts',
-                 'mergedSummaries', 'plotSummaries', 'officialSummaries']
-                    .forEach(k => delete fd[k]);
-
-                Utils.saveData();
-                console.log('[Migration v2.60] forumData → broadcast 抽离 + slots 扁平化 + officialPosts 合并 完成');
-            }
-
-            // ── v2.128.0 一次性去重：修复链路A 历史重复自宣 ──
-            // 链路B 生成的小说曾漏进链路A 反查池被反复自宣 → 同一 pixivNovelId 出现多条 fan 推。
-            // 清掉冗余：点赞过的全留（回味用），否则只留最早一条（含链路B 原始安利推）。只碰 source==='fan'，npc 推不动。
-            const _twd = AppState.data.twitterData;
-            if (_twd && !_twd._dedupePromoV128) {
-                const _tws = Array.isArray(_twd.npcTweets) ? _twd.npcTweets : [];
-                const _likedIds = new Set((_twd.likedTweetIds || []).map(l => l.id));
-                const _byNovel = {};
-                _tws.forEach(tw => {
-                    if (tw && tw.source === 'fan' && tw.pixivNovelId) {
-                        (_byNovel[tw.pixivNovelId] = _byNovel[tw.pixivNovelId] || []).push(tw);
-                    }
-                });
-                const _dropIds = new Set();
-                Object.keys(_byNovel).forEach(nid => {
-                    const group = _byNovel[nid];
-                    if (group.length <= 1) return;   // 没重复
-                    const _liked = group.filter(tw => _likedIds.has(tw.id));
-                    const _keep = _liked.length
-                        ? _liked   // 点赞过的全留
-                        : [group.slice().sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0))[0]];   // 否则留最早一条
-                    const _keepSet = new Set(_keep.map(tw => tw.id));
-                    group.forEach(tw => { if (!_keepSet.has(tw.id)) _dropIds.add(tw.id); });
-                });
-                if (_dropIds.size) {
-                    _twd.npcTweets = _tws.filter(tw => !_dropIds.has(tw.id));
-                    console.log(`[Migration v2.128] 链路A 重复自宣去重：清掉 ${_dropIds.size} 条冗余推文`);
-                }
-                _twd._dedupePromoV128 = true;
-                Utils.saveData();
-            }
+            // ── Schema 迁移：按 _v 顺序执行注册表（条目见文件顶部 MIGRATIONS，含原 v2.60 / v2.128 两条）──
+            Utils._runMigrations();
         } catch (e) {
             console.error('[Load Error]', e);
             // fallback：迁移失败时保底从 localStorage 读取
@@ -130,6 +204,64 @@ const Utils = {
         }
     },
     scrollToBottom: (el) => setTimeout(() => el.scrollTop = el.scrollHeight, 50),
+
+    // 动态注入 script（按需加载大库用，如 js/vendor/ 下的 xlsx/jszip）；同 src 并发/重复调用共享同一个 Promise
+    _scriptPromises: {},
+    loadScriptOnce(src) {
+        if (!Utils._scriptPromises[src]) {
+            Utils._scriptPromises[src] = new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = src;
+                s.onload = () => resolve();
+                s.onerror = () => {
+                    // 失败清掉缓存，允许下次调用重试
+                    delete Utils._scriptPromises[src];
+                    s.remove();
+                    reject(new Error(`脚本加载失败: ${src}`));
+                };
+                document.head.appendChild(s);
+            });
+        }
+        return Utils._scriptPromises[src];
+    },
+
+    // ===== 并发锁 / ObjectURL 生命周期（v2.195.0，架构报告 P1-⑧）=====
+    // withLock：同 key 异步任务互斥。锁被占时不排队、直接跳过并调 onBusy（对应「防连点」语义，
+    // 与项目「刷新防呆通用解」一致：入口 guard + 按钮 disabled 用 isLocked 投影视觉态）。
+    // finally 自动放锁——根治「_xxxRefreshing 忘复位」类 bug。返回 { ran, value }。
+    _locks: new Set(),
+    isLocked(key) { return Utils._locks.has(key); },
+    async withLock(key, fn, onBusy) {
+        if (Utils._locks.has(key)) {
+            if (typeof onBusy === 'function') onBusy();
+            return { ran: false };
+        }
+        Utils._locks.add(key);
+        try {
+            return { ran: true, value: await fn() };
+        } finally {
+            Utils._locks.delete(key);
+        }
+    },
+
+    // trackBlobUrl / revokeBlobScope：ObjectURL 按 scope 登记、随视图关闭统一回收。
+    // 用法：img.src = Utils.trackBlobUrl(URL.createObjectURL(blob), 'pv-preview');
+    //       关闭弹窗时 Utils.revokeBlobScope('pv-preview')。
+    _blobScopes: {},
+    trackBlobUrl(url, scope) {
+        if (!url) return url;
+        if (!Utils._blobScopes[scope]) Utils._blobScopes[scope] = new Set();
+        Utils._blobScopes[scope].add(url);
+        return url;
+    },
+    revokeBlobScope(scope) {
+        const set = Utils._blobScopes[scope];
+        if (!set) return 0;
+        let n = 0;
+        set.forEach(url => { try { URL.revokeObjectURL(url); n++; } catch (e) { /* 已失效等，静默 */ } });
+        delete Utils._blobScopes[scope];
+        return n;
+    },
 
     // 导出数据
     exportData() {
@@ -156,7 +288,8 @@ const Utils = {
                 const importedData = JSON.parse(e.target.result);
                 if (confirm('This will replace all current data. Continue?')) {
                     AppState.data = { ...AppState.data, ...importedData };
-                    await localforage.setItem('PerigeeOS', JSON.parse(JSON.stringify(AppState.data)));
+                    AppState.data._v = 0;   // 导入可能带入旧结构数据：重置 _v，reload 后全量重跑迁移（各条自带幂等守卫，重跑无害）
+                    await Utils.flushSave();   // 立即落盘（同时取消 pending 防抖）再刷新
                     alert('✓ Data imported successfully. Refreshing...');
                     location.reload();
                 }
@@ -536,23 +669,27 @@ const Utils = {
             .slice(0, MAX);
     },
 
+    // 事件类型→表示ラベル 权威表（getEventContextPrompt / magazine 月間まとめ / 情报速報 widget 共用）
+    EVENT_TYPE_LABELS: {
+        plot_published: '新話公開',
+        goods_announced: 'グッズ情報',
+        official_info_added: '公式情報',
+        novel_published: '二次創作',
+        novel_completed: '完結記念',
+        tweet_event: 'SNS話題',
+        magazine_published: '雑誌記事',
+        doujin_published: '同人誌新刊',
+        doujin_event: '即売会情報',
+        nico_video_published: 'ニコ動投稿',
+        nico_trending: 'ニコ動話題',
+        leak_posted: 'リーク情報'
+    },
+
     // 跨模块联动 prompt 片段
     getEventContextPrompt(limit = 5) {
         const events = this.getRecentEvents({ limit });
         if (events.length === 0) return '';
-        const TYPE_LABELS = {
-            plot_published: '新話公開',
-            goods_announced: 'グッズ情報',
-            official_info_added: '公式情報',
-            novel_published: '二次創作',
-            tweet_event: 'SNS話題',
-            magazine_published: '雑誌記事',
-            doujin_published: '同人誌新刊',
-            doujin_event: '即売会情報',
-            nico_video_published: 'ニコ動投稿',
-            nico_trending: 'ニコ動話題',
-            leak_posted: 'リーク情報'
-        };
+        const TYPE_LABELS = this.EVENT_TYPE_LABELS;
         const lines = events.map(e => {
             const label = TYPE_LABELS[e.type] || e.type;
             return `- [${label}] ${e.data.title || ''}${e.data.summary ? ': ' + e.data.summary : ''}`;
@@ -593,15 +730,21 @@ ${intro}以下の情報階層を厳守すること。
     },
 
     // ═══════════════════════════════════════════════════════
-    // 共享 HTML 转义工具（新代码用，老 _esc/_escAttr 保留）
+    // HTML 转义唯一权威实现（2026-07 P0 收口，规则见项目 CLAUDE.md）
+    // 任何 AI 生成文本/用户输入拼 HTML 必须过这里；禁止新写独立转义
+    // null/undefined → ''，其余 String()；转义 & < > " '
     // ═══════════════════════════════════════════════════════
-    escHtml(s) {
+    escapeHtml(s) {
         return String(s ?? '')
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
+
+    // 旧别名：转发权威实现，历史调用点无需改
+    escHtml(s) { return Utils.escapeHtml(s); },
 
     // 放送局当前激活的世界书 ID 数组（兼容旧 worldBookId 单字段）
     getActiveWorldBookIds() {
@@ -610,14 +753,8 @@ ${intro}以下の情報階層を厳守すること。
         return bc.worldBookId ? [bc.worldBookId] : [];
     },
 
-    escAttr(s) {
-        return String(s ?? '')
-            .replace(/&/g, '&amp;')
-            .replace(/'/g, '&#39;')
-            .replace(/"/g, '&quot;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    },
+    // 旧别名：与 escapeHtml 完全同义，转发权威实现
+    escAttr(s) { return Utils.escapeHtml(s); },
 
     // 读取并压缩图片文件（File → dataURL）
     // opts: { maxSize: 边长上限px, quality: JPEG 质量 0~1 }
@@ -760,9 +897,18 @@ ${intro}以下の情報階層を厳守すること。
         Object.keys(AppState.data).forEach(k => delete AppState.data[k]);
         Object.assign(AppState.data, fresh);
 
-        Utils.saveData();
         Utils.showToast('✓ 全データをクリアしました（API・世界書・設定は保持）');
-        setTimeout(() => location.reload(), 800);
+        // 落盘完成后再刷新，防 reload 打断 IndexedDB 写事务
+        Utils.flushSave().then(() => setTimeout(() => location.reload(), 800));
         return true;
     },
 };
+
+// ── 页面退出兜底：防抖窗口内切后台/离开页面立刻落盘 ──
+// iOS PWA 切后台后可能直接被杀进程、pagehide 不保证触发，visibilitychange(hidden) 是主兜底
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden && Utils._saveTimer) Utils.flushSave();
+});
+window.addEventListener('pagehide', () => {
+    if (Utils._saveTimer) Utils.flushSave();
+});

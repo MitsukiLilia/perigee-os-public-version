@@ -486,10 +486,9 @@ ${cardsDesc}
     },
 
     // === 工具函数 ===
+    // 收口：转发 Utils.escapeHtml
     _escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
+        return Utils.escapeHtml(str);
     },
 
     _formatTime(ts) {

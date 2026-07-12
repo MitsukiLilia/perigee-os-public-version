@@ -60,9 +60,9 @@ const Mercari = {
     return this._listedGoods().find(e => e.id === id) || null;
   },
 
+  // 收口：转发 Utils.escapeHtml（语义与原实现完全相同）
   _escapeHtml(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g,
-      c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    return Utils.escapeHtml(s);
   },
 
   // ── i18n 显示辅助（用于 condition/rarity 这种存储为日文 key 的值在显示时翻译）──
