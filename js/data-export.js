@@ -27,10 +27,15 @@ const DataExport = {
         { key: 'system', label: 'API 与系统设置', i18nKey: 'data_export.system', fields: ['apiConfig', 'imageApiConfig', 'novelaiSettings', 'ttsConfig', 'systemConfig', 'apiPresets', 'imageGenModules'] }
     ],
 
-    // 跨模块共享依赖：key 模块的数据引用了 needs 模块的实体（lofter 文手存微博 NPC 池 / 月读书引用世界书），
+    // 跨模块共享依赖：key 模块的数据引用了 needs 模块的实体（lofter 文手存微博 NPC 池 / 月读书引用世界书 /
+    // persona 的官方 NPC 虚拟身份[activePersonaId='officialnpc:<npcId>']与 line 的官方 NPC 实体化好友
+    // [characters[].sourceType='official-npc' + sourceNpcId] 都指向 broadcast.officialNpcs），
     // 单独导出 key 不带 needs，换设备导入后会断链。勾了 key 没勾 needs 时弹提示建议一并勾选。
+    // 注：本表是数组不是以 key 为键的映射，同一 key 允许出现多条（对应多个不同 needs）——目前不需要，先备注机制形状。
     DEPENDENCIES: [
-        { key: 'lofter', needs: 'weibo', i18nKey: 'data_export.dep_hint_lofter' }
+        { key: 'lofter', needs: 'weibo', i18nKey: 'data_export.dep_hint_lofter' },
+        { key: 'persona', needs: 'broadcast', i18nKey: 'data_export.dep_hint_persona_broadcast' },
+        { key: 'line', needs: 'broadcast', i18nKey: 'data_export.dep_hint_line_broadcast' }
     ],
 
     _selected: new Set(),

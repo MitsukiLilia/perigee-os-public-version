@@ -48,9 +48,9 @@ const SnowIcons = {
         if (!c.dataset.iconDefault) c.dataset.iconDefault = c.innerHTML;
         c.innerHTML = `<img src="assets/icons/snow-country/${this.ICONS[appId]}" alt="${appId}" draggable="false">`;
       } else if (c.dataset.iconDefault) {
-        // 离开雪国主题：恢复原始 SVG；但若目标是夜空/手帐/草莓/梦之芭蕾，交给它们接管（五方守卫对称）
+        // 离开雪国主题：恢复原始 SVG；但若目标是夜空/手帐/草莓/梦之芭蕾/动森，交给它们接管（六方守卫对称）
         const t = document.documentElement.dataset.theme;
-        if (t !== 'night-sky' && t !== 'journal' && t !== 'strawberry' && t !== 'sakura') {
+        if (t !== 'night-sky' && t !== 'journal' && t !== 'strawberry' && t !== 'sakura' && t !== 'animal') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

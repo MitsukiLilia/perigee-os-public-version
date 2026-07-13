@@ -102,6 +102,7 @@ const DesktopRenderer = {
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
         if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
         if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
+        if (typeof AnimalIcons !== 'undefined') AnimalIcons.apply();
         // Apply custom icons if available
         if (typeof IconCustomizer !== 'undefined') IconCustomizer.applyCustomIcons();
         // Apply i18n

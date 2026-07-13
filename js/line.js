@@ -149,6 +149,7 @@ const LineHome = {
     _editingPersonaIndex: 0,
     _editingCharId: null,
     _editingBindingCharId: null,
+    _editingOfficialNpcId: null, // 身份管理里选中的官方 NPC（虚拟身份，数据在 broadcast.officialNpcs）
 
     _esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }, // ⚠️ 保留独立实现勿收编 Utils.escapeHtml：模块内有先转义后 .slice() 的预览截断，多转义 ' 会挪动截断点
 
@@ -174,8 +175,53 @@ const LineHome = {
 
     _getActivePersona() {
         this._ensurePersonas();
-        const id = AppState.data.activePersonaId;
-        return AppState.data.myPersonaPresets.find(p => p.id === id) || AppState.data.myPersonaPresets[0];
+        return this.resolveActivePersona();
+    },
+
+    // ===== 官方 NPC 虚拟身份（v2.200.0）=====
+    // activePersonaId = 'officialnpc:<npcId>' 时不落库 preset，动态从 broadcast.officialNpcs 构造。
+    // 单一数据源：persona 即放送局 npc.persona；officialPersonality 留空走 v2.199 的回落链。
+    OFFICIAL_PERSONA_PREFIX: 'officialnpc:',
+
+    // officialNpcs 查找收口（v2.201）：id 为空/未命中都返回 undefined，替代散装的内联 .find()
+    _getOfficialNpc(id) {
+        if (!id) return undefined;
+        return (AppState.data.broadcast?.officialNpcs || []).find(n => n.id === id);
+    },
+
+    _resolvePersona(id) {
+        if (!id || typeof id !== 'string' || !id.startsWith(this.OFFICIAL_PERSONA_PREFIX)) return null;
+        const npcId = id.slice(this.OFFICIAL_PERSONA_PREFIX.length);
+        const npc = this._getOfficialNpc(npcId);
+        return npc ? this._personaFromNpc(npc) : null; // NPC 被删 → null → 调用方回落 presets[0]
+    },
+
+    // activePersonaId 三级回落收口（v2.201）：官方 NPC 虚拟身份 → myPersonaPresets 命中 → presets[0] → null
+    resolveActivePersona() {
+        return this._resolvePersona(AppState.data.activePersonaId)
+            || (AppState.data.myPersonaPresets || []).find(pp => pp.id === AppState.data.activePersonaId)
+            || (AppState.data.myPersonaPresets || [])[0]
+            || null;
+    },
+
+    _personaFromNpc(npc) {
+        return {
+            id: this.OFFICIAL_PERSONA_PREFIX + npc.id,
+            name: npc.name || npc.role,
+            avatar: npc.avatarImage || DEFAULT_AVATAR,
+            statusMessage: npc.role || '',
+            persona: npc.persona || '',
+            bindings: {},
+            officialNpcId: npc.id,
+            officialPersonality: '',
+            _officialNpc: true
+        };
+    },
+
+    // LINE 侧可见的官方 NPC 名册（公式Twitter 类账号不进 LINE——企业号不会跟你私聊）
+    _officialNpcsForLine() {
+        const isOfficialTw = (role) => (typeof Forum !== 'undefined' && Forum._isOfficialTwitterRole) ? Forum._isOfficialTwitterRole(role) : false;
+        return (AppState.data.broadcast?.officialNpcs || []).filter(n => !isOfficialTw(n.role));
     },
 
     render() {
@@ -191,6 +237,10 @@ const LineHome = {
         // 分组：お気に入り / 友だち
         const pinned = chars.filter(c => meta[c.id]?.isPinned);
         const unpinned = chars.filter(c => !meta[c.id]?.isPinned);
+
+        // 官方 NPC 虚拟条目（v2.200.0）：放送局登记后自动出现在好友列表；点开才实体化，实体化后走普通 characters 渲染
+        const materializedIds = new Set(chars.map(c => c.id));
+        const virtualNpcs = this._officialNpcsForLine().filter(n => !(n.lineCharId && materializedIds.has(n.lineCharId)));
 
         el.innerHTML = `
             <!-- 个人资料区 -->
@@ -229,12 +279,52 @@ const LineHome = {
                 ${pinned.map(c => this._renderFriend(c)).join('')}
             </div>` : ''}
 
-            <div class="lh-group-label">${I18n.t('line.friends', '友だち')} <span class="lh-friend-count">${chars.length}</span></div>
+            <div class="lh-group-label">${I18n.t('line.friends', '友だち')} <span class="lh-friend-count">${chars.length + virtualNpcs.length}</span></div>
             <div class="lh-friend-list">
                 ${(unpinned.length > 0 ? unpinned : (pinned.length === 0 ? chars : [])).map(c => this._renderFriend(c)).join('')}
-                ${chars.length === 0 ? `<div class="empty-state" style="padding:20px;"><div class="empty-state-text">${I18n.t('line.no_friends_yet', 'まだ友だちがいません')}</div></div>` : ''}
+                ${virtualNpcs.map(n => this._renderOfficialNpcVirtual(n)).join('')}
+                ${chars.length === 0 && virtualNpcs.length === 0 ? `<div class="empty-state" style="padding:20px;"><div class="empty-state-text">${I18n.t('line.no_friends_yet', 'まだ友だちがいません')}</div></div>` : ''}
             </div>
         `;
+    },
+
+    // 未実体化の官方 NPC 好友条目——外观与普通好友一致（作者拍板：无区别），状态栏显示役職
+    _renderOfficialNpcVirtual(n) {
+        const online = Math.random() > 0.4;
+        return `<div class="lh-friend-item">
+            <div class="lh-friend-avatar-wrap" onclick="event.stopPropagation();LineHome.openOfficialNpc('${n.id}','profile')">
+                <img src="${n.avatarImage || DEFAULT_AVATAR}" class="lh-friend-avatar">
+                ${online ? '<div class="lh-online-dot"></div>' : ''}
+            </div>
+            <div class="lh-friend-info" onclick="LineHome.openOfficialNpc('${n.id}','chat')">
+                <div class="lh-friend-name">${this._esc(n.name || n.role)}</div>
+                <div class="lh-friend-status">${this._esc(n.role || '')}</div>
+            </div>
+        </div>`;
+    },
+
+    // 官方 NPC 懒实体化（照抄 inviteFanToLine 三件套：sourceType / sourceNpcId / lineCharId 双向链）
+    openOfficialNpc(npcId, mode) {
+        const npc = this._getOfficialNpc(npcId);
+        if (!npc) return;
+        let char = npc.lineCharId ? (AppState.data.characters || []).find(c => c.id === npc.lineCharId) : null;
+        if (!char) {
+            char = {
+                id: Utils.generateId(),
+                name: npc.name || npc.role,
+                avatar: npc.avatarImage || '',
+                personality: '',
+                firstMessage: '',
+                forumLinked: true,
+                sourceType: 'official-npc',
+                sourceNpcId: npc.id
+            };
+            AppState.data.characters.push(char);
+            npc.lineCharId = char.id;
+            Utils.saveData();
+        }
+        if (mode === 'profile') this.showCharProfile(char.id);
+        else Line.openConversation(char.id);
     },
 
     _renderFriend(c) {
@@ -259,13 +349,18 @@ const LineHome = {
     showIdentityManager() {
         this._currentView = 'identity';
         this._editingPersonaIndex = 0;
+        this._editingOfficialNpcId = null;
         const el = document.getElementById('line-home-content');
         if (!el) return;
 
-        // 找到当前活跃身份的 index
+        // 找到当前活跃身份的 index（官方 NPC 虚拟身份则选中官方组对应条目）
         const activeId = AppState.data.activePersonaId;
-        const idx = AppState.data.myPersonaPresets.findIndex(p => p.id === activeId);
-        if (idx >= 0) this._editingPersonaIndex = idx;
+        if (typeof activeId === 'string' && activeId.startsWith(this.OFFICIAL_PERSONA_PREFIX)) {
+            this._editingOfficialNpcId = activeId.slice(this.OFFICIAL_PERSONA_PREFIX.length);
+        } else {
+            const idx = AppState.data.myPersonaPresets.findIndex(p => p.id === activeId);
+            if (idx >= 0) this._editingPersonaIndex = idx;
+        }
 
         this._renderIdentityManager();
     },
@@ -276,12 +371,15 @@ const LineHome = {
 
         const personas = AppState.data.myPersonaPresets;
         const activeId = AppState.data.activePersonaId;
+        const officials = this._officialNpcsForLine();
+        const editingNpc = this._editingOfficialNpcId ? officials.find(n => n.id === this._editingOfficialNpcId) : null;
+        if (this._editingOfficialNpcId && !editingNpc) this._editingOfficialNpcId = null;
         const p = personas[this._editingPersonaIndex];
-        if (!p) return;
+        if (!editingNpc && !p) return;
 
-        const isActive = p.id === activeId;
+        const isActive = editingNpc ? (this.OFFICIAL_PERSONA_PREFIX + editingNpc.id) === activeId : p.id === activeId;
 
-        el.innerHTML = `
+        const listHtml = `
             <div class="lh-sub-header">
                 <button class="lh-back-btn" onclick="LineHome.render()">‹</button>
                 <h2>${I18n.t('line.identity_manager', '身份管理')}</h2>
@@ -291,7 +389,7 @@ const LineHome = {
             <!-- 身份列表 -->
             <div class="lh-persona-list">
                 ${personas.map((pp, i) => `
-                    <div class="lh-persona-item ${i === this._editingPersonaIndex ? 'selected' : ''}" onclick="LineHome._editingPersonaIndex=${i};LineHome._renderIdentityManager();">
+                    <div class="lh-persona-item ${!editingNpc && i === this._editingPersonaIndex ? 'selected' : ''}" onclick="LineHome._editingOfficialNpcId=null;LineHome._editingPersonaIndex=${i};LineHome._renderIdentityManager();">
                         <img src="${pp.avatar || DEFAULT_AVATAR}" class="lh-persona-avatar">
                         <div class="lh-persona-info">
                             <div class="lh-persona-name">${this._esc(pp.name)}</div>
@@ -301,7 +399,43 @@ const LineHome = {
                     </div>
                 `).join('')}
             </div>
+            ${officials.length > 0 ? `
+            <div class="lh-group-label" style="margin-top:4px;">${I18n.t('line.official_staff_group', '官方 Staff（来自放送局）')}</div>
+            <div class="lh-persona-list">
+                ${officials.map(n => `
+                    <div class="lh-persona-item ${editingNpc && editingNpc.id === n.id ? 'selected' : ''}" onclick="LineHome._editingOfficialNpcId='${n.id}';LineHome._renderIdentityManager();">
+                        <img src="${n.avatarImage || DEFAULT_AVATAR}" class="lh-persona-avatar">
+                        <div class="lh-persona-info">
+                            <div class="lh-persona-name">${this._esc(n.name || n.role)}</div>
+                            <div class="lh-persona-desc">${this._esc(n.role || '')}</div>
+                        </div>
+                        ${(this.OFFICIAL_PERSONA_PREFIX + n.id) === activeId ? `<div class="lh-persona-badge">${I18n.t('line.current_badge', '当前')}</div>` : ''}
+                    </div>
+                `).join('')}
+            </div>` : ''}
+        `;
 
+        // 官方 staff 身份编辑器（数据=放送局 npc.persona，单一数据源）
+        if (editingNpc) {
+            el.innerHTML = listHtml + `
+            <div class="settings-card" style="margin:12px 16px;">
+                <div class="card-header">${I18n.t('line.official_identity_detail', '公式スタッフ身份')}</div>
+                <div style="text-align:center;margin:16px 0;">
+                    <img src="${editingNpc.avatarImage || DEFAULT_AVATAR}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;background:var(--border-medium);">
+                </div>
+                <div class="setting-row"><label>${I18n.t('line.field_name', '姓名')}</label><input type="text" value="${this._esc((editingNpc.role || '') + (editingNpc.name ? '・' + editingNpc.name : ''))}" disabled></div>
+                <div class="setting-row"><label>${I18n.t('line.base_persona', '基礎ペルソナ')}</label><textarea id="lhOfficialNpcPersona" rows="5" placeholder="${I18n.t('forum.npc_persona_placeholder', '')}">${this._esc(editingNpc.persona || '')}</textarea></div>
+                <p style="font-size:11px;color:var(--text-tertiary);padding:0 16px 8px;">${I18n.t('line.official_persona_sync_hint', '与放送局的人设是同一份数据，在这里保存会直接同步到放送局')}</p>
+            </div>
+            <div style="padding:0 16px 24px;display:flex;flex-direction:column;gap:8px;">
+                <button class="glass-btn primary" onclick="LineHome.saveOfficialNpcPersona()">${I18n.t('btn.save', '保存')}</button>
+                <button class="glass-btn" onclick="LineHome.setActiveOfficialNpc()" ${isActive ? 'disabled' : ''}>${isActive ? I18n.t('line.current_identity_check', '✓ 現在の身份') : I18n.t('line.set_as_display', '展示に設定')}</button>
+            </div>
+            `;
+            return;
+        }
+
+        el.innerHTML = listHtml + `
             <!-- 编辑区 -->
             <div class="settings-card" style="margin:12px 16px;">
                 <div class="card-header">${I18n.t('line.identity_detail', '身份詳細')}</div>
@@ -379,6 +513,7 @@ const LineHome = {
             officialNpcId: '', officialPersonality: ''
         });
         this._editingPersonaIndex = AppState.data.myPersonaPresets.length - 1;
+        this._editingOfficialNpcId = null;
         Utils.saveData();
         this._renderIdentityManager();
     },
@@ -415,6 +550,26 @@ const LineHome = {
         const p = AppState.data.myPersonaPresets[this._editingPersonaIndex];
         if (!p) return;
         AppState.data.activePersonaId = p.id;
+        Utils.saveData();
+        this._renderIdentityManager();
+        Utils.showToast(I18n.t('t.line_set_active', '✓ 展示に設定しました'));
+    },
+
+    // ===== 官方 staff 虚拟身份：保存人设（写回放送局）/ 切换 =====
+    saveOfficialNpcPersona() {
+        const npc = this._getOfficialNpc(this._editingOfficialNpcId);
+        if (!npc) return;
+        const val = (document.getElementById('lhOfficialNpcPersona')?.value || '').trim();
+        npc.persona = val || undefined;
+        Utils.saveData();
+        this._renderIdentityManager();
+        Utils.showToast(I18n.t('t.line_saved', '✓ 保存しました'));
+    },
+
+    setActiveOfficialNpc() {
+        const npc = this._getOfficialNpc(this._editingOfficialNpcId);
+        if (!npc) return;
+        AppState.data.activePersonaId = this.OFFICIAL_PERSONA_PREFIX + npc.id;
         Utils.saveData();
         this._renderIdentityManager();
         Utils.showToast(I18n.t('t.line_set_active', '✓ 展示に設定しました'));
@@ -485,6 +640,16 @@ const LineHome = {
         document.getElementById('bindingDetailModal').classList.remove('active');
     },
 
+    // char.personality 单一数据源收口（v2.201）：官方 NPC 实体化后 char.personality 恒为空串，
+    // 真源在放送局 npc.persona；群聊/VOOM 等直接消费 char 的场景统一走这条回落链（NPC 被删则回落 char.personality）。
+    effectivePersonality(char) {
+        if (char && char.sourceType === 'official-npc' && char.sourceNpcId) {
+            const npc = this._getOfficialNpc(char.sourceNpcId);
+            if (npc) return npc.persona || '';
+        }
+        return (char && char.personality) || '';
+    },
+
     // ===== 角色资料卡 =====
     showCharProfile(charId) {
         this._currentView = 'charProfile';
@@ -492,6 +657,10 @@ const LineHome = {
         const el = document.getElementById('line-home-content');
         const char = AppState.data.characters.find(c => c.id === charId);
         if (!el || !char) return;
+
+        // 官方 NPC 好友：性格栏绑定放送局 npc.persona（单一数据源，两边同步）
+        const officialNpc = (char.sourceType === 'official-npc' && char.sourceNpcId)
+            ? this._getOfficialNpc(char.sourceNpcId) : null;
 
         el.innerHTML = `
             <div class="lh-sub-header">
@@ -509,7 +678,8 @@ const LineHome = {
                 <div class="card-header">${I18n.t('line.basic_info', '基本情報')}</div>
                 <div class="setting-row"><label>${I18n.t('line.name_jp', '名前')}</label><input type="text" id="lhCharName" value="${this._esc(char.name)}"></div>
                 <div class="setting-row"><label>${I18n.t('line.avatar_url', 'アバターURL')}</label><input type="text" id="lhCharAvatar" value="${this._esc(char.avatar || '')}" onchange="document.getElementById('lhCharAvatarPreview').src=this.value||'${DEFAULT_AVATAR}'"></div>
-                <div class="setting-row"><label>${I18n.t('line.personality_system_prompt', '性格 / System Prompt')}</label><textarea id="lhCharPersonality" rows="5">${this._esc(char.personality || '')}</textarea></div>
+                <div class="setting-row"><label>${I18n.t('line.personality_system_prompt', '性格 / System Prompt')}</label><textarea id="lhCharPersonality" rows="5">${this._esc(officialNpc ? (officialNpc.persona || '') : (char.personality || ''))}</textarea></div>
+                ${officialNpc ? `<p style="font-size:11px;color:var(--text-tertiary);padding:0 16px 8px;">${I18n.t('line.official_persona_sync_hint', '与放送局的人设是同一份数据，在这里保存会直接同步到放送局')}</p>` : ''}
                 <div class="setting-row"><label>${I18n.t('line.first_message', '初回メッセージ')}</label><textarea id="lhCharFirstMsg" rows="2">${this._esc(char.firstMessage || '')}</textarea></div>
             </div>
 
@@ -554,7 +724,11 @@ const LineHome = {
         if (!char) return;
         char.name = document.getElementById('lhCharName').value.trim() || char.name;
         char.avatar = document.getElementById('lhCharAvatar').value.trim();
-        char.personality = document.getElementById('lhCharPersonality').value.trim();
+        const personalityVal = document.getElementById('lhCharPersonality').value.trim();
+        const syncNpc = (char.sourceType === 'official-npc' && char.sourceNpcId)
+            ? this._getOfficialNpc(char.sourceNpcId) : null;
+        if (syncNpc) syncNpc.persona = personalityVal || undefined; // 官方 NPC：写回放送局单一数据源
+        else char.personality = personalityVal;
         char.firstMessage = document.getElementById('lhCharFirstMsg').value.trim();
         char.worldBookId = document.getElementById('lhCharWorldBook').value.trim();
         char.forumLinked = document.getElementById('lhCharForumLinked').checked;
@@ -837,7 +1011,7 @@ const LineVoom = {
             if (char) {
                 try {
                     const persona = LineHome._getActivePersona();
-                    const systemPrompt = `You are ${char.name}. ${char.personality || ''}\nYou posted on your VOOM timeline: "${post.content}"\nThe user "${persona.name}" left a comment. Reply naturally as ${char.name} in 1-2 short sentences. Keep it casual and in-character.`;
+                    const systemPrompt = `You are ${char.name}. ${LineHome.effectivePersonality(char)}\nYou posted on your VOOM timeline: "${post.content}"\nThe user "${persona.name}" left a comment. Reply naturally as ${char.name} in 1-2 short sentences. Keep it casual and in-character.`;
                     const msgs = [{ role: 'user', content }];
                     const reply = await Utils.callChatAPI(msgs, systemPrompt);
                     post.comments.push({
@@ -892,7 +1066,7 @@ const LineVoom = {
 
         for (const char of selected) {
             try {
-                const systemPrompt = `You are ${char.name}. ${char.personality || ''}
+                const systemPrompt = `You are ${char.name}. ${LineHome.effectivePersonality(char)}
 You are posting on your VOOM timeline (similar to LINE's social feed).
 Write a short, casual daily update post (1-3 sentences) in character.
 Topics: daily life, hobbies, food, events, feelings, something you saw today.
@@ -1333,10 +1507,14 @@ const ChatList = {
         // 切换到编辑页面
         Navigation.goTo('characterEditor');
 
+        // 官方 NPC 好友：性格栏同样读放送局 npc.persona（单一数据源，与 showCharProfile 一致）
+        const officialNpc = (char.sourceType === 'official-npc' && char.sourceNpcId)
+            ? LineHome._getOfficialNpc(char.sourceNpcId) : null;
+
         // 填充编辑表单
         document.getElementById('charName').value = char.name || '';
         document.getElementById('charAvatar').value = char.avatar || '';
-        document.getElementById('charPersonality').value = char.personality || '';
+        document.getElementById('charPersonality').value = officialNpc ? (officialNpc.persona || '') : (char.personality || '');
         document.getElementById('charFirstMessage').value = char.firstMessage || '';
         document.getElementById('charWorldBook').value = char.worldBookId || '';
         document.getElementById('charReadMessageCount').value = char.readMessageCount || 10;
@@ -1770,17 +1948,11 @@ const Conversation = {
 
             // 使用新的多身份系统
             // 1. 获取激活的身份
-            const activePersonaId = AppState.data.activePersonaId;
             let activePersona = null;
 
             if (AppState.data.myPersonaPresets && AppState.data.myPersonaPresets.length > 0) {
-                if (activePersonaId) {
-                    activePersona = AppState.data.myPersonaPresets.find(p => p.id === activePersonaId);
-                }
-                // 如果没有激活身份或找不到，使用第一个
-                if (!activePersona) {
-                    activePersona = AppState.data.myPersonaPresets[0];
-                }
+                // 官方 NPC 虚拟身份优先解析（officialnpc: 前缀，动态构造）；presets[0] 兜底已收口进 resolveActivePersona()
+                activePersona = LineHome.resolveActivePersona();
             }
 
             // 2. 检查当前角色是否有绑定的身份人设
@@ -1790,7 +1962,11 @@ const Conversation = {
             if (activePersona) {
                 const binding = activePersona.bindings?.[char.id];
 
-                if (binding) {
+                if (activePersona._officialNpc) {
+                    // 官方 NPC 虚拟身份：人设即放送局 npc.persona，不走绑定/chatProfile 回落
+                    userName = activePersona.name || 'User';
+                    userPersona = activePersona.persona || '';
+                } else if (binding) {
                     // 角色已绑定身份
                     userName = activePersona.name || 'User';
 
@@ -1865,14 +2041,19 @@ const Conversation = {
 ${fan.bio ? 'Twitterプロフィール: ' + fan.bio : ''}
 Twitterで知り合ってLINEの友だちになった関係です。`;
                     // 优先用 LINE active persona 的官方身份（v2.68.9）；fallback 到推特 active identity（向后兼容）
-                    const activePersona = (AppState.data.myPersonaPresets || []).find(pp => pp.id === AppState.data.activePersonaId);
+                    // v2.200.0: 官方 NPC 虚拟身份（officialnpc: 前缀）同样解析——扮演官方 staff 跟粉丝聊天照常触发舅舅党链路
+                    // v2.201: 改用 resolveActivePersona()（比原链多一层 presets[0] 兜底）——presets[0] 默认没有 officialNpcId 字段，
+                    // 下面 `?.officialNpcId` 判定结果不变，行为等价
+                    const activePersona = LineHome.resolveActivePersona();
                     if (activePersona?.officialNpcId) {
-                        const npc = (AppState.data.broadcast?.officialNpcs || []).find(n => n.id === activePersona.officialNpcId);
+                        const npc = LineHome._getOfficialNpc(activePersona.officialNpcId);
                         if (npc) {
                             const npcLabel = `${npc.role}${npc.name ? '・' + npc.name : ''}`;
                             systemPrompt += `\nユーザーは公式関係者として会話している: 公式スタッフ（${npcLabel}）`;
-                            if (activePersona.officialPersonality && activePersona.officialPersonality.trim()) {
-                                systemPrompt += `\nこのユーザーの性格・経歴・背景設定（公式スタッフとして）: ${activePersona.officialPersonality.trim()}`;
+                            // 优先 profile 自己写的 officialPersonality；空则回落放送局 npc.persona（v2.199.0 单一数据源）
+                            const staffPersona = (activePersona.officialPersonality || '').trim() || (npc.persona || '').trim();
+                            if (staffPersona) {
+                                systemPrompt += `\nこのユーザーの性格・経歴・背景設定（公式スタッフとして）: ${staffPersona}`;
                             }
                         }
                     } else {
@@ -1891,6 +2072,28 @@ Twitterで知り合ってLINEの友だちになった関係です。`;
 - 許可を求める際は必ず文末に [LEAK_ASK] タグを付けること（例：「ねぇ、これ掲示板に書いていい？！ [LEAK_ASK]」）
 - ユーザーが内幕情報を話していない場合は [LEAK_ASK] を絶対に使わないこと
 - 1回の会話で何度も聞かないこと（最初の内幕情報に対してのみ）`;
+                    }
+                }
+            }
+
+            // 公式スタッフ NPC コンテキスト注入（v2.200.0 官方 NPC 进 LINE）
+            if (char.sourceType === 'official-npc' && char.sourceNpcId) {
+                const staffNpc = LineHome._getOfficialNpc(char.sourceNpcId);
+                if (staffNpc) {
+                    const staffLabel = `${staffNpc.role}${staffNpc.name ? '・' + staffNpc.name : ''}`;
+                    systemPrompt += `\n\n[Official Staff Context — このキャラクターは作品の公式スタッフ本人（${staffLabel}）]`;
+                    systemPrompt += Utils.PROMPTS.npcPersonaBlock(staffNpc);
+                    systemPrompt += `\n- このキャラクターは制作側の人間。上の [Forum World Context] にある「視聴者制限」はこのキャラクターには適用されない——制作の現場感覚・裏方の視点で自然に話してよい`;
+                    systemPrompt += `\n- ただし未公開の展開・秘密・サプライズを自分から明かさないこと。聞かれても業界人らしくはぐらかす（「それはまだ言えないなぁ」程度）`;
+                    // ユーザーも公式 staff（虚拟身份 or officialNpcId 绑定）→ 同僚モード
+                    // v2.201: 改用 resolveActivePersona()（比原链多一层 presets[0] 兜底）——presets[0] 默认没有 officialNpcId 字段，
+                    // 下面 `?.officialNpcId` 判定结果不变，行为等价
+                    const apStaff = LineHome.resolveActivePersona();
+                    if (apStaff?.officialNpcId && apStaff.officialNpcId !== staffNpc.id) {
+                        const userNpc = LineHome._getOfficialNpc(apStaff.officialNpcId);
+                        if (userNpc) {
+                            systemPrompt += `\n- ユーザーは同じ作品の公式スタッフ（${userNpc.role}${userNpc.name ? '・' + userNpc.name : ''}）本人。同僚として接し、現場の話・仕事の相談も自然にしてよい`;
+                        }
                     }
                 }
             }
@@ -2211,7 +2414,7 @@ Twitterで知り合ってLINEの友だちになった関係です。`;
 グループメンバー: ${this._groupMembers.map(c => c.name).join('、')}
 あなたの役割: ${char.name}
 
-${char.personality || char.persona || ''}
+${LineHome.effectivePersonality(char) || char.persona || ''}
 
 ルール:
 - ${char.name}として自然にグループ会話に参加すること

@@ -950,7 +950,7 @@ const Twitter = {
         });
 
         const npcList = npcs.map(n => {
-            const head = `・${n.role}：${n.name}（handle: ${this._getNpcHandle(n)}）`;
+            const head = `・${n.role}：${n.name}（handle: ${this._getNpcHandle(n)}）${Utils.PROMPTS.npcPersonaInline(n)}`;
             const recent = npcRecent.get(n.id);
             if (!recent || !recent.length) return head;
             const lines = recent.map(r => {
@@ -1035,7 +1035,7 @@ ${npcList}
 ${dedupRule}
 ${quoteSection}
 ルール:
-- キャラクターの声で書くこと — 声優はカジュアルで温かく、監督は意味深で情熱的、キャラクターはキャラとして発言
+- キャラクターの声で書くこと — 「└ 設定:」があるNPCはその性格・発言スタイル（一人称・口癖・絵文字の癖など）を最優先で再現すること。設定のないNPCのみ職業から推測: 声優はカジュアルで温かく、監督は意味深で情熱的、キャラクターはキャラとして発言
 - 自然な日本語Twitterの慣習を使うこと: ハッシュタグ（#アニメ名）、絵文字、短文
 - 設定にない剧情イベントを捏造しないこと
 - トーンを混ぜること: 盛り上がり、感謝、ミステリアス、遊び心

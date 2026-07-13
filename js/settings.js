@@ -824,6 +824,7 @@ const SystemConfig = {
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
         if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
         if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
+        if (typeof AnimalIcons !== 'undefined') AnimalIcons.apply();
         // 切主题后更新「动态特效开关」行（按当前主题显示对应开关 / 隐藏）
         if (typeof this._updateThemeEffectRow === 'function') this._updateThemeEffectRow();
         if (typeof this._updateGlassQualityRow === 'function') this._updateGlassQualityRow();
@@ -1282,6 +1283,7 @@ const IconCustomizer = {
         if (typeof StrawberryIcons !== 'undefined') StrawberryIcons.apply();
         if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
         if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
+        if (typeof AnimalIcons !== 'undefined') AnimalIcons.apply();
     }
 };
 

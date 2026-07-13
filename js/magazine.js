@@ -553,6 +553,12 @@ const Magazine = {
             const n = npcs.find(n => n.id === id);
             return n ? `${n.role}${n.name ? '・' + n.name : ''}` : id;
         });
+        // 人设单独成段（不混进 INTERVIEWEES 名单——回答格式要求「上記リストの正確な名前」，名单必须保持干净）
+        const intervieweePersonaEntries = npcIds.map(id => {
+            const n = npcs.find(x => x.id === id);
+            return n ? { label: `${n.role}${n.name ? '・' + n.name : ''}`, persona: n.persona } : null;
+        }).filter(Boolean);
+        const personaSection = Utils.PROMPTS.npcPersonaListSection(intervieweePersonaEntries, { title: 'INTERVIEWEE PROFILES' });
         const typeLabelStr = {
             seiyuu: '声優インタビュー（アニメ雑誌掲載）',
             staff: 'スタッフインタビュー（制作側の視点）',
@@ -565,7 +571,7 @@ const Magazine = {
 
 INTERVIEWEES:
 ${interviewees.map(s => `- ${s}`).join('\n')}
-
+${personaSection}
 INTERVIEW TYPE: ${typeLabelStr}
 THEME: ${theme}
 

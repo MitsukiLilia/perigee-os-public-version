@@ -726,6 +726,42 @@ ${intro}以下の情報階層を厳守すること。
 
 原則: 「設定資料に書いてある」≠「視聴者が知っている」。劇中で実際に描写されたかどうかだけが判断基準。
 `;
+        },
+
+        // ===== 官方 NPC 人设注入（v2.199.0）=====
+        // npc.persona = 放送局 NPC 编辑弹窗「人设・发言风格」自由文本。未设置一律返回空串（各消费方行为与从前完全一致）。
+        // 三种形态按拼接语境选：
+        //   npcPersonaOneLine(npc) — 折叠成单行的原始文本（多行 → ' ／ '），用于自己拼列表行
+        //   npcPersonaInline(npc)  — 带缩进的「└ 設定:」子行，直接接在 NPC 名册行末尾
+        //   npcPersonaBlock(npc)   — 单 NPC system prompt 用的完整段落（带最优先指示）
+        npcPersonaOneLine(npc) {
+            const p = ((npc && npc.persona) || '').trim();
+            if (!p) return '';
+            return p.replace(/\s*\n\s*/g, ' ／ ');
+        },
+        npcPersonaInline(npc) {
+            const p = this.npcPersonaOneLine(npc);
+            if (!p) return '';
+            return `\n    └ 設定: ${p}`;
+        },
+        npcPersonaBlock(npc) {
+            const p = ((npc && npc.persona) || '').trim();
+            if (!p) return '';
+            const who = (npc.name || npc.role || '').trim();
+            return `\n${who ? who + 'の' : ''}人物設定（性格・発言スタイル。口調・語彙・絵文字の癖はこれを最優先で再現すること）:\n${p}\n`;
+        },
+        // 多 NPC 列表段落收口（v2.200 review）— entries=[{label, persona}]，persona 为原始文本内部走 npcPersonaOneLine 折叠。
+        // 全员未設定なら空串（従来挙動と同じ）。opts.title 允许调用方保留场景化标题（デフォルト「人物設定」）。
+        npcPersonaListSection(entries, opts) {
+            const lines = (entries || [])
+                .map(e => {
+                    const oneLine = this.npcPersonaOneLine({ persona: e && e.persona });
+                    return oneLine ? `- ${e.label}: ${oneLine}` : null;
+                })
+                .filter(Boolean);
+            if (lines.length === 0) return '';
+            const title = (opts && opts.title) || '人物設定';
+            return `\n${title}（性格・発言スタイル。口調・一人称・口癖・絵文字の癖はこれを最優先で再現すること）:\n${lines.join('\n')}\n`;
         }
     },
 

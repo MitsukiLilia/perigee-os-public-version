@@ -782,8 +782,9 @@ ${items}
             const npcs = AppState.data.broadcast.officialNpcs || [];
             const otherSpeakers = (space.speakerNpcIds || [])
                 .filter(id => id !== userIdent.npcId)
-                .map(id => { const n = this._getNpc(id); return n ? { id, name: n.name || n.role, role: n.role || '' } : null; })
+                .map(id => { const n = this._getNpc(id); return n ? { id, name: n.name || n.role, role: n.role || '', persona: Utils.PROMPTS.npcPersonaOneLine(n) } : null; })
                 .filter(Boolean);
+            const speakerPersonaSection = this._buildSpeakerPersonaSection(otherSpeakers.map(s => ({ name: s.name, persona: s.persona })));
             const worldContext = typeof Forum !== 'undefined' ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
             const recentCtx = (space.messages || []).slice(-7, -1).map(m => `${m.speakerName}: ${m.content}`).join('\n');
 
@@ -793,7 +794,7 @@ ${items}
 スペース設定:
 - タイトル: 「${space.title}」
 - 他のスピーカー: ${otherSpeakers.map(s => `${s.name}（${s.role || ''}）`).join('、') || '（なし）'}
-
+${speakerPersonaSection}
 作品設定:
 ${worldContext || '（未設定 — 具体的なキャラ名・CP・ストーリーを捏造しないこと）'}
 ${Utils.PROMPTS.infoAccessRule()}
@@ -992,6 +993,7 @@ ELAPSED: [+HH:MM:SS、直前から 30 秒〜2 分後]`;
             const worldContext = typeof Forum !== 'undefined' ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
             const allSpeakerIds = [...new Set([hostNpcId, ...speakerNpcIds].filter(Boolean))];
             const speakerNames = allSpeakerIds.map(id => { const n = npcs.find(x => x.id === id); return n ? (n.name || n.role) : id; });
+            const speakerPersonaSection = this._buildSpeakerPersonaSection(allSpeakerIds.map(id => { const n = npcs.find(x => x.id === id); return n ? { name: n.name || n.role, persona: Utils.PROMPTS.npcPersonaOneLine(n) } : null; }));
             let plotContext = '';
             if (relatedPlotId) {
                 const plot = plots.find(p => p.id === relatedPlotId);
@@ -1000,7 +1002,7 @@ ELAPSED: [+HH:MM:SS、直前から 30 秒〜2 分後]`;
             const systemPrompt = `あなたは日本語X（Twitter）スペース — ライブ音声ディスカッションをシミュレーションしています。
 スピーカー: ${speakerNames.join('、')}
 スペースタイトル: 「${title}」${plotContext}
-
+${speakerPersonaSection}
 作品設定（以下の事実のみ使用し、捏造しないこと）:
 ${worldContext || '（未設定 — 具体的なキャラ名・CP・ストーリーを捏造しないこと）'}
 ${Utils.PROMPTS.infoAccessRule()}
@@ -1063,6 +1065,11 @@ ELAPSED: [+HH:MM:SS]`;
         }).filter(Boolean);
     },
 
+    // スピーカー人物設定セクション（v2.199.0）— [{name, persona}] → prompt 段落。全員未設定なら空串（従来挙動）
+    _buildSpeakerPersonaSection(speakers) {
+        return Utils.PROMPTS.npcPersonaListSection((speakers || []).filter(Boolean).map(s => ({ label: s.name, persona: s.persona })), { title: 'スピーカー人物設定' });
+    },
+
     async _loadMoreSpaceMessages(spaceId) {
         const t = this._ensureData();
         const space = (t.spaces || []).find(s => s.id === spaceId);
@@ -1073,12 +1080,13 @@ ELAPSED: [+HH:MM:SS]`;
             const npcs = AppState.data.broadcast.officialNpcs || [];
             const worldContext = typeof Forum !== 'undefined' ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
             const speakerNames = space.speakerNpcIds.map(id => { const n = npcs.find(x => x.id === id); return n ? (n.name || n.role) : id; });
+            const speakerPersonaSection = this._buildSpeakerPersonaSection(space.speakerNpcIds.map(id => { const n = npcs.find(x => x.id === id); return n ? { name: n.name || n.role, persona: Utils.PROMPTS.npcPersonaOneLine(n) } : null; }));
             const existingMsgs = (space.messages || []).slice(-6).map(m => `${m.speakerName} [${m.elapsed}]: ${m.content}`).join('\n');
             const lastElapsed = space.messages?.length > 0 ? (space.messages[space.messages.length - 1].elapsed || '+00:10:00') : '+00:10:00';
             const systemPrompt = `あなたは日本語Xスペースの音声ディスカッションを続けています。
 スピーカー: ${speakerNames.join('、')}
 スペースタイトル: 「${space.title}」
-
+${speakerPersonaSection}
 作品設定:
 ${worldContext || '（未設定 — 具体的なキャラ名・CP・ストーリーを捏造しないこと）'}
 ${Utils.PROMPTS.infoAccessRule()}

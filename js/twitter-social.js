@@ -930,7 +930,7 @@ TRANSLATION: [中国語翻訳、1行]
 
             const systemPrompt = `あなたはアニメ作品の${npcName}（${npc?.role || '公式NPC'}）としてロールプレイしています。
 X（Twitter）のDMでファンとチャットしています。
-
+${Utils.PROMPTS.npcPersonaBlock(npc)}
 キャラクター設定:
 ${worldContext || '（未設定 — 具体的なキャラ名・CP・ストーリーを捏造しないこと）'}
 

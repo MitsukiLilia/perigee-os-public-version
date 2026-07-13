@@ -428,7 +428,7 @@ ${worldContext || '（未設定 — 具体的なキャラ名・CP・ストーリ
 
 キャラクター：
 名前：${npc.name || npc.role}
-役職：${npc.role}
+役職：${npc.role}${(() => { const p = Utils.PROMPTS.npcPersonaOneLine(npc); return p ? `\n人物設定（口調・人柄・絵文字の癖はこれを最優先で再現すること）：${p}` : ''; })()}
 
 ルール：
 - 本人が書いたように自然な口調で（一人称）

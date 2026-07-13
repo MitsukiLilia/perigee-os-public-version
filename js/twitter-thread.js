@@ -1508,7 +1508,7 @@ CONTENT: [本文]`;
         const worldContext = typeof Forum !== 'undefined' ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
         const userIdentity = this._resolveTweetIdentity(tweet, false);
 
-        const npcDir = shuffled.map(n => `- @${this._getNpcHandle(n).replace(/^@/, '')} ／ ${n.role || ''} ／ ${n.name || n.role}${n.bio ? ' ／ ' + n.bio : ''}`).join('\n');
+        const npcDir = shuffled.map(n => `- @${this._getNpcHandle(n).replace(/^@/, '')} ／ ${n.role || ''} ／ ${n.name || n.role}${n.bio ? ' ／ ' + n.bio : ''}${Utils.PROMPTS.npcPersonaInline(n)}`).join('\n');
 
         const tasks = [];
         buckets.quote.forEach(n => tasks.push({ handle: this._getNpcHandle(n).replace(/^@/, ''), type: 'QUOTE' }));
@@ -1541,7 +1541,7 @@ ${taskList}
 - REPLY: 短いリプライ(20-50字)。フランクに反応
 
 【ルール】
-- 各人物の職業・人格を活かした口調にすること（例：声優なら「演じてる側として〜」、監督なら「現場では〜」）
+- 各人物の職業・人格を活かした口調にすること（例：声優なら「演じてる側として〜」、監督なら「現場では〜」）。「└ 設定:」がある人物はその性格・発言スタイル（一人称・口癖・絵文字の癖など）を最優先で再現すること
 - 絵文字や顔文字を 30-50% で自然に
 - 投稿に直接言及しすぎず、関連の情報や感想を上乗せする方が自然
 - 同人 CP・未公開ストーリーは捏造禁止

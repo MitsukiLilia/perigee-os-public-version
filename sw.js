@@ -1,6 +1,6 @@
 // Service Worker for Perigee OS
 // 版本号：每次更新代码时修改此版本号以强制更新缓存
-const VERSION = '2.198.0';
+const VERSION = '2.204.0';
 const CACHE_NAME = `perigee-os-v${VERSION}`;
 // vendor 大库独立持久缓存（js/vendor/ 内容不随版本变，activate 清理旧缓存时不删，
 // 避免每次发版重拉 ~1MB；不进 precache，首次用到时缓存、之后离线可用）
@@ -35,6 +35,11 @@ const coreUrls = [
   './js/tarot.js',
   './js/world-context.js',
   './js/forum.js',
+  './js/forum-generate.js',
+  './js/forum-npc.js',
+  './js/forum-goods.js',
+  './js/forum-plot.js',
+  './js/forum-tools.js',
   './js/broadcast.js',
   './js/pixiv-novel.js',
   './js/illust-gallery.js',
@@ -66,6 +71,7 @@ const coreUrls = [
   './js/strawberry-icons.js',
   './js/snow-icons.js',
   './js/sakura-icons.js',
+  './js/animal-icons.js',
   './js/desktop-edit.js',
   './js/liquid-glass.js',
   './js/i18n.js',
@@ -189,6 +195,26 @@ const coreUrls = [
   './assets/icons/sakura/payment-tracker.webp',
   './assets/icons/sakura/travel-account.webp',
   './assets/icons/sakura/settings.webp',
+  './assets/icons/animal/bag-heart.webp',
+  './assets/icons/animal/book-flower.webp',
+  './assets/icons/animal/bubble-leaf.webp',
+  './assets/icons/animal/coin-purse.webp',
+  './assets/icons/animal/corkboard.webp',
+  './assets/icons/animal/gear-sprout.webp',
+  './assets/icons/animal/globe-book.webp',
+  './assets/icons/animal/leaf-notebook.webp',
+  './assets/icons/animal/magazine.webp',
+  './assets/icons/animal/melon-bag.webp',
+  './assets/icons/animal/moon-cards.webp',
+  './assets/icons/animal/omamori.webp',
+  './assets/icons/animal/p-orange.webp',
+  './assets/icons/animal/pen-letter.webp',
+  './assets/icons/animal/radio-sign.webp',
+  './assets/icons/animal/suitcase.webp',
+  './assets/icons/animal/tv-island.webp',
+  './assets/icons/animal/vinyl-note.webp',
+  './assets/icons/animal/weibo-flower.webp',
+  './assets/icons/animal/x-tag.webp',
   './assets/textures/tw-placeholder/1.webp',
   './assets/textures/tw-placeholder/2.webp',
   './assets/textures/tw-placeholder/3.webp',

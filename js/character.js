@@ -64,6 +64,13 @@ const CharEditor = {
             // 编辑现有角色
             const char = AppState.data.characters.find(c => c.id === CharEditor.currentEditId);
             if (char) {
+                // 官方 NPC 好友：性格栏写回放送局 npc.persona（单一数据源），不写 char.personality
+                const officialNpc = (char.sourceType === 'official-npc' && char.sourceNpcId)
+                    ? LineHome._getOfficialNpc(char.sourceNpcId) : null;
+                if (officialNpc) {
+                    officialNpc.persona = charData.personality || undefined;
+                    delete charData.personality; // 避免下面的 Object.assign 用空/新值覆盖回 char.personality
+                }
                 Object.assign(char, charData);
             }
         } else {

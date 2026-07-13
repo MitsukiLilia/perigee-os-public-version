@@ -4546,6 +4546,16 @@
             <label style="font-size:12px; color:#888; display:block; margin-top:10px; margin-bottom:5px;" data-i18n="forum.npc_handle_label">账号（可选）</label>
             <input type="text" id="npcHandle" placeholder="如：tanaka_ichiro（不需要带 @）" data-i18n-placeholder="forum.npc_handle_placeholder">
             <p style="font-size:10px; color:var(--text-tertiary); margin-top:2px;" data-i18n="forum.npc_handle_hint">推特上显示为 @账号；语音播报时不会念账号</p>
+            <label style="font-size:12px; color:#888; display:block; margin-top:10px; margin-bottom:5px;" data-i18n="forum.npc_persona_label">人设・发言风格（可选）</label>
+            <textarea id="npcPersona" rows="4" placeholder="例：自称「僕」。常用🌙表情。喜欢便利店炸鸡。官方告知语气郑重、日常推文松弛……" data-i18n-placeholder="forum.npc_persona_placeholder" style="width:100%; box-sizing:border-box; resize:vertical;"></textarea>
+            <p style="font-size:10px; color:var(--text-tertiary); margin-top:2px;" data-i18n="forum.npc_persona_hint">推文・引用转推・DM・Space・杂志访谈等所有发言都会参照；留空则和以前一样</p>
+            <button type="button" id="npcExtractToggle" class="glass-btn small" style="width:auto; margin-top:6px;" onclick="Forum._togglePersonaExtract()" data-i18n="forum.npc_extract_toggle">从真实推文提取风格</button>
+            <div id="npcExtractArea" style="display:none; margin-top:8px; padding:10px; border:1px solid var(--border-light); border-radius:8px;">
+                <textarea id="npcExtractTweets" rows="4" placeholder="把这个人的几条推文原文粘贴到这里（也可以只传截图）" data-i18n-placeholder="forum.npc_extract_tweets_ph" style="width:100%; box-sizing:border-box; resize:vertical;"></textarea>
+                <input type="file" id="npcExtractShots" accept="image/*" multiple style="margin-top:6px; font-size:12px; width:100%;">
+                <button type="button" id="npcExtractRunBtn" class="glass-btn small primary" style="width:100%; margin-top:8px;" onclick="Forum._extractPersonaFromTweets()" data-i18n="forum.npc_extract_run">AI 提取 → 填入人设</button>
+                <p style="font-size:10px; color:var(--text-tertiary); margin-top:4px;" data-i18n="forum.npc_extract_privacy">只保存提取出来的风格描述；粘贴的推文和截图用完即弃、不会保存</p>
+            </div>
             <label style="font-size:12px; color:#888; display:block; margin-top:10px; margin-bottom:5px;" data-i18n="forum.npc_voice_label">MiniMax voice ID（可选）</label>
             <input type="text" id="npcVoiceId" placeholder="留空则用全局默认 voice" data-i18n-placeholder="forum.npc_voice_placeholder">
             <p style="font-size:10px; color:var(--text-tertiary); margin-top:2px;" data-i18n="forum.npc_voice_hint">设置后此 NPC 在 Space / 广播剧 / 杂志访谈里用这个声音</p>
@@ -4643,6 +4653,11 @@
     <script src="js/tarot.js"></script>
     <script src="js/world-context.js"></script>
     <script src="js/forum.js"></script>
+    <script src="js/forum-generate.js"></script>
+    <script src="js/forum-npc.js"></script>
+    <script src="js/forum-goods.js"></script>
+    <script src="js/forum-plot.js"></script>
+    <script src="js/forum-tools.js"></script>
     <script src="js/broadcast.js"></script>
     <script src="js/pixiv-novel.js"></script>
     <script src="js/illust-gallery.js"></script>
@@ -4672,6 +4687,7 @@
     <script src="js/strawberry-icons.js"></script>
     <script src="js/snow-icons.js"></script>
     <script src="js/sakura-icons.js"></script>
+    <script src="js/animal-icons.js"></script>
     <script src="js/starfield.js"></script>
     <script src="js/snow.js"></script>
     <script src="js/snow-2d.js"></script>
