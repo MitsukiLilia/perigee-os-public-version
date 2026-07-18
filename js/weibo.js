@@ -2934,6 +2934,93 @@ ${cp.cpNickname ? `主要 CP：${cp.cpNickname}` : ''}
         console.log(`[Weibo seed] created ${npcs.length} NPCs`);
     },
 
+    // v2.211.0 NPC 补充生成——lofter「文手·NPC 管理」的「AI 补充一批」入口调用。
+    // 与 _seedWeiboNpcs 独立：种子只在池空时跑一次，本函数随时可调（治「删到剩一两个永久断粮」）；
+    // prompt 附现有名单防重名/人设雷同，落库 schema 与种子完全同款。返回实际入驻数。
+    async replenishNpcs(count = 4) {
+        const wd = AppState.data.weiboData;
+        if (!wd) return 0;
+        const worldCtx = this._getWorldContext();
+        if (!worldCtx) {
+            throw new Error(I18n.t('weibo.seed_missing_world', '请先在放送局填写世界观设定'));
+        }
+        const cp = AppState.data.broadcast?.cpSettings || {};
+        if (!Array.isArray(wd.fanFriends)) wd.fanFriends = [];
+        const existing = wd.fanFriends.map(f => `${f.name}（${f.type}）`).join('、') || '（目前圈子是空的）';
+
+        const prompt = `请生成 ${count} 个中国微博平台的同人圈用户（NPC）、作为现有圈子的新面孔补充进来。
+
+类型以下列为主（尽量各 1 个）：
+1. fan_writer（同人文手）— 在 lofter / 微博上发同人文
+2. fan_artist（同人画手）
+3. cp_fan（CP 粉丝）— 安利党
+4. info_station（情报站）— 搬运官方动向 / 周边发售
+
+世界观背景：${worldCtx}
+${cp.productionName ? `主要作品：《${cp.productionName}》` : ''}
+${cp.cpNickname ? `主要 CP：${cp.cpNickname}` : ''}
+
+圈子里已有这些人（新 NPC 严禁与他们重名、人设避免雷同）：${existing}
+
+要求：
+- 微博昵称带中文特色（可含表情符号 / 下划线 / 数字 / 萌系后缀）
+- handle 格式：拼音 / 英文短词
+- bio 一句话（10-30 字、温和友好、聚焦同人圈兴趣）
+- contentTags 数组、3-5 个 CP / 主题词
+- followerCount 粉丝数（fan_writer 1000-50000 / cp_fan 500-30000 / 其他类似）
+
+输出严格 JSON 数组、每个元素：
+{
+  "name": "昵称",
+  "handle": "拼音或英文短词",
+  "type": "fan_writer",
+  "bio": "简介",
+  "contentTags": ["..."],
+  "followerCount": 12000
+}
+
+【铁律】bio / contentTags 必须使用简体中文。严禁繁体字、严禁日语、严禁英语整句。
+只输出 JSON 数组、不要任何其他文字、不要 markdown 代码块标记。`;
+
+        const response = await this._callLLM(prompt);
+        const npcs = this._parseNpcsJson(response);
+        const validTypes = ['fan_writer', 'fan_artist', 'group_organizer', 'daigou', 'info_station', 'daily_fan', 'cp_fan'];
+        const existingNames = new Set(wd.fanFriends.map(f => f.name));
+        let added = 0;
+        npcs.forEach(n => {
+            if (!n.name || !n.type) return;
+            if (!validTypes.includes(n.type)) return;      // LLM 给出未知 type → 跳过
+            if (existingNames.has(n.name)) return;          // 代码级去重兜底（prompt 之外再挡一层）
+            existingNames.add(n.name);
+            wd.fanFriends.push({
+                id: 'wfan_' + this._uuid(),
+                name: n.name,
+                handle: n.handle || ('user_' + this._uuid().slice(0, 6)),
+                bio: n.bio || '',
+                avatarColor: this._randomAccountColor(),
+                type: n.type,
+                contentTags: n.contentTags || [],
+                followed: false,
+                verified: false,
+                followerCount: n.followerCount || 1000,
+                lofterHandle: n.type === 'fan_writer' ? n.handle : null,
+                writingStyleId: null,
+                writingStyle: '',
+                officialRole: null,
+                officialCharId: null,
+                officialCharName: null,
+                createdAt: Date.now()
+            });
+            added++;
+        });
+        Utils.saveData();
+        if (typeof Lofter !== 'undefined' && Lofter._migrateExistingNpcs) {
+            Lofter._migrateExistingNpcs();
+        }
+        console.log(`[Weibo replenish] created ${added} NPCs`);
+        return added;
+    },
+
     _parseNpcsJson(text) {
         if (!text) return [];
         let s = text.trim();

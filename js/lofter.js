@@ -1205,7 +1205,7 @@ ${npcLines}
                 <button class="lof-top-icon ${this._genLock ? 'lof-refreshing' : ''}" onclick="Lofter.refreshDiscover()" aria-label="refresh" title="刷新" ${this._genLock ? 'disabled' : ''}>
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 </button>
-                <button class="lof-top-icon" onclick="Utils.showToast(I18n.t('lofter.toast_search_coming_soon', '搜索功能 Phase 4 上线'))" aria-label="search">
+                <button class="lof-top-icon" onclick="Lofter.openSearch()" aria-label="search">
                     <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 </button>
             `;
@@ -1265,7 +1265,7 @@ ${npcLines}
     _renderCategoryChips() {
         const cats = [
             { id: 'recommend', label: I18n.t('lofter.chip_recommend', '推荐'), real: true },
-            { id: 'audio', label: I18n.t('lofter.chip_audio', '听书'), beta: true },
+            { id: 'audio', label: I18n.t('lofter.chip_audio', '听书'), placeholder: true },
             { id: 'serial', label: I18n.t('lofter.chip_serial', '连载'), real: true },
             { id: 'video', label: I18n.t('lofter.chip_video', '视频'), placeholder: true },
             { id: 'store', label: I18n.t('lofter.chip_store', '太太摆摊'), placeholder: true }
@@ -2569,7 +2569,7 @@ ${npcLines}
             el.onclick = () => this.openAuthorProfile(el.dataset.npcId);
         });
         node.querySelector('.lof-tag-search-mock')?.addEventListener('click', () => {
-            Utils.showToast(I18n.t('lofter.toast_search_coming_soon', '搜索功能 Phase 4 上线'));
+            this.openSearch('', { tagScope: tagName });
         });
     },
 
@@ -3495,12 +3495,25 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
         const writers = (AppState.data.weiboData?.fanFriends || []).filter(f =>
             this.LOFTER_ACTIVE_TYPES.includes(f.type)
         );
+        // v2.211.0 新增入口（手动 + AI 补充）——空态也渲染：删光/删到只剩一两个时正是最需要它的时候
+        const aiBusy = Utils.isLocked('lofter_npc_replenish');
+        const actions = `<div class="lof-writer-mgr-actions">
+            <button class="lof-writer-mgr-action-btn" id="lofWMgrAddBtn">${I18n.t('lofter.writer_add_btn', '＋ 手动新增')}</button>
+            <button class="lof-writer-mgr-action-btn" id="lofWMgrAiBtn"${aiBusy ? ' disabled' : ''}>${aiBusy ? I18n.t('lofter.writer_ai_busy', '补充中…') : I18n.t('lofter.writer_ai_btn', 'AI 补充一批')}</button>
+        </div>`;
+        const bindActions = () => {
+            const addBtn = document.getElementById('lofWMgrAddBtn');
+            if (addBtn) addBtn.onclick = () => this.openWriterCreate();
+            const aiBtn = document.getElementById('lofWMgrAiBtn');
+            if (aiBtn) aiBtn.onclick = () => this._aiReplenishNpcs();
+        };
         if (writers.length === 0) {
-            body.innerHTML = `<div class="lof-writer-mgr-empty">${I18n.t('lofter.writer_mgr_empty', '还没有中文圈文手。先在微博 / 放送局填充 CP 设定、刷新一次微博生成 NPC。')}</div>`;
+            body.innerHTML = actions + `<div class="lof-writer-mgr-empty">${I18n.t('lofter.writer_mgr_empty', '还没有中文圈文手。先在微博 / 放送局填充 CP 设定、刷新一次微博生成 NPC。')}</div>`;
+            bindActions();
             return;
         }
         const intro = `<div class="lof-writer-mgr-intro">${I18n.t('lofter.writer_mgr_intro', '这里是中文圈（微博 / Lofter 共用）的全部 NPC —— 文手、画手、CP 粉、情报站都在。改偏好 / 文风、启用停用、删号退圈，微博那边同步生效。')}</div>`;
-        body.innerHTML = intro + writers.map(w => {
+        body.innerHTML = intro + actions + writers.map(w => {
             const enabled = w.lofter?.enabled !== false;
             const tags = (w.contentTags || []).slice(0, 4).join('、') || I18n.t('lofter.writer_mgr_no_tags', '（无偏好标签）');
             const count = w.lofter?.articleCount || 0;
@@ -3527,6 +3540,7 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
             `;
         }).join('');
         // 绑定事件（事件委托到每行）
+        bindActions();
         body.querySelectorAll('.lof-writer-row').forEach(row => {
             const id = row.dataset.writerId;
             const toggle = row.querySelector('.lof-writer-enable');
@@ -3550,6 +3564,112 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
         Utils.showToast(enabled
             ? I18n.t('lofter.writer_mgr_toast_enabled', '✓ 已启用、ta 会重新参与生成')
             : I18n.t('lofter.writer_mgr_toast_disabled', '✓ 已停用、自动刷新与随机点名不再选到 ta'), 2500);
+    },
+
+    // v2.211.0 手动新增 NPC——表单照 openWriterEdit 款、多一个类型选择（lofter 可见四类）。
+    // 落库走微博权威源同款 schema（weibo.js _seedWeiboNpcs 落库处），再补 lofter:{} 子字段，微博侧同步可见。
+    openWriterCreate() {
+        const typeOptions = this.LOFTER_ACTIVE_TYPES.map(t =>
+            `<option value="${t}">${this._writerTypeLabel(t)}</option>`).join('');
+        const node = this._openSubScreen('lofWriterCreateSubScreen', `
+            <div class="lof-sub-bar">
+                <button class="lof-sub-back" id="lofWCreateBack">‹</button>
+                <div class="lof-sub-title">${I18n.t('lofter.writer_create_title', '新增 NPC')}</div>
+                <span></span>
+            </div>
+            <div class="lof-writer-edit-body">
+                <div class="lof-compose-hint-wrap">
+                    <label class="lof-compose-hint-label">${I18n.t('lofter.writer_edit_name', '昵称')}</label>
+                    <input type="text" id="lofWCreateName" class="lof-writer-edit-input" placeholder="${I18n.t('lofter.writer_create_name_ph', '例：清水观流_避雷版')}">
+                </div>
+                <div class="lof-compose-hint-wrap">
+                    <label class="lof-compose-hint-label">${I18n.t('lofter.writer_create_type', '类型')}</label>
+                    <select id="lofWCreateType" class="lof-writer-edit-input">${typeOptions}</select>
+                </div>
+                <div class="lof-compose-hint-wrap">
+                    <label class="lof-compose-hint-label">${I18n.t('lofter.writer_edit_bio', '简介')}</label>
+                    <textarea id="lofWCreateBio" rows="2" class="lof-compose-hint-textarea"></textarea>
+                </div>
+                <div class="lof-compose-hint-wrap">
+                    <label class="lof-compose-hint-label">${I18n.t('lofter.writer_edit_tags', '偏好（CP / 主题，顿号或逗号分隔）')}</label>
+                    <textarea id="lofWCreateTags" rows="2" class="lof-compose-hint-textarea" placeholder="${I18n.t('lofter.writer_edit_tags_ph', '例：A×B、校园paro、HE')}"></textarea>
+                </div>
+                <div class="lof-compose-hint-wrap">
+                    <label class="lof-compose-hint-label">${I18n.t('lofter.writer_edit_style', '文风（可选）')}</label>
+                    <textarea id="lofWCreateStyle" rows="3" class="lof-compose-hint-textarea" placeholder="${I18n.t('lofter.writer_edit_style_ph', '想指定文风就写 / 复制一段进来，例：细腻克制、多用短句、心理描写细致、对白生活化')}"></textarea>
+                </div>
+                <div class="lof-compose-submit-wrap">
+                    <button class="lof-compose-submit" id="lofWCreateSave">${I18n.t('lofter.writer_create_save', '创建')}</button>
+                </div>
+            </div>
+        `);
+        if (!node) return;
+        document.getElementById('lofWCreateBack').onclick = () => this._closeSubScreen('lofWriterCreateSubScreen');
+        document.getElementById('lofWCreateSave').onclick = () => {
+            const name = (document.getElementById('lofWCreateName')?.value || '').trim();
+            if (!name) {
+                Utils.showToast(I18n.t('lofter.writer_edit_name_required', '昵称不能为空'), 2500);
+                return;
+            }
+            const wd = AppState.data.weiboData;
+            if (!wd) return;
+            if (!Array.isArray(wd.fanFriends)) wd.fanFriends = [];
+            if (wd.fanFriends.some(f => f.name === name)) {
+                Utils.showToast(I18n.t('lofter.writer_create_dup', '已有同名 NPC、换个昵称吧'), 2500);
+                return;
+            }
+            const type = document.getElementById('lofWCreateType')?.value || 'fan_writer';
+            const tagsRaw = (document.getElementById('lofWCreateTags')?.value || '').trim();
+            const handle = 'user_' + Utils.generateId().slice(0, 6);
+            const followerBase = { fan_writer: [1000, 50000], fan_artist: [1000, 50000], cp_fan: [500, 30000], info_station: [2000, 60000] }[type] || [500, 20000];
+            wd.fanFriends.push({
+                id: 'wfan_' + Utils.generateId(),
+                name,
+                handle,
+                bio: (document.getElementById('lofWCreateBio')?.value || '').trim(),
+                avatarColor: (typeof Weibo !== 'undefined' && Weibo._randomAccountColor) ? Weibo._randomAccountColor() : '#1abc9c',
+                type,
+                contentTags: tagsRaw ? tagsRaw.split(/[、，,]/).map(s => s.trim()).filter(Boolean) : [],
+                followed: false,
+                verified: false,
+                followerCount: followerBase[0] + Math.floor(Math.random() * (followerBase[1] - followerBase[0])),
+                lofterHandle: type === 'fan_writer' ? handle : null,
+                writingStyleId: null,
+                writingStyle: (document.getElementById('lofWCreateStyle')?.value || '').trim(),
+                officialRole: null,
+                officialCharId: null,
+                officialCharName: null,
+                createdAt: Date.now()
+            });
+            this._migrateExistingNpcs();   // 补 lofter:{} 子字段（幂等）
+            Utils.saveData();
+            this._closeSubScreen('lofWriterCreateSubScreen');
+            this._renderWriterMgrList();
+            Utils.showToast(I18n.t('lofter.writer_create_done', '✓ 新 NPC 入驻中文圈（微博同步可见）'), 3000);
+        };
+    },
+
+    // v2.211.0 AI 补充一批（4 个左右）——调微博权威源 Weibo.replenishNpcs（prompt 附现有名单防重名雷同）。
+    // withLock 防连点、按钮 disabled 投影 isLocked（铁律）。
+    async _aiReplenishNpcs() {
+        if (typeof Weibo === 'undefined' || !Weibo.replenishNpcs) return;
+        const r = await Utils.withLock('lofter_npc_replenish', async () => {
+            const btn = document.getElementById('lofWMgrAiBtn');
+            if (btn) { btn.disabled = true; btn.textContent = I18n.t('lofter.writer_ai_busy', '补充中…'); }
+            try {
+                return await Weibo.replenishNpcs(4);
+            } catch (e) {
+                Utils.showToast(e && e.message ? e.message : I18n.t('lofter.writer_ai_failed', '补充失败、请稍后再试'), 3000);
+                return -1;
+            }
+        }, () => Utils.showToast(I18n.t('lofter.writer_ai_busy_toast', '正在补充中、稍等片刻'), 2000));
+        if (!r.ran) return;                    // 锁被占：onBusy 已提示、不动 in-flight UI
+        this._renderWriterMgrList();           // 锁已放——重渲（按钮恢复 + 新面孔上列表）
+        if (r.value >= 0) {
+            Utils.showToast(r.value > 0
+                ? I18n.t('lofter.writer_ai_done', '✓ 新面孔入驻：{n} 位（微博同步可见）').replace('{n}', r.value)
+                : I18n.t('lofter.writer_ai_none', '这批没生成出新面孔、请再试一次'), 3000);
+        }
     },
 
     openWriterEdit(npcId) {
@@ -3770,8 +3890,9 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
                     <div class="lof-me-avatar" style="background:#1abc9c">${this._escapeHtml(avatarLetter)}</div>
                     <div class="lof-me-meta">
                         <div class="lof-me-name">${this._escapeHtml(nickname)}</div>
+                        ${(AppState.data.userProfile && AppState.data.userProfile.bio) ? `<div class="lof-me-bio">${this._escapeHtml(AppState.data.userProfile.bio)}</div>` : ''}
                     </div>
-                    <button class="lof-me-edit" onclick="Utils.showToast(I18n.t('lofter.toast_edit_profile_coming_soon', '编辑资料即将上线'))" aria-label="edit">
+                    <button class="lof-me-edit" onclick="Lofter.openEditProfile()" aria-label="edit">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
                 </div>
@@ -3918,7 +4039,7 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
                     <button class="lof-sub-tab ${tab === 'liked' ? 'active' : ''}" data-tab="liked">${I18n.t('lofter.my_liked', '我的喜欢')}</button>
                     <button class="lof-sub-tab ${tab === 'favorited' ? 'active' : ''}" data-tab="favorited">${I18n.t('lofter.my_favorited', '我的收藏')}</button>
                 </div>
-                <button class="lof-sub-search" onclick="Utils.showToast(I18n.t('lofter.toast_search_coming_soon', '搜索功能 Phase 4 上线'))" aria-label="search">
+                <button class="lof-sub-search" onclick="Lofter.openSearch()" aria-label="search">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 </button>
             </div>
@@ -4145,6 +4266,162 @@ ${userPromptBlock}${styleInstruction ? `${styleInstruction}↑ 合集名 / 简�
                 ${summary ? `<div class="lof-list-row-summary">${this._escapeHtml(summary)}</div>` : ''}
             </div>
         `;
+    },
+
+    // ========== 本地搜索（v2.206.0 可玩性A档收尾·纯前端过滤零LLM）==========
+    // 纯函数：只读 AppState、无副作用（tests/lofter-search.test.js 钉行为）。
+    // 注意：_searchResults 池（本文件顶部 State）是给将来 LLM 生成式搜索预留的，本地过滤不用它、不动它。
+    // tagScope（圈内搜）：只返回 tags 含 tagScope 的圈内命中文章，tags/collections 恒空——
+    // 「圈内搜」语义就是搜该 tag 圈子里的文章，不混入全站 tag/合集。
+    _searchLocal(query, opts = {}) {
+        const q = (query || '').trim().toLowerCase();
+        if (!q) return { tags: [], articles: [], collections: [] };
+        const ld = AppState.data.lofterData || {};
+        const arts = (ld.articles || []).filter(a => a && !a.isInvalid);
+        const hitArticle = a => [a.title, a.summary, a.content, a.authorName, ...(a.tags || [])]
+            .some(f => (f || '').toLowerCase().includes(q));
+        if (opts.tagScope) {
+            const inScope = arts.filter(a => (a.tags || []).includes(opts.tagScope));
+            return {
+                tags: [], collections: [],
+                articles: inScope.filter(hitArticle).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0))
+            };
+        }
+        const tagSet = new Set();
+        arts.forEach(a => (a.tags || []).forEach(t => { if ((t || '').toLowerCase().includes(q)) tagSet.add(t); }));
+        return {
+            tags: [...tagSet],
+            articles: arts.filter(hitArticle).sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)),
+            collections: (ld.collections || [])
+                .filter(c => c && [c.name, c.description, c.authorName].some(f => (f || '').toLowerCase().includes(q)))
+                .sort((x, y) => (y.updatedAt || 0) - (x.updatedAt || 0))
+        };
+    },
+
+    openSearch(initialQuery = '', opts = {}) {
+        const tagScope = opts.tagScope || null;
+        this._openSubScreen('lofSearchSubScreen', `
+            <div class="lof-tag-bar">
+                <button class="lof-sub-back" id="lofSearchBack">‹</button>
+                <div class="lof-search-box">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    ${tagScope ? `<span class="lof-search-scope">${this._escapeHtml(tagScope)}</span>` : ''}
+                    <input id="lofSearchInput" type="text" placeholder="${tagScope ? I18n.t('lofter.search_placeholder_scope', '圈内搜文章…') : I18n.t('lofter.search_placeholder', '搜 tag、文章、合集…')}">
+                    <button id="lofSearchClear" style="display:none" aria-label="clear">✕</button>
+                </div>
+            </div>
+            <div class="lof-search-results" id="lofSearchResults"></div>
+        `);
+        document.getElementById('lofSearchBack').onclick = () => this._closeSubScreen('lofSearchSubScreen');
+        const input = document.getElementById('lofSearchInput');
+        const clearBtn = document.getElementById('lofSearchClear');
+        input.oninput = () => {
+            clearTimeout(this._searchDebounce);
+            clearBtn.style.display = input.value ? 'block' : 'none';
+            this._searchDebounce = setTimeout(() => this._renderSearchResults(input.value, tagScope), 150);
+        };
+        clearBtn.onclick = () => { input.value = ''; clearBtn.style.display = 'none'; this._renderSearchResults('', tagScope); input.focus(); };
+        if (initialQuery) { input.value = initialQuery; clearBtn.style.display = 'block'; }
+        this._renderSearchResults(initialQuery, tagScope);
+        input.focus();
+    },
+
+    // content 命中处前后各 ~30 字摘录；未命中（如只中 title/tag）取开头 60 字
+    _searchSnippet(content, qLower) {
+        const c = content || '';
+        const idx = c.toLowerCase().indexOf(qLower);
+        if (idx < 0) return c.slice(0, 60);
+        const start = Math.max(0, idx - 30);
+        const end = Math.min(c.length, idx + qLower.length + 30);
+        return (start > 0 ? '…' : '') + c.slice(start, end) + (end < c.length ? '…' : '');
+    },
+
+    _renderSearchResults(query, tagScope) {
+        const box = document.getElementById('lofSearchResults');
+        if (!box) return;
+        const q = (query || '').trim();
+        if (!q) {
+            box.innerHTML = `<div class="lof-search-empty">${I18n.t('lofter.search_hint', '输入关键词，搜 tag、文章、合集')}</div>`;
+            return;
+        }
+        const r = this._searchLocal(q, { tagScope });
+        if (!r.tags.length && !r.articles.length && !r.collections.length) {
+            box.innerHTML = `<div class="lof-search-empty">${I18n.t('lofter.search_no_result', '没有找到相关内容')}</div>`;
+            return;
+        }
+        const ql = q.toLowerCase();
+        let html = '';
+        if (r.tags.length) {
+            html += `<div class="lof-search-group-title">${I18n.t('lofter.search_group_tags', '标签')}</div>
+                <div class="lof-search-tags">${r.tags.map(t =>
+                    `<button class="lof-search-tag-chip" data-tag="${this._escapeHtml(t)}"># ${this._escapeHtml(t)}</button>`).join('')}</div>`;
+        }
+        if (r.articles.length) {
+            html += `<div class="lof-search-group-title">${I18n.t('lofter.search_group_articles', '文章')}</div>` +
+                r.articles.map(a => `
+                <div class="lof-search-article" data-article-id="${this._escapeHtml(a.id)}">
+                    <div class="lof-search-article-title">${this._escapeHtml(a.title || '')}</div>
+                    <div class="lof-search-article-snippet">${this._escapeHtml(this._searchSnippet(a.content, ql))}</div>
+                    <div class="lof-search-article-meta">${this._escapeHtml(a.authorName || '')}</div>
+                </div>`).join('');
+        }
+        if (r.collections.length) {
+            html += `<div class="lof-search-group-title">${I18n.t('lofter.search_group_collections', '合集')}</div>` +
+                r.collections.map(c => `
+                <div class="lof-search-collection" data-collection-id="${this._escapeHtml(c.id)}">
+                    <div class="lof-search-collection-name">${this._escapeHtml(c.name || '')}</div>
+                    <div class="lof-search-collection-meta">${this._escapeHtml(c.authorName || '')} · ${c.chapterCount || 0}${I18n.t('lofter.search_chapter_unit', ' 章')}</div>
+                </div>`).join('');
+        }
+        box.innerHTML = html;
+        box.querySelectorAll('.lof-search-tag-chip').forEach(el => { el.onclick = () => this.openTagDetail(el.dataset.tag); });
+        box.querySelectorAll('.lof-search-article').forEach(el => { el.onclick = () => this.openArticleDetail(el.dataset.articleId); });
+        box.querySelectorAll('.lof-search-collection').forEach(el => { el.onclick = () => this.openCollectionPage(el.dataset.collectionId); });
+    },
+
+    // ========== 编辑资料（v2.206.0·照 Weibo.openEditProfile 的 prompt 行编辑模式）==========
+    // 写 AppState.data.userProfile（全局用户档案）。_myNickname()/renderMe 同源读取，保存即全面生效
+    // （lofter.js「玩家昵称」注释预言的「编辑资料接线后自动生效」即此处）。不预填真名（隐私铁律）。
+    openEditProfile() {
+        if (!AppState.data.userProfile) AppState.data.userProfile = {};
+        const up = AppState.data.userProfile;
+        this._openSubScreen('lofEditProfileSubScreen', `
+            <div class="lof-tag-bar">
+                <button class="lof-sub-back" id="lofEditProfileBack">‹</button>
+                <div class="lof-edit-title">${I18n.t('lofter.edit_profile_title', '编辑资料')}</div>
+            </div>
+            <div class="lof-edit-rows">
+                <div class="lof-edit-row" data-field="nickname">
+                    <span class="lof-edit-label">${I18n.t('lofter.edit_field_nickname', '昵称')}</span>
+                    <span class="lof-edit-value">${this._escapeHtml(up.nickname || I18n.t('lofter.default_user_name', 'Perigee 用户'))}</span>
+                    <span class="lof-edit-chevron">›</span>
+                </div>
+                <div class="lof-edit-row" data-field="bio">
+                    <span class="lof-edit-label">${I18n.t('lofter.edit_field_bio', '简介')}</span>
+                    <span class="lof-edit-value">${this._escapeHtml(up.bio || I18n.t('lofter.edit_bio_empty', '还没有简介'))}</span>
+                    <span class="lof-edit-chevron">›</span>
+                </div>
+            </div>
+        `);
+        document.getElementById('lofEditProfileBack').onclick = () => this._closeSubScreen('lofEditProfileSubScreen');
+        document.querySelectorAll('#lofEditProfileSubScreen .lof-edit-row').forEach(row => {
+            row.onclick = () => {
+                const field = row.dataset.field;
+                if (field === 'nickname') {
+                    const v = prompt(I18n.t('lofter.edit_prompt_nickname', '请输入昵称（留空恢复默认）'), up.nickname || '');
+                    if (v === null) return;
+                    up.nickname = v.trim();   // 空串 → _myNickname() 的 || 兜底自动回默认占位
+                } else if (field === 'bio') {
+                    const v = prompt(I18n.t('lofter.edit_prompt_bio', '请输入简介（可选）'), up.bio || '');
+                    if (v === null) return;
+                    up.bio = v.trim();
+                }
+                Utils.saveData();
+                this._closeSubScreen('lofEditProfileSubScreen');
+                this.openEditProfile();
+                this.renderMe();   // 底层「我的」页即刻跟随（编辑子页在其上层，互不遮挡逻辑照 weibo）
+            };
+        });
     },
 
     // ========== 子页面切换（仿 Weibo._openSubScreen 同款模式、Phase 0b 启用）==========

@@ -1,10 +1,14 @@
 // Service Worker for Perigee OS
 // 版本号：每次更新代码时修改此版本号以强制更新缓存
-const VERSION = '2.204.0';
+const VERSION = '2.213.0';
 const CACHE_NAME = `perigee-os-v${VERSION}`;
 // vendor 大库独立持久缓存（js/vendor/ 内容不随版本变，activate 清理旧缓存时不删，
 // 避免每次发版重拉 ~1MB；不进 precache，首次用到时缓存、之后离线可用）
 const VENDOR_CACHE = 'perigee-vendor-v1';
+// v2.210.1 静态艺术资产持久缓存（开屏画等大图不随版本变——同 vendor 策略，activate 不删、发版零重拉。
+// install 时 best-effort 预热：已有跳过、失败不阻断安装，运行时 Cache First 兜底）
+const STATIC_CACHE = 'perigee-static-v1';
+const staticUrls = ['./assets/splash-intro.jpg'];
 
 // 核心本地资源（必须全部成功，否则 SW 安装失败）
 const coreUrls = [
@@ -14,9 +18,9 @@ const coreUrls = [
   './css/themes.css',
   './app.js',
   './manifest.json',
-  './icon-192-v5.png',
-  './icon-512-v5.png',
-  './icon-512-maskable-v5.png',
+  './icon-192-v7.png',
+  './icon-512-v7.png',
+  './icon-512-maskable-v7.png',
   './js/utils.js',
   './js/settings.js',
   './js/character.js',
@@ -33,6 +37,7 @@ const coreUrls = [
   './js/music.js',
   './js/fortune.js',
   './js/tarot.js',
+  './js/anniversary.js',
   './js/world-context.js',
   './js/forum.js',
   './js/forum-generate.js',
@@ -42,6 +47,7 @@ const coreUrls = [
   './js/forum-tools.js',
   './js/broadcast.js',
   './js/pixiv-novel.js',
+  './js/pixiv-comments.js',
   './js/illust-gallery.js',
   './js/twitter.js',
   './js/twitter-thread.js',
@@ -59,6 +65,7 @@ const coreUrls = [
   './js/pixiv-illust.js',
   './js/niconico.js',
   './js/travel.js',
+  './js/image-positioner.js',
   './js/widgets.js',
   './js/decorations.js',
   './js/rain.js',
@@ -248,6 +255,13 @@ self.addEventListener('install', event => {
               .catch(() => {})
           )
         );
+        // v2.210.1 静态艺术资产预热持久缓存（已有跳过、失败不阻断安装）
+        const staticCache = await caches.open(STATIC_CACHE);
+        await Promise.allSettled(
+          staticUrls.map(url =>
+            staticCache.match(url).then(hit => hit ? null : staticCache.add(url)).catch(() => {})
+          )
+        );
         console.log('[SW] Skip waiting');
         return self.skipWaiting();
       })
@@ -261,7 +275,7 @@ self.addEventListener('activate', event => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          if (cacheName !== CACHE_NAME && cacheName !== VENDOR_CACHE) {
+          if (cacheName !== CACHE_NAME && cacheName !== VENDOR_CACHE && cacheName !== STATIC_CACHE) {
             console.log(`[SW] Deleting old cache: ${cacheName}`);
             return caches.delete(cacheName);
           }
@@ -295,6 +309,24 @@ self.addEventListener('fetch', event => {
   if (url.pathname.includes('/js/vendor/')) {
     event.respondWith(
       caches.open(VENDOR_CACHE).then(cache =>
+        cache.match(event.request).then(cached => {
+          if (cached) return cached;
+          return fetch(event.request).then(response => {
+            if (response && response.status === 200) {
+              cache.put(event.request, response.clone());
+            }
+            return response;
+          });
+        })
+      )
+    );
+    return;
+  }
+
+  // v2.210.1 静态艺术资产（开屏画）：Cache First + 持久缓存（同 vendor 策略）
+  if (staticUrls.some(u => url.pathname.endsWith(u.slice(1)))) {
+    event.respondWith(
+      caches.open(STATIC_CACHE).then(cache =>
         cache.match(event.request).then(cached => {
           if (cached) return cached;
           return fetch(event.request).then(response => {

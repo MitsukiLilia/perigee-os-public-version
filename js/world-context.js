@@ -27,6 +27,7 @@ const WorldContext = {
         const officialSummaries = AppState.data.broadcast.officialSummaries || [];
 
         if (!plotProgress.length && !officialInfo.length && !mergedSummaries.length && !plotSummaries.length && !officialSummaries.length) {
+            if (typeof Anniversary !== 'undefined') context += Anniversary.getContextSection();
             return context;
         }
 
@@ -168,6 +169,7 @@ const WorldContext = {
         context += `- ⚠️ 动画演出 ≠ 角色认知：剧情描述是面向观众的叙事（包含回忆画面、旁白、闪回、蒙太奇等演出手法）。角色只知道自己在故事中实际获得的信息——例如角色A看角色B的日记，观众看到了配合日记内容的过去影像回闪，但角色A只是在读日记文字，并没有"看到"那些过去的画面。讨论时必须区分"观众通过演出了解到的信息"和"角色本人实际知道的信息"\n`;
         context += `- ⚠️ 强弱/胜负/能力对比：时间线中明确记录的强弱关系、胜负结果是不可动摇的事实，讨论时必须按原文描述，禁止"平衡化"（如把"A轻松击败B"演绎成"势均力敌"），禁止基于角色性别、体型做任何强度预设\n\n`;
 
+        if (typeof Anniversary !== 'undefined') context += Anniversary.getContextSection();
         return context;
     },
 };

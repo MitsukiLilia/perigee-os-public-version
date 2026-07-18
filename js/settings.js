@@ -772,6 +772,16 @@ const SystemConfig = {
             if (dateEl) dateEl.textContent = dateStr;
             const weekdayEl = card.querySelector('[data-clock-weekday]');
             if (weekdayEl) weekdayEl.textContent = weekdayStr;
+
+            // T8 圆表盘：指针跟随同一刷新循环走，DOM 内直改 <g transform>（不重渲染整个组件，秒针不做省电）
+            const hourHand = card.querySelector('[data-clock-hourhand]');
+            const minHand = card.querySelector('[data-clock-minhand]');
+            if (hourHand && minHand) {
+                const hourAngle = ((now.getHours() % 12) + now.getMinutes() / 60) * 30;
+                const minAngle = now.getMinutes() * 6;
+                hourHand.setAttribute('transform', `rotate(${hourAngle.toFixed(2)} 36 36)`);
+                minHand.setAttribute('transform', `rotate(${minAngle.toFixed(2)} 36 36)`);
+            }
         });
     },
 

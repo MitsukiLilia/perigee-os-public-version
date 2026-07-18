@@ -25,6 +25,8 @@
     --icon-bg: var(--accent-color);
     --app-icon-bg: rgba(255, 255, 255, 0.88);
     --app-icon-color: rgba(58, 74, 92, 0.7);
+    /* T10：圆形组件贴纸白边（浅色主题基准值，深色主题在 themes.css 各自覆盖更淡） */
+    --sticker-edge: rgba(255, 255, 255, 0.88);
     /* 壁纸渐变 */
     --wallpaper-gradient: linear-gradient(135deg, #b8c8dd 0%, #c9d8e8 50%, #dae7f2 100%);
     /* 图标渐变色 */
@@ -538,6 +540,10 @@ body.dark-mode #desktop::before {
 .desktop-grid-widget {
     cursor: pointer;
     transition: transform 0.15s ease;
+    /* review 修复（E2）：grid item 默认 min-width:auto 会按内容固有宽度参与轨道分配——
+       竖排文本组件的固有宽度会把同行 1fr 图标列挤到 58px（实测）。归零后轨道恒等分，
+       组件内容超宽由各自 overflow 规则消化。 */
+    min-width: 0;
 }
 .desktop-grid-widget:active { transform: scale(0.97); }
 .desktop-grid-widget .widget-card {
@@ -5151,3 +5157,452 @@ details.tl>span {
 .mcw-price { font-size: 17px; font-weight: 800; color: var(--desktop-text, #333); font-variant-numeric: tabular-nums; }
 .mcw-seller { font-size: 10px; color: var(--text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mcw-empty { font-size: 12px; color: var(--text-tertiary); }
+
+/* ═══════════════════════════════════════════════════════════
+   v2.212 新组件企划（docs/2026-07-16-新小组件企划-任务拆解.md）
+   每个 task 区块由对应 agent 填充，禁止跨区修改
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── 圆形组件通用底座（scaffold）──
+   贴纸白边 --sticker-edge 由 T10 逐主题定值，这里给 var() 兜底 */
+.widget-card.widget-circle {
+    border-radius: 50%;
+    aspect-ratio: 1;
+    border: 2.5px solid var(--sticker-edge, rgba(255, 255, 255, 0.7));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* ── T3 日历 wide 档（agent T3 填充）── */
+/* 卡底/圆角/玻璃底由 .widget-card 承担（见上方 scaffold），这里只管内部布局。
+   class 前缀 wcw-（widget calendar wide）与小档 .widget-cal-* 完全隔离，小档渲染路径零改动。 */
+.widget-calendar-wide {
+    display: flex;
+    padding: 14px 16px;
+    gap: 14px;
+}
+.wcw-left {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.wcw-month {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-color);
+}
+.wcw-day {
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--desktop-text, #333);
+    line-height: 1.1;
+}
+.wcw-weekday {
+    font-size: 11px;
+    color: var(--desktop-text, #333);
+    opacity: 0.65;
+    margin-bottom: 8px;
+}
+.wcw-events {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.wcw-event {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--desktop-text, #333);
+    opacity: 0.85;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wcw-event-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.wcw-grid { flex-shrink: 0; }
+.wcw-grid table { border-collapse: collapse; }
+.wcw-grid th {
+    font-size: 8px;
+    font-weight: 500;
+    color: var(--desktop-text, #333);
+    opacity: 0.45;
+    padding: 1px 0 3px;
+    width: 20px;
+}
+/* 曜日行：日=柔和红（非系统红）、土=主题 accent（柔和蓝调，随主题走）——不用 iOS 系统红蓝 */
+.wcw-grid th.sun { color: #c67878; opacity: 0.8; }
+.wcw-grid th.sat { color: var(--accent-color); opacity: 0.85; }
+.wcw-grid td {
+    font-size: 9.5px;
+    text-align: center;
+    color: var(--desktop-text, #333);
+    opacity: 0.8;
+    height: 17px;
+    position: relative;
+}
+.wcw-grid td.dim { opacity: 0.28; }   /* 跨月留白格：不显示邻月日期数字 */
+/* review 修复（E4）：原白字压实心 accent 块在 9.5px 小字下多主题对比度不足（animal 2.1:1）。
+   改为主题正文色数字 + 半透明水彩晕染垫底——荧光笔圈日期的手帐语感，可读性由
+   --desktop-text（各主题本就保证其压壁纸可读）兜底，色块只做氛围不承载对比度。 */
+.wcw-grid td.today { color: var(--desktop-text); opacity: 1; font-weight: 700; }
+.wcw-grid td.today .wcw-blob {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-color);
+    opacity: 0.45;
+    z-index: -1;
+    border-radius: 46% 54% 51% 49% / 55% 47% 53% 45%;   /* 水彩点：不规则圆，照预览页数值 */
+    transform: rotate(-6deg);
+}
+.wcw-grid td .wcw-evdots {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 2px;
+}
+.wcw-grid td .wcw-evdot {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+}
+/* ── T3 end ── */
+
+/* ── T4 文本框（agent T4 填充）── */
+/* 三形态：无底横排 / 无底竖排 / 便签底（纸片卡+纸胶带）。字体栈 Klee 优先，不可用退主题手写体/明朝体。
+   高度自适应文字内容：覆盖 .widget-small/.widget-medium/.widget-wide 的 aspect-ratio 锁定。 */
+.widget-note {
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 10px 12px;
+    cursor: pointer;
+    position: relative;
+    overflow: visible; /* 覆盖 .widget-card 的 overflow:hidden，否则便签纸胶带（top:-7px）被自己裁掉 */
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.widget-note:active { transform: scale(0.97); }
+
+/* 高度自适应：覆盖三档尺寸的 aspect-ratio 锁定，写几行是几行 */
+.widget-note.widget-small,
+.widget-note.widget-medium,
+.widget-note.widget-wide {
+    aspect-ratio: auto;
+    width: 100%;
+    height: auto;
+    min-height: 40px;
+}
+
+.widget-note-text {
+    font-family: "Klee", "YuKyokasho", "Hiragino Maru Gothic ProN", "Hiragino Sans", var(--font-handwriting), sans-serif;
+    color: var(--desktop-text);
+    line-height: 1.9;
+    overflow-wrap: break-word;
+}
+.widget-note-text.fs-s { font-size: 11px; }
+.widget-note-text.fs-m { font-size: 13px; }
+.widget-note-text.fs-l { font-size: 16px; }
+
+.widget-note-empty {
+    opacity: 0.42;
+}
+
+/* 竖排：writing-mode 纵向，max-height 防长文把卡片撑爆宽 */
+.widget-note-v {
+    display: flex;
+    justify-content: center;
+    /* review 修复（E2 配套）：竖排列数随文字量向左增生，宽度上限锁死在自身格子内，
+       超出的列裁掉（与横排超行为 overflow hidden 的语义对齐） */
+    max-width: 100%;
+    overflow: hidden;
+}
+.widget-note-v .widget-note-text {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    letter-spacing: 2px;
+    max-height: 220px;
+    max-width: 100%;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+/* 便签底：纸片卡 + 纸胶带条 + 微旋转 */
+.widget-note-paper {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+    padding: 18px 14px 14px;
+    transform: rotate(-1.8deg);
+}
+.widget-note-paper:active { transform: rotate(-1.8deg) scale(0.97); }
+.widget-note-paper .widget-note-tape {
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%) rotate(2deg);
+    width: 46px;
+    height: 14px;
+    background: var(--accent-soft);
+    opacity: 0.55;
+    border-radius: 2px;
+}
+
+/* 编辑弹窗内的单选 chip（見た目/書く向き/文字サイズ 三组共用） */
+.widget-note-chip {
+    padding: 7px 14px;
+    border: 1px solid var(--border-medium);
+    border-radius: 999px;
+    background: none;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+}
+.widget-note-chip.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+}
+/* ── T4 end ── */
+
+/* ── T5 音乐圆盘（agent T5 填充）──
+   圆档借圆形通用底座 .widget-circle（背景/白边/圆角/overflow:hidden），这里只补内部布局。
+   黑胶本体（.vinyl-disc/.vinyl-grooves/.vinyl-label/.vinyl-hole）与播放态类名（.is-playing）
+   全部复用既有 .widget-vinyl 体系，不新写播放视觉 */
+.widget-card.widget-circle.widget-vinyl {
+    background: var(--app-icon-bg);
+    padding: 8px 6px;
+    gap: 5px;
+}
+.vinyl-circle-disc-wrap {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    flex-shrink: 0;
+}
+.vinyl-circle .vinyl-disc {
+    width: 50px;
+    height: 50px;
+}
+.vinyl-tonearm {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    color: var(--text-tertiary, #8890b8);
+    pointer-events: none;
+}
+.vinyl-circle .vinyl-controls-group {
+    gap: 9px;
+    margin-top: 0;
+}
+.vinyl-circle .vinyl-controls-group svg { width: 10.5px; height: 10.5px; }
+.vinyl-circle .vinyl-controls-group .vinyl-play { width: 15px; height: 15px; }
+
+/* 播放中缓慢旋转：独立命名动画+更长圈速（≈8s/圈），起停沿用既有
+   .widget-vinyl:hover / .widget-vinyl.is-playing 触发规则（本元素同时带 widget-vinyl 类）*/
+.vinyl-circle .vinyl-disc {
+    animation: vinylCircleSpin 8s linear infinite;
+    animation-play-state: paused;
+}
+@keyframes vinylCircleSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .vinyl-circle .vinyl-disc { animation: none !important; }
+}
+/* ── T5 end ── */
+
+/* ── T6 月相（agent T6 填充）── */
+.widget-moonphase svg {
+    display: block;
+    width: 60%;
+    height: 60%;
+    flex-shrink: 0;
+}
+.moon-label {
+    font-size: 9px;
+    color: var(--desktop-text);
+    opacity: 0.75;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+    text-align: center;
+    padding: 0 4px;
+    line-height: 1.3;
+}
+/* ── T6 end ── */
+
+/* ── T7 天气徽章（agent T7 填充）── */
+.widget-weather svg { display: block; }
+.widget-weather .wx-temp { font-size: 17px; font-weight: 600; color: var(--desktop-text); line-height: 1; margin-top: 2px; }
+.widget-weather .wx-kind { font-size: 8.5px; color: var(--desktop-text); opacity: 0.6; letter-spacing: 1.5px; margin-top: 2px; }
+/* ── T7 end ── */
+
+/* ── T8 圆相框/圆表盘（agent T8 填充）──
+   两者都借圆形通用底座 .widget-circle（背景/白边/圆角/overflow:hidden，见上方 scaffold），
+   这里只覆盖各自需要的差异 + 补内部布局 */
+
+/* 圆相框：贴纸白边加厚（4px，照预览页 .cw.frame）+ 底色换 --bg-card（无图/空态时露出） */
+.widget-card.widget-circle.widget-photoframe-circle {
+    border-width: 4px;
+    background: var(--bg-card);
+}
+/* 图片铺满圆：直传 img（带 ImagePositioner 定位内联样式）与轮播水合插入的 img（无内联样式）都要吃到 */
+.widget-photoframe-circle img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* 圆表盘：SVG 表盘（12 刻度 + 时/分针），指针 transform 由 settings.js refreshClocks 每分钟更新 */
+.widget-clockface-circle .clockface-svg {
+    width: 70%;
+    height: 70%;
+    display: block;
+}
+/* ── T8 end ── */
+
+/* ── T9 莫比乌斯双人相册（agent T9 填充）──
+   die-cut 贴纸：不套 .widget-card 卡底（无背景/无边框/无阴影/无玻璃），stub 外壳本来就没带
+   widget-card 类，这里保持。sizeClass 走 .widget-medium（2 列），覆盖它默认的 aspect-ratio
+   2/1.1 成贴合 SVG viewBox 240x130 的比例，星轨+双圆不会被宽高比拉伸。 */
+.widget-duoframe {
+    width: 100%;
+    cursor: pointer;
+    position: relative;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.widget-duoframe.widget-medium { aspect-ratio: 240 / 130; }
+.widget-duoframe:active { transform: scale(0.97); }
+.widget-duoframe .df-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* 编辑弹窗：槽 A/槽 B 竖向堆叠、中间一道虚线分隔（弹窗窄，不用两栏挤） */
+.df-edit-window { gap: 12px; }
+.df-edit-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.df-edit-slot {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.df-edit-slot + .df-edit-slot {
+    padding-top: 14px;
+    border-top: 1px dashed var(--border-medium);
+}
+.df-edit-slot-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+/* ── T9 end ── */
+
+/* ── T1 图片定位器弹窗（agent T1 填充）── */
+.imgpos-window {
+    align-items: stretch;
+}
+.imgpos-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: var(--font-serif, inherit);
+    text-align: center;
+}
+.imgpos-stage {
+    position: relative;
+    width: min(260px, 68vw);
+    margin: 0 auto;
+    overflow: hidden;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-light);
+    touch-action: none;
+    cursor: grab;
+    -webkit-user-select: none;
+    user-select: none;
+}
+.imgpos-stage.dragging { cursor: grabbing; }
+.imgpos-stage.imgpos-rect { border-radius: 14px; }
+.imgpos-stage.imgpos-circle { border-radius: 50%; }
+.imgpos-stage img {
+    display: block;
+    pointer-events: none; /* 拖动统一挂在 stage 上，避免原生图片拖拽幽灵框 */
+}
+.imgpos-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    text-align: center;
+}
+.imgpos-zoomrow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.imgpos-zoomrow svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-tertiary);
+    flex-shrink: 0;
+}
+.imgpos-zoomrow input[type="range"] {
+    flex: 1;
+    accent-color: var(--accent-color);
+}
+.imgpos-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+.imgpos-actions button {
+    flex: 1;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+}
+.imgpos-btn-reset {
+    border: 1px solid var(--border-light);
+    background: none;
+    color: var(--text-secondary);
+    font-size: 12px !important;
+}
+.imgpos-btn-cancel {
+    border: 1px solid var(--border-medium);
+    background: none;
+    color: var(--text-primary);
+}
+.imgpos-btn-confirm {
+    border: none;
+    background: var(--accent-color);
+    color: #fff;
+    font-weight: 600;
+}
+/* ── T1 end ── */

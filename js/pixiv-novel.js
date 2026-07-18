@@ -884,7 +884,7 @@ ${count}人分繰り返してください。`;
                 ${synopsisText ? `<div class="pixiv-detail-synopsis">${_esc(synopsisText).replace(/\n/g, '<br>')}</div>` : ''}
                 ${authorCardHtml}
                 ${siblingChaptersHtml}
-                <button class="pixiv-detail-comment-row" onclick="PixivNovel.showCommentPlaceholder()">
+                <button class="pixiv-detail-comment-row" onclick="PixivComments.jumpFromDetail()">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     <span>${I18n.t('pixiv.detail_comment_row', '评论')}</span>
                 </button>
@@ -917,9 +917,6 @@ ${count}人分繰り返してください。`;
         if (novel && document.getElementById('pixivChapterBody')) {
             this.renderChapterContent(novel);
         }
-    },
-    showCommentPlaceholder() {
-        Utils.showToast(I18n.t('pixiv.detail_comment_coming_soon', '评论功能即将上线'));
     },
     showStandaloneToast() {
         Utils.showToast(I18n.t('pixiv.standalone_novel_toast', '这是单篇作品'));
@@ -1488,6 +1485,11 @@ ${count}人分繰り返してください。`;
             </div>`;
         }
 
+        // v2.207.0 章节评论区（逻辑全部在 pixiv-comments.js、这里只拼挂点）
+        const commentsSection = (typeof PixivComments !== 'undefined')
+            ? PixivComments.buildSectionHtml(novel, this.currentChapterIdx)
+            : '';
+
         // 标题已在 infoDiv 显示（短篇=novel.title，连载=#N chapterTitle），正文区域不重复
         content.innerHTML = `
             <div class="pixiv-chapter-text">
@@ -1500,7 +1502,9 @@ ${count}人分繰り返してください。`;
             ${chapterEndCard}
             ${siblingsCard}
             ${chapterControls}
+            ${commentsSection}
         `;
+        if (typeof PixivComments !== 'undefined') PixivComments.onSectionRendered(novel.id, this.currentChapterIdx);
     },
 
     // ===== 显示章节弹窗（续章 / 重写）=====

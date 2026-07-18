@@ -1826,6 +1826,10 @@ ${taskList}
         if (tweet?.image?.generatedImageId && typeof IllustGallery !== 'undefined') {
             IllustGallery.remove(tweet.image.generatedImageId).catch(() => {});
         }
+        // 顺手清掉 poipiku 揭示图 blob（v2.210.1：gated.contentId，公开版无 wandoro.js 时字段恒空、天然 no-op）
+        if (tweet?.gated?.contentId && typeof IllustGallery !== 'undefined') {
+            IllustGallery.remove(tweet.gated.contentId).catch(() => {});
+        }
         if (isNpc) {
             t.npcTweets = (t.npcTweets || []).filter(tw => tw.id !== tweetId);
         } else {

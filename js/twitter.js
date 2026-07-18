@@ -1374,10 +1374,18 @@ POLL: [選択肢1]|[票数]||[選択肢2]|[票数]||[選択肢3]|[票数]||[選�
         const forumData = AppState.data.forumData || {};
         const worldContext = typeof Forum !== 'undefined' ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
 
-        // フェーズに応じた生成確率: 前期10%、中期25%、後期30%
+        // 生贺系统（v2.205.0）：纪念日当日首刷强制出生贺祭り（当日戳防重，防一天多刷撞车企画）；
+        // preheat/afterglow 只影响下方 annivRule 选题倾向，不迂回确率闸门
+        const annivActive = (typeof Anniversary !== 'undefined') ? Anniversary.getActive() : [];
+        const annivToday = annivActive.filter(ev => ev.phase === 'day');
+        const _n = new Date();
+        const annivStamp = `${_n.getMonth() + 1}/${_n.getDate()}|${annivToday.map(ev => ev.name).join('、')}`;
+        const annivForce = annivToday.length > 0 && t.anniversaryKikakuDone !== annivStamp;
+
+        // フェーズに応じた生成確率: 前期10%、中期25%、後期30%（記念日当日の初回は迂回）
         const phase = this._getFandomPhase();
         const eventChance = phase === 'early' ? 0.1 : phase === 'mid' ? 0.25 : 0.3;
-        if (Math.random() > eventChance) return;
+        if (!annivForce && Math.random() > eventChance) return;
 
         const noContextRule = !worldContext.trim() ? '\n⚠️ 作品設定が未入力です。キャラクター名・CP名を含む企画は生成しないこと。一般的な創作企画（ワンドロお題、深夜の創作クラスタ等）にとどめること。\n' : '';
         // 展会系企划（新刊サンプル公開祭り / 即売会サークル告知祭り）は即売会闸门で制御（剧情集数ではない）
@@ -1388,9 +1396,22 @@ POLL: [選択肢1]|[票数]||[選択肢2]|[票数]||[選択肢3]|[票数]||[選�
             ? `\n【同人即売会の状況】現在「${eventGate.stage === 'open' ? '開催中' : eventGate.stage === 'preopen' ? '開催間近' : '終了直後'}」の同人即売会あり。即売会系の企画（新刊サンプル公開祭り、即売会サークル告知祭り）も選択可。`
             : '\n⚠️ 現在、開催中・開催間近の同人即売会は無い。即売会系の企画（新刊サンプル公開祭り、即売会サークル告知祭り）は選択禁止。ワンドロ・お題配布・深夜の創作クラスタ・記念日企画などの非即売会企画のみ生成すること。\n';
 
+        // 生贺相位选题：day 首刷=强制記念日企画（事件名来自用户日历=用户数据，最優先指示
+        // 覆盖 noContextRule 的「不含角色名」限制——名字是给定的、非 LLM 捏造）；
+        // preheat=告知/倒数优先；afterglow=感想/まとめ可选。day 非首刷走 worldContext 渗透即可。
+        let annivRule = '';
+        if (annivForce) {
+            annivRule = `\n【本日の記念日（最優先指示）】本日は${annivToday.map(ev => `【${ev.name}】`).join('・')}当日。企画は必ず「記念日企画」を選び、これを祝うタグ企画にすること（記念日の名前は上記をそのまま使うこと）。\n`;
+        } else {
+            const pre = annivActive.filter(ev => ev.phase === 'preheat');
+            const after = annivActive.filter(ev => ev.phase === 'afterglow');
+            if (pre.length) annivRule += `\n【近日の記念日】${pre.map(ev => `【${ev.name}】まであと${ev.daysUntil}日`).join('、')}。企画を生成する場合、記念日の告知・カウントダウン企画を優先的に検討すること。\n`;
+            if (after.length) annivRule += `\n【昨日の記念日】昨日は${after.map(ev => `【${ev.name}】`).join('・')}だった。昨日の記念日タグの感想・まとめ企画も選択可。\n`;
+        }
+
         const systemPrompt = `あなたはアニメファンダムのX（Twitter）同人イベント・タグ企画をシミュレーションしています。
 日本の二次創作コミュニティでよくある「タグ企画」を1つ選び、それに参加する複数のファンのツイートを生成してください。
-${noContextRule}${eventGateRule}
+${noContextRule}${eventGateRule}${annivRule}
 
 企画の例（1つ選択）:
 - 推しカプ○選：好きなシーンやモーメントをリストアップ
@@ -1450,6 +1471,8 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
                 });
             });
 
+            if (annivForce) t.anniversaryKikakuDone = annivStamp; // 当日祭り已出，再刷回归随机闸门（跨日戳失配自动失效）
+
             // v2.140.0 fan 文字推永不裁、只裁 fan 图片推（最近 60 张 + 点赞）
             this._pruneTweets('fan', 60);
             Utils.saveData();
@@ -1500,7 +1523,7 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             const type = validTypes.includes(rawType) ? rawType : 'fan';
             // Content: stop before 任何结构化字段（v2.125.0：补全 POLL/PIXIV_*/IMAGE_DESC 等边界，
             // 否则 LLM 把 POLL 行紧跟 CONTENT 后时会被吞进正文当文字显示——作者真机发现的投票推 bug）
-            const contentMatch = block.match(/CONTENT:[ \t]*\n?([\s\S]*?)(?=\nIMAGE_EMOJI:|\nIMAGE_DESC:|\nIMAGE_TYPE:|\nQUOTE_AUTHOR:|\nQUOTE_HANDLE:|\nQUOTE_CONTENT:|\nPIXIV_NOVEL_ID:|\nPIXIV_PROMO:|\nPIXIV_LINK:|\nPRIVATTER:|\nPOIPIKU:|\nGATED_TITLE:|\nODAI:|\nR18:|\nPASS:|\nPASS_HINT:|\nPOLL:|\nTRANSLATION:|\nREPLY_\d|\s*$)/);
+            const contentMatch = block.match(/CONTENT:[ \t]*\n?([\s\S]*?)(?=\nIMAGE_EMOJI:|\nIMAGE_DESC:|\nIMAGE_TYPE:|\nQUOTE_AUTHOR:|\nQUOTE_HANDLE:|\nQUOTE_CONTENT:|\nPIXIV_NOVEL_ID:|\nPIXIV_PROMO:|\nPIXIV_LINK:|\nPRIVATTER:|\nPOIPIKU:|\nGATED_TITLE:|\nODAI:|\nR18:|\nPASS:|\nPASS_HINT:|\nPOIP_CAT:|\nPOLL:|\nTRANSLATION:|\nREPLY_\d|\s*$)/);
             const content = contentMatch ? contentMatch[1].trim() : '';
             // 画像（オプション）
             const imgEmoji = (block.match(/^IMAGE_EMOJI:\s*(.+)$/m) || [])[1]?.trim();

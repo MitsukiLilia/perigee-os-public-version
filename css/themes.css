@@ -48,6 +48,9 @@
     /* 图标/widget 玻璃面板：更透明的冷白，让深蓝雨天背景隐约透出才有玻璃感 */
     --app-icon-bg: rgba(225, 238, 247, 0.26);
     --app-icon-color: rgba(255, 255, 255, 0.88);
+    /* T10：圆形组件贴纸白边。夏雨桌面实际是深蓝雨天照片玻璃底（非 --bg-base 的浅色），
+       与 app-icon-bg 同理稍降透明度，避免纯白边在深色照片上像贴纸被硬拍上去 */
+    --sticker-edge: rgba(255, 255, 255, 0.78);
     /* 注意：--glass-panel 被 app 内部 chrome（app-header / chat-input / kb-drawer 等）复用，
        这里不改它（保持上方浅色不动），桌面 widget 的玻璃在下方 override 段单独针对
        .widget-card / .widget-clock / .widget-vinyl 处理，避免污染 app 内部。 */
@@ -108,6 +111,8 @@
     --icon-bg: #b08a90;
     --app-icon-bg: rgba(255, 252, 252, 0.92);
     --app-icon-color: rgba(70, 58, 60, 0.72);
+    /* T10：圆形组件贴纸白边——法式芭蕾缎带白，柔而不透 */
+    --sticker-edge: rgba(255, 255, 255, 0.90);
     --wallpaper-gradient: url('assets/textures/sakura-bg.webp') center / cover no-repeat;
     --icon-gradient-1: #b08a90;                /* 渐变 token 改平色（无渐变铁律，草莓有先例） */
     --icon-gradient-2: #dcc0c4;
@@ -193,6 +198,9 @@
     --icon-bg: var(--accent-color);
     --app-icon-bg: rgba(40, 44, 78, 0.40);
     --app-icon-color: rgba(232, 236, 250, 0.92);
+    /* T10：圆形组件贴纸白边——全项目最深色的主题，白边调到最淡，
+       否则纯白描边在星空银河壁纸上会像贴纸边框一样割裂、破坏夜空沉浸感 */
+    --sticker-edge: rgba(255, 255, 255, 0.22);
     /* 夜空沉浸：内嵌星空银河照片当壁纸（用户上传壁纸时 applyWallpaper 的 inline backgroundImage 优先级更高、自动覆盖） */
     --wallpaper-gradient: url('assets/textures/night-sky-bg.webp') center / cover no-repeat;
     --icon-gradient-1: linear-gradient(135deg, #5c66a0 0%, #7a84b8 100%);
@@ -230,6 +238,8 @@
     --icon-bg: var(--accent-color);
     --app-icon-bg: rgba(255, 253, 248, 0.88);
     --app-icon-color: rgba(58, 66, 72, 0.7);
+    /* T10：圆形组件贴纸白边——手帐纸感，白边不追求最亮，贴近奶白纸色 */
+    --sticker-edge: rgba(255, 255, 255, 0.85);
     --wallpaper-gradient: url('assets/textures/journal-bg.webp');
     --icon-gradient-1: linear-gradient(135deg, #7a9e8a 0%, #9ab8a8 100%);
     --icon-gradient-2: linear-gradient(135deg, #b8c8d4 0%, #d0dce4 100%);
@@ -329,6 +339,8 @@
     --icon-bg: #5d6e63;
     --app-icon-bg: rgba(250, 251, 248, 0.96);
     --app-icon-color: rgba(93, 110, 99, 0.9);
+    /* T10：圆形组件贴纸白边——利休鼠减法哲学，边不用最厚最白，克制一档 */
+    --sticker-edge: rgba(255, 255, 255, 0.85);
     /* 壁纸纯色（无渐变铁律）；--icon-gradient-* 改平色，消费方只当 background 用（草莓先例） */
     --wallpaper-gradient: #f1f3ef;
     --icon-gradient-1: #5d6e63;
@@ -383,6 +395,8 @@
     --icon-bg: var(--accent-color);
     --app-icon-bg: rgba(248, 248, 240, 0.95);
     --app-icon-color: #794f27;
+    /* T10：圆形组件贴纸白边——动森草绿上要够亮才跳出来，接近奶油白 */
+    --sticker-edge: rgba(255, 255, 255, 0.90);
     /* 壁纸用草绿纯色（守无渐变铁律）；叶子 motif 走 .wallpaper 层 */
     --wallpaper-gradient: #7DC395;
     --icon-gradient-1: #19c8b9;
@@ -790,6 +804,8 @@
     --icon-bg: var(--accent-color);
     --app-icon-bg: rgba(255, 251, 247, 0.92);
     --app-icon-color: rgba(107, 74, 69, 0.75);
+    /* T10：圆形组件贴纸白边——奶油白，配得上原有 .widget-card::before 的奶油扇贝花边 */
+    --sticker-edge: rgba(255, 255, 255, 0.90);
     /* 壁纸：作者手绘草莓蛋糕水彩桌布（四周点缀、中间留白给图标） */
     --wallpaper-gradient: url('assets/textures/strawberry-bg.webp') center / cover no-repeat;
     --icon-gradient-1: #d96b7a;
@@ -904,6 +920,8 @@
     /* 桌面图标 = 冰磨砂玻璃托盘：半透冷白让背景隐约透出 + backdrop-filter 起雾 + 冰蓝描边 */
     --app-icon-bg: rgba(236, 244, 251, 0.42);
     --app-icon-color: rgba(51, 70, 90, 0.78);
+    /* T10：圆形组件贴纸白边——雪国霜白最厚最白，冰雪贴纸感全项目最浓 */
+    --sticker-edge: rgba(255, 255, 255, 0.94);
     /* 壁纸：作者 GPT 生成的北海道清池雪景照片（雾感清冷、中央留白、底部针叶林+小屋+结冰湖面）。
        照片是本主题灵魂，飘雪 shader 叠在其上。用户填 URL 时 applyWallpaper 的 inline backgroundImage 优先级更高自动覆盖。
        底垫一层冷调渐变作图片未就绪/加载失败时的兜底。 */
@@ -1365,4 +1383,63 @@
 }
 [data-theme="night-sky"] .widget-polaroid-j .pj-caption-placeholder {
     color: rgba(226, 230, 248, 0.42);
+}
+
+/* ============================================================
+   T10 圆形组件 · 主题圆角/装饰守卫（追加于文件末尾，逐主题层层覆盖后最终生效）
+   themes.css 在 style.css 之后加载。上方部分主题给 .widget-card 追加的
+   border-radius 覆盖（[data-theme="animal"|"journal"|"minimal"] .widget-card，
+   分别在本文件「動森テーマ widget 深度スキン」「手帐テーマ widget 深度スキン」
+   「极简「利休鼠」widget 深度スキン」三节里）与 style.css 里圆形组件底座
+   .widget-card.widget-circle 的 border-radius:50%（style.css「圆形组件通用
+   底座（scaffold）」节）同特异性（均为两个 class/attribute 选择器叠加，CSS 只按选择器种类计数、
+   不看字面长度）——按 CSS 层叠规则，同特异性时声明顺序更晚的赢，themes.css
+   晚于 style.css 加载，会把圆形组件的圆角打回主题定的方角/小圆角。
+   这里用 !important 强制圆形组件恒为正圆，属于跨文件同特异性对抗的合法用例
+   （CLAUDE.md 禁 !important 滥用铁律的例外：同特异性、跨文件、无法靠提高
+   选择器特异性解决，因为主题层要保持对 .widget-card 的通用覆盖权）。
+   ============================================================ */
+.widget-card.widget-circle {
+    /* !important 理由见上方文件头注释：对抗 animal/journal/minimal 三主题
+       对 .widget-card 的 border-radius 覆盖（同特异性、声明顺序更晚会赢） */
+    border-radius: 50% !important;
+    aspect-ratio: 1;
+    /* review 修复（E1）：贴纸白边与 border-radius 输在同一场特异性战争——全部 8 个主题的
+       [data-theme] .widget-card 边框声明（animal 甚至是 2px 虚线棕边）都会吃掉 scaffold 的
+       2.5px 白贴纸边（实测 computed border 确认）。守卫补齐另一半。 */
+    border: 2.5px solid var(--sticker-edge, rgba(255, 255, 255, 0.7)) !important;
+}
+/* 圆相框的贴纸边加厚（4px）：上一条 border 带 !important 后，style.css 里更高特异性但
+   无 !important 的 border-width:4px 会失效，这里以同等 !important 补回 */
+.widget-card.widget-circle.widget-photoframe-circle {
+    border-width: 4px !important;
+}
+
+/* ── 圆形组件禁角落/边缘装饰 ──
+   设计铁律「内容中心收拢，四角不放信息」（docs/2026-07-16-新小组件企划-任务拆解.md）。
+   下列装饰在方形卡上贴边角/贴直边没问题，但选择器命中面盖到了圆档
+   （圆档时钟/黑胶仍带 .widget-clock/.widget-vinyl 类，圆档统一带 .widget-card 类），
+   落在 overflow:hidden + border-radius:50% 的圆形里会被圆弧斜切出破碎缺角
+   /断口，逐条关闭，只在圆档生效、方档装饰不受影响。 */
+
+/* 雪国（snow-country）：.widget-card::after 顶沿霜光直线（贴合方角矩形设计）+
+   .widget-clock/.widget-vinyl::before 角落雪花贴纸（贴合方角右上角设计）——
+   两者在圆档上都会被圆弧切出突兀断口，圆档改走通用白边+内容即可，不需要这层装饰 */
+[data-theme="snow-country"] .widget-card.widget-circle::after,
+[data-theme="snow-country"] .widget-card.widget-circle.widget-clock::before,
+[data-theme="snow-country"] .widget-card.widget-circle.widget-vinyl::before {
+    content: none;
+}
+
+/* 动森（animal）：.widget-clock/.widget-vinyl::before 角落薄荷叶/铃钱袋贴纸，
+   同样是方角右上角构图，圆档上会被切出缺角 */
+[data-theme="animal"] .widget-card.widget-circle.widget-clock::before,
+[data-theme="animal"] .widget-card.widget-circle.widget-vinyl::before {
+    content: none;
+}
+
+/* 草莓（strawberry）：.widget-card::before 顶沿奶油扇贝花边，直线贴合方形
+   卡片的平直上边缘而画，贴到圆弧上会露出方角轮廓、破坏贴纸圆边的完整感 */
+[data-theme="strawberry"] .widget-card.widget-circle::before {
+    content: none;
 }

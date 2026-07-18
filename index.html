@@ -14,11 +14,66 @@
     <link rel="manifest" href="manifest.json">
 
     <!-- 图标配置 -->
-    <!-- 图标配置 -->
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192-v5.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="icon-512-v5.png">
-    <link rel="apple-touch-icon" href="icon-192-v5.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icon-192-v5.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192-v7.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512-v7.png">
+    <!-- v2.210.0 开屏层一：apple-touch-icon 喂 512 高清（iOS 无 startup image 匹配时 fallback=底色+图标，192 放大会糊）-->
+    <link rel="apple-touch-icon" href="icon-512-v7.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon-512-v7.png">
+
+    <!-- v2.210.0 开屏静态启动图（作者水彩画·米白底 contain 居中，与应用内入场动画同画无缝衔接）
+         iOS 按 device-width/height + dpr 精确匹配；未匹配机型回落 background_color + 图标。
+         ⚠️ 与图标同理：已装 PWA 可能须删主屏重加才生效（先导出备份！）-->
+    <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="assets/splash-startup/startup-750x1334.jpg">
+    <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="assets/splash-startup/startup-828x1792.jpg">
+    <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash-startup/startup-1125x2436.jpg">
+    <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash-startup/startup-1170x2532.jpg">
+    <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash-startup/startup-1179x2556.jpg">
+    <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash-startup/startup-1242x2688.jpg">
+    <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash-startup/startup-1284x2778.jpg">
+    <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash-startup/startup-1290x2796.jpg">
+
+    <!-- v2.210.0 开屏入场层 critical CSS（inline：层随首帧渲染，不等外部 css）-->
+    <style>
+        #splashIntro {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483000;   /* 认证锁屏(99999)之上 */
+            background: #fbfbfa;   /* 画框米白（边缘取色）*/
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #splashIntro img {
+            max-width: 100%;
+            max-height: 100%;
+            opacity: 0;
+            transform: scale(1.035);
+            will-change: transform, opacity;
+        }
+        #splashIntro.si-in img {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.22s ease-out, transform 0.95s cubic-bezier(0.22, 0.61, 0.36, 1);
+        }
+        /* v2.213.0 settle 落定后接呼吸浮动：等桌面就绪期间画不是死帧（transform-only 合成器动画，
+           keyframes 起点 = settle 终点 scale(1)，接管 transition 无跳变）*/
+        #splashIntro.si-breathe img {
+            animation: siBreathe 4.6s ease-in-out infinite;
+        }
+        @keyframes siBreathe {
+            0%, 100% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.015) translateY(-6px); }
+        }
+        /* v2.213.0 reduced-motion：不播动画，画静态亮起当加载幕布 */
+        #splashIntro.si-hold img {
+            opacity: 1;
+        }
+        #splashIntro.si-out {
+            opacity: 0;
+            transition: opacity 0.38s ease-in;
+            pointer-events: none;   /* 淡出即放行下层点击（否则 420ms 内吞掉认证/桌面的第一下）*/
+        }
+    </style>
 
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="css/themes.css">
@@ -40,6 +95,59 @@
 </head>
 
 <body>
+    <!-- v2.210.0 开屏入场（作者水彩画「月兔与应援棒」·仅页面 load 播=冷启动，后台切回不重播）
+         v2.213.0 退场改「桌面就绪」驱动：app.js 初始化尾部派发 perigee:app-ready，
+         收到且最短展示已过才淡出——慢设备/大存档冷启动不再「画放完了桌面还没来」-->
+    <div id="splashIntro" aria-hidden="true"><img id="splashIntroImg" src="assets/splash-intro.jpg" alt="" fetchpriority="high"></div>
+    <script>
+    (function () {
+        var done = false, noFade = false;
+        var el = document.getElementById('splashIntro');
+        var img = document.getElementById('splashIntroImg');
+        function finish() {
+            if (done) return;
+            done = true;
+            var s = document.getElementById('splashIntro');
+            if (!s) return;
+            if (noFade) { s.remove(); return; }         // reduced-motion：直接切换不淡出
+            s.classList.add('si-out');
+            setTimeout(function () { s.remove(); }, 420);
+        }
+        // 双闸门：appReady（app.js 派发）+ minShown（最短展示）都开才退场
+        var appReady = !!window.__perigeeAppReady;      // 双保险 flag（内联脚本必先于 app.js 注册监听，正常不会用到）
+        var minShown = false;
+        function tryFinish() { if (appReady && minShown) finish(); }
+        document.addEventListener('perigee:app-ready', function () { appReady = true; tryFinish(); });
+        setTimeout(function () { appReady = true; minShown = true; finish(); }, 8000);   // 总兜底：初始化异常也不困住用户
+        el.addEventListener('click', finish);           // 点一下跳过
+        // reduced-motion：不播动画，画静态亮起当加载幕布，桌面就绪立刻整层撤走
+        try {
+            if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                noFade = true;
+                el.classList.add('si-hold');
+                minShown = true;
+                tryFinish();
+                return;
+            }
+        } catch (e) { /* 老浏览器无 matchMedia 时照常播 */ }
+        var kicked = false;
+        function kick(ok) {
+            if (kicked || done) return;
+            kicked = true;
+            if (!ok) { appReady = true; minShown = true; finish(); return; }   // 图没就绪（首访慢网/加载失败）→ 不白等，直接进 app
+            el.classList.add('si-in');
+            setTimeout(function () { el.classList.add('si-breathe'); }, 1000);  // settle 落定后接呼吸浮动
+            setTimeout(function () { minShown = true; tryFinish(); }, 3200);    // 最短展示：完整看完入场+一小段呼吸
+        }
+        if (img.complete && img.naturalWidth) { kick(true); }
+        else {
+            img.addEventListener('load', function () { kick(true); });
+            img.addEventListener('error', function () { kick(false); });
+            setTimeout(function () { kick(!!(img.complete && img.naturalWidth)); }, 900);
+        }
+    })();
+    </script>
+
     <!-- 0. 认证锁屏 -->
     <div id="auth-screen" style="display:none; position:fixed; inset:0; z-index:99999; background:linear-gradient(135deg,#0a0a2e 0%,#1a1a4e 50%,#0d0d3a 100%); display:flex; align-items:center; justify-content:center; font-family:-apple-system,BlinkMacSystemFont,sans-serif;">
         <div style="text-align:center; padding:40px; max-width:320px; width:100%;">
@@ -4651,6 +4759,7 @@
     <!-- profile.js removed — identity management migrated to line.js LineHome -->
     <script src="js/fortune.js"></script>
     <script src="js/tarot.js"></script>
+    <script src="js/anniversary.js"></script>
     <script src="js/world-context.js"></script>
     <script src="js/forum.js"></script>
     <script src="js/forum-generate.js"></script>
@@ -4660,6 +4769,7 @@
     <script src="js/forum-tools.js"></script>
     <script src="js/broadcast.js"></script>
     <script src="js/pixiv-novel.js"></script>
+    <script src="js/pixiv-comments.js"></script>
     <script src="js/illust-gallery.js"></script>
     <script src="js/twitter.js"></script>
     <script src="js/twitter-thread.js"></script>
@@ -4677,6 +4787,7 @@
     <script src="js/niconico.js"></script>
     <script src="js/pixiv-illust.js"></script>
     <script src="js/travel.js"></script>
+    <script src="js/image-positioner.js"></script>
     <script src="js/widgets.js"></script>
     <script src="js/decorations.js"></script>
     <script src="js/rain.js"></script>

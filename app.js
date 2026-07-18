@@ -491,17 +491,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (typeof DesktopEdit !== 'undefined' && DesktopEdit.active) return;
             const item = e.target.closest('.app-item');
             if (item && item.dataset.app) Navigation.goTo(item.dataset.app);
-            // Widget click
-            const widget = e.target.closest('.desktop-grid-widget');
-            if (widget && widget.dataset.widgetId) {
-                const w = (AppState.data.widgets || []).find(x => x.id === widget.dataset.widgetId);
-                if (w) {
-                    if (w.type === 'photo') Widgets.editPhoto(w.id);
-                    else if (w.type === 'calendar') Widgets.editCalendar(w.id);
-                    else if (w.type === 'music') Widgets.editMusic(w.id);
-                    else if (w.type === 'news') Widgets._openForum();
-                }
-            }
+            // v2.207.1: 小组件点击委托分支已退役——各 widget-card 模板自带 inline onclick（现行模式、
+            // 与 clock/宝丽来/角色卡/mercari 一致），这里再派发一次 = 弹窗双开（关闭要点两次）；
+            // 且 news 分支引用的 Widgets._openForum 早已不存在（点卡片体会抛 TypeError）。
         });
         // 底部 Dock 栏点击（独立委托：Dock 在 #desktopPages 之外）
         document.getElementById('dock')?.addEventListener('click', (e) => {
@@ -851,4 +843,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         };
     } catch (e) { console.error('[Init Error] Data Management:', e); }
+
+    // 15. 开屏放行（v2.213.0）：数据加载+桌面渲染+全部绑定到此完成，通知开屏层可以退场了。
+    // 各 section 均有独立 try/catch，流程必达此处；开屏侧另有 8s 硬兜底。
+    window.__perigeeAppReady = true;
+    document.dispatchEvent(new Event('perigee:app-ready'));
 });
