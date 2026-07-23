@@ -275,6 +275,9 @@ Object.assign(Twitter, {
         const tweet = (arr || []).find(tw => tw.id === tweetId);
         if (!tweet) return;
 
+        // 引用転載晒し（黒評晒し）: 引用元がアンチのリプライなら声援基調に切り替え
+        const quotedAntiSnap = (tweet.quotedTweet && tweet.quotedTweet.quotedRole === 'anti') ? tweet.quotedTweet : null;
+
         // 第一批（postTweet 直後）: 公式 NPC reply 上限 3 件（亲密圈のみ）
         // 追加バッチ（「リプライを読み込む」按钮）: 公式 NPC reply 全面禁止（路人潮）
         const isInitialBatch = !!opts.initialBatch;
@@ -322,6 +325,11 @@ Object.assign(Twitter, {
                 ? `\n【公式NPCリプライの枠（最重要ルール）】\n- このバッチでは公式NPCアカウントからのリプライは最大 ${maxNpcReplies} 件まで（投稿者と親しい関係性のキャラ・スタッフのみ）\n- 残りの全リプライは fan / anti のみで構成すること\n- 公式NPC同士の「内輪ノリ」リプライは投稿者と直接関係ある場合のみ自然`
                 : `\n【公式NPCリプライの枠（最重要ルール）】\n- このバッチは「追加リプライ／路人潮」段階。公式NPCアカウントからのリプライは完全に禁止 — ROLE: npc を1件たりとも出力しないこと\n- すべて fan / anti のみで構成すること（親しい関係者は最初のバッチですでに反応済みという前提）\n- 公式が後追いで反応する場合は引用ツイート（QT）で行うのが日本のSNS文化に沿うため、リプライ欄には登場させない`;
 
+            // 引用晒し（黒評晒し）: アンチのリプライを引用して投稿した場合、声援基調ルールを注入
+            const quotedAntiRule = quotedAntiSnap
+                ? `\n【引用晒しルール（最重要）】\n- このツイートはユーザーがアンチのリプライを引用して晒したもの\n- リプライは**ユーザーへの声援・共感・アンチへの反論**を基調にすること（擁護、正論での反駁、「通報した」「ブロック推奨」、呆れ、「気にしないで」系の労わり等を混ぜて多様に）\n- 引用元のアンチ本人のリプライは生成しないこと（ROLE: anti を出力しない）\n- 過度な暴言・人格攻撃・差別的表現はしない、実際のTwitterで見かける範囲の言葉遣いで`
+                : '';
+
             const systemPrompt = `あなたはアニメファンコミュニティのX（Twitter）シミュレーションエンジンです。
 公式アニメツイートへのリアルな日本語ファンリアクションをシミュレーションしてください。
 リプライアカウントの種類: ファン、感情的なファン、ライトアンチ、他の公式NPCアカウント（声優・スタッフが軽く絡む程度）。
@@ -340,8 +348,10 @@ Object.assign(Twitter, {
 - ニュース通信社・まとめサイト・公式アニメニュースアカウント風のアカウントは出さない
 - メディアアカウントが反応する場合でも一人称・感想ベースで（「うちのライターも泣いてました」みたいな個人レベル）
 ${npcAllowanceRule}
+${quotedAntiRule}
 ${npcList}
 ${repliedList}
+${this._blockedPromptRule()}
 ${identityContext}
 作品設定:
 ${worldContext || '（未設定 — 具体的なキャラ名・CP・ストーリーを捏造しないこと）'}
@@ -356,9 +366,14 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 
 5〜8件のリプライを生成すること。`;
 
-            const messages = [{ role: 'user', content: `【投稿者】${tweetAuthorName}\n【ツイート内容】\n${tweet.content}\n\n上記のツイートへのリプライを生成してください。` }];
+            const quotedAntiContext = quotedAntiSnap
+                ? `\n【引用元 — ユーザーが晒したアンチのリプライ（ユーザー自身の発言ではない。声援はこの発言への反論として書くこと）】\n${quotedAntiSnap.authorName}（${quotedAntiSnap.authorHandle}）: ${quotedAntiSnap.content}`
+                : '';
+            const messages = [{ role: 'user', content: `【投稿者】${tweetAuthorName}\n【ツイート内容】\n${tweet.content}${quotedAntiContext}\n\n上記のツイートへのリプライを生成してください。` }];
             const raw = await Utils.callChatAPI(messages, systemPrompt);
-            let replies = this._parseReplies(raw).filter(r => !this._looksLikeNewsHeadline(r.content));
+            let replies = this._filterBlockedParsed(this._parseReplies(raw)).filter(r => !this._looksLikeNewsHeadline(r.content));
+            // 声援潮 anti 兜底過濾（prompt 制約已有、这是代码级双保险，与 NPC 上限的双保险先例同構）
+            if (quotedAntiSnap) replies = replies.filter(r => r.role !== 'anti');
 
             // 後置フィルタ: AI が npc リプライ上限を守らなかった場合の保険
             let npcCount = 0;
@@ -565,6 +580,21 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
         this._refreshTwitterViews();
     },
 
+    // ===== 引用预览 DOM 渲染（openQuoteCompose / openQuoteReplyCompose 共用）=====
+    _renderQuotePreview() {
+        const preview = document.getElementById('twPostQuotePreview');
+        if (!preview || !this._pendingQuotedTweet) return;
+        preview.style.display = '';
+        preview.innerHTML = `<div class="tw-inline-quote">
+    <div class="tw-iq-header">
+        <div class="tw-iq-avatar" style="background:${this._pendingQuotedTweet.avatarColor || '#888'};">${this._esc((this._pendingQuotedTweet.authorName || '？').charAt(0).toUpperCase())}</div>
+        <span class="tw-name" style="font-size:13px;">${this._esc(this._pendingQuotedTweet.authorName)}</span>
+        <span class="tw-handle" style="font-size:12px;">${this._esc(this._pendingQuotedTweet.authorHandle)}</span>
+    </div>
+    <div class="tw-iq-content">${this._esc(this._pendingQuotedTweet.content).replace(/\n/g, '<br>')}</div>
+</div>`;
+    },
+
     // ===== 五按钮：引用 — 打开发推编辑器（带原推预览）=====
     openQuoteCompose(tweetId, isNpc) {
         const t = this._ensureData();
@@ -579,19 +609,26 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             content: tweet.content || ''
         };
         this.showPostModal();
-        // 显示引用预览
-        const preview = document.getElementById('twPostQuotePreview');
-        if (preview) {
-            preview.style.display = '';
-            preview.innerHTML = `<div class="tw-inline-quote">
-    <div class="tw-iq-header">
-        <div class="tw-iq-avatar" style="background:${this._pendingQuotedTweet.avatarColor || '#888'};">${this._esc((this._pendingQuotedTweet.authorName || '？').charAt(0).toUpperCase())}</div>
-        <span class="tw-name" style="font-size:13px;">${this._esc(this._pendingQuotedTweet.authorName)}</span>
-        <span class="tw-handle" style="font-size:12px;">${this._esc(this._pendingQuotedTweet.authorHandle)}</span>
-    </div>
-    <div class="tw-iq-content">${this._esc(this._pendingQuotedTweet.content).replace(/\n/g, '<br>')}</div>
-</div>`;
-        }
+        this._renderQuotePreview();
+    },
+
+    // ===== コメント欄「引用ポスト」— リプライ（黑评）を引用して発推編集画面を開く（晒し）=====
+    openQuoteReplyCompose(replyId) {
+        const t = this._ensureData();
+        const arr = this.currentTweetIsNpc ? (t.npcTweets || []) : (t.tweets || []);
+        const tweet = arr.find(tw => tw.id === this.currentTweetId);
+        if (!tweet) return;
+        const r = (tweet.replies || []).find(x => x.id === replyId);
+        if (!r) return;
+        this._pendingQuotedTweet = {
+            authorName: r.author || 'ファン',
+            authorHandle: r.handle || '@user',
+            avatarColor: this._roleColor(r.authorRole),
+            content: r.content || '',
+            quotedRole: r.authorRole || 'fan'
+        };
+        this.showPostModal();
+        this._renderQuotePreview();
     },
 
     // ===== 发推 — 图片附件 =====
@@ -800,8 +837,10 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
     // ===== Reply thread 排序（DFS preorder + 同作者连续聚合）=====
     _sortRepliesByThread(replies) {
         const childrenMap = new Map();
+        // v2.214 孤儿兜底：父楼层被删后，楼中楼子回复降级为顶层继续可见（否则渲染断链、整串凭空消失）
+        const idSet = new Set(replies.map(r => r.id));
         replies.forEach(r => {
-            const pid = r.parentReplyId || null;
+            const pid = (r.parentReplyId && idSet.has(r.parentReplyId)) ? r.parentReplyId : null;
             if (!childrenMap.has(pid)) childrenMap.set(pid, []);
             childrenMap.get(pid).push(r);
         });
@@ -820,6 +859,36 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 
     // ===== 单条 Reply 渲染（5 按钮 + 串线 + inline composer 容器）=====
     _renderReply(r, connectorTop, connectorBottom) {
+        // v2.216 黑子认怂删评：内容换成灰字占位、楼层与串线保留（子回复不断链）
+        if (r.deletedByAuthor) {
+            const delConn = [
+                connectorTop ? 'tw-reply-conn-top' : '',
+                connectorBottom ? 'tw-reply-conn-bot' : ''
+            ].filter(Boolean).join(' ');
+            return `<div class="tw-reply ${delConn}" data-reply-id="${this._esc(r.id)}">
+    <div class="tw-reply-avatar-col">
+        <div class="tw-reply-avatar" style="background:var(--border-medium);"></div>
+    </div>
+    <div class="tw-reply-body">
+        <div class="tw-reply-deleted">${I18n.t('tw.reply_deleted_placeholder', 'このリプライは投稿者により削除されました')}</div>
+    </div>
+</div>`;
+        }
+        // v2.217 凍結：通報 45 秒后该用户评论原地变灰字占位（公开处刑；用户自己的评论永不冻结）
+        if (!r.byUser && r.authorRole !== 'self' && this._isFrozen(r)) {
+            const frzConn = [
+                connectorTop ? 'tw-reply-conn-top' : '',
+                connectorBottom ? 'tw-reply-conn-bot' : ''
+            ].filter(Boolean).join(' ');
+            return `<div class="tw-reply ${frzConn}" data-reply-id="${this._esc(r.id)}">
+    <div class="tw-reply-avatar-col">
+        <div class="tw-reply-avatar" style="background:var(--border-medium);"></div>
+    </div>
+    <div class="tw-reply-body">
+        <div class="tw-reply-deleted">${I18n.t('tw.reply_frozen_placeholder', 'このリプライは凍結されたアカウントのものです')}</div>
+    </div>
+</div>`;
+        }
         const rAvatar = (r.author || '？').charAt(0).toUpperCase();
         const roleColor = this._roleColor(r.authorRole);
         const rTl = r.translation ? `<details class="tw-tl-block" onclick="event.stopPropagation()">
@@ -912,6 +981,8 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
         if (!tweet) return;
         const r = (tweet.replies || []).find(x => x.id === replyId);
         if (!r) return;
+        const isOwn = r.byUser || r.authorRole === 'self';
+        const isProtected = r.authorRole === 'npc' || r.authorRole === 'op';
         this._actionSheet([
             {
                 label: I18n.t('tw.action_share_to_line', 'LINEで共有'),
@@ -926,8 +997,141 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
                         });
                     }
                 }
+            },
+            ...(isOwn ? [] : [{
+                label: I18n.t('tw.action_quote_reply', '引用ポスト'),
+                icon: this._svg.retweet,
+                onClick: () => this.openQuoteReplyCompose(replyId)
+            }]),
+            ...(isOwn ? [] : [{
+                label: I18n.t('tw.action_report', '通報する'),
+                icon: this._svg.flag,
+                onClick: () => this.reportReply(replyId)
+            }]),
+            {
+                label: (isOwn || isProtected) ? I18n.t('tw.action_delete', '削除') : I18n.t('tw.action_block_delete_reply', 'ブロックして削除'),
+                icon: this._svg.ban,
+                onClick: () => this.deleteReply(replyId),
+                danger: true
             }
         ]);
+    },
+
+    // ===== ブロック黑名单（v2.216）+ 通報凍結（v2.217）=====
+    // 存储：t.blockedUsers / t.reportedUsers = [{handle, author, npcId?, blockedAt|reportedAt}]。
+    // 判定按 handle；handle 缺失或是 '@user' 泛用兜底值时按 author+handle 双匹配（防泛用 handle 误伤一大片）
+    _normHandle(h) { return (h || '').replace(/^@+/, '').toLowerCase(); },
+    _userEntryMatches(b, r) {
+        if (r.npcId && b.npcId && b.npcId === r.npcId) return true;
+        if (b.replyId && r.id && b.replyId === r.id) return true;   // 无稳定身份的条目按具体评论 id 命中
+        const nh = this._normHandle(r.handle);
+        const bh = this._normHandle(b.handle);
+        const nGeneric = !nh || nh === 'user';
+        const bGeneric = !bh || bh === 'user';
+        if (nGeneric && bGeneric) {
+            // 双泛用：author 必须非空且不是解析兜底哨兵 'ファン'，否则只认上面的 replyId
+            return (b.author || '') !== '' && b.author !== 'ファン' && b.author === (r.author || '') && bh === nh;
+        }
+        if (nGeneric || bGeneric) return (b.author || '') === (r.author || '') && bh === nh;
+        return bh === nh;
+    },
+    _isBlocked(r) {
+        const list = this._ensureData().blockedUsers || [];
+        return !!(r && list.length && list.some(b => this._userEntryMatches(b, r)));
+    },
+    _isReported(r) {
+        const list = this._ensureData().reportedUsers || [];
+        return !!(r && list.length && list.some(b => this._userEntryMatches(b, r)));
+    },
+    // 凍結生效=通報 45 秒后（「運営審査中」的时间差演出）；仅渲染层用，生成排除走 _isExcluded（通報即排除）
+    _isFrozen(r) {
+        const list = this._ensureData().reportedUsers || [];
+        if (!r || !list.length) return false;
+        const now = Date.now();
+        return list.some(b => (now - (b.reportedAt || 0) > 45000) && this._userEntryMatches(b, r));
+    },
+    _isExcluded(r) { return this._isBlocked(r) || this._isReported(r); },
+    _blockedPromptRule() {
+        const t = this._ensureData();
+        const list = [...(t.blockedUsers || []), ...(t.reportedUsers || [])];
+        if (!list.length) return '';
+        return `\n【ブロック/凍結済みアカウント — 以下のユーザーは絶対に登場・言及させないこと】\n${list.map(b => `・${b.author || '？'}（${b.handle || '@?'}）`).join('\n')}`;
+    },
+    _filterBlockedParsed(parsed) {
+        return (parsed || []).filter(p => !this._isExcluded({ handle: p.handle, author: p.author }));
+    },
+
+    // ===== LINE 好友安慰（跨模块）事件队列 push =====
+    // 安慰事件：推特侧遭遇黑子的行动记录，LINE 打开时消费（best-effort 氛围功能）
+    _pushComfortEvent(type, target) {
+        if (!Array.isArray(AppState.data.pendingComfortEvents)) AppState.data.pendingComfortEvents = [];
+        const q = AppState.data.pendingComfortEvents;
+        q.push({ type, antiName: (target && target.author) || (target && target.name) || '', antiHandle: (target && target.handle) || '', ts: Date.now() });
+        // 裁剪：最多 10 条、只留 7 天内（仿 Utils.pruneEvents 思路）
+        const cutoff = Date.now() - 7 * 86400000;
+        AppState.data.pendingComfortEvents = q.filter(e => e.ts > cutoff).slice(-10);
+        Utils.saveData();
+    },
+
+    // ===== 通報（v2.217：凍結=公开处刑系爽感，评论原地变灰字；ブロック=眼不见为净，评论消失）=====
+    reportReply(replyId) {
+        if (!confirm(I18n.t('tw.confirm_report', 'このアカウントを通報しますか？'))) return;
+        const t = this._ensureData();
+        const arr = this.currentTweetIsNpc ? (t.npcTweets || []) : (t.tweets || []);
+        const tweet = arr.find(tw => tw.id === this.currentTweetId);
+        const target = tweet && (tweet.replies || []).find(x => x.id === replyId);
+        if (!target) return;
+        Utils.showToast(I18n.t('tw.toast_reported', '通報を受け付けました。審査の上、対応いたします'));
+        // 官方 NPC / 推主本人：运营不受理（防手滑冻结官方号或作者本人；现实里对官方/作者的举报也不会通过）
+        if (target.authorRole === 'npc' || target.authorRole === 'op') {
+            setTimeout(() => Utils.showToast(I18n.t('tw.toast_report_dismissed', '運営より：確認の結果、規約違反は確認できませんでした'), 5000), 4000);
+            return;
+        }
+        if (!Array.isArray(t.reportedUsers)) t.reportedUsers = [];
+        if (!this._isReported(target)) {
+            t.reportedUsers.push({ handle: target.handle || '', author: target.author || '', npcId: target.npcId || null, replyId: target.id, reportedAt: Date.now() });
+            this._pushComfortEvent('reported', target);
+            Utils.saveData();
+        }
+    },
+
+    // ===== 删除单条 Reply（分享菜单入口）=====
+    // 他人评论=「ブロックして削除」：登记黑名单 + 全局清除该用户所有评论 + 生成侧永久排除
+    // 自己的评论=单纯删除这一条（不进黑名单）
+    deleteReply(replyId) {
+        const t = this._ensureData();
+        const arr = this.currentTweetIsNpc ? (t.npcTweets || []) : (t.tweets || []);
+        const tweet = arr.find(tw => tw.id === this.currentTweetId);
+        if (!tweet) return;
+        const target = (tweet.replies || []).find(x => x.id === replyId);
+        if (!target) return;
+        const isOwn = target.byUser || target.authorRole === 'self';
+        const isProtected = target.authorRole === 'npc' || target.authorRole === 'op';
+
+        if (isOwn || isProtected) {
+            if (!confirm(I18n.t('tw.confirm_delete_reply', 'このリプライを削除しますか？'))) return;
+            tweet.replies = (tweet.replies || []).filter(x => x.id !== replyId);
+            Utils.saveData();
+            Utils.showToast(I18n.t('t.tw_deleted', '削除しました'));
+            this.renderThread();
+            return;
+        }
+
+        if (!confirm(I18n.t('tw.confirm_block_delete_reply', 'このリプライを削除し、ユーザーをブロックしますか？'))) return;
+        if (!Array.isArray(t.blockedUsers)) t.blockedUsers = [];
+        if (!this._isBlocked(target)) {
+            t.blockedUsers.push({ handle: target.handle || '', author: target.author || '', npcId: target.npcId || null, replyId: target.id, blockedAt: Date.now() });
+            this._pushComfortEvent('blocked', target);
+        }
+        // 全局清除：该用户在所有推文（自推+NPC推）下的评论一并消失；用户自己的评论绝不误伤
+        [...(t.tweets || []), ...(t.npcTweets || [])].forEach(tw => {
+            if (Array.isArray(tw.replies) && tw.replies.length) {
+                tw.replies = tw.replies.filter(r => !(r && !r.byUser && r.authorRole !== 'self' && this._isBlocked(r)));
+            }
+        });
+        Utils.saveData();
+        Utils.showToast(I18n.t('tw.toast_reply_blocked', 'ブロックして削除しました'));
+        this.renderThread();
     },
 
     // ===== Inline 评论 composer 展开 =====
@@ -1048,6 +1252,15 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
         // 跳过条件：用户给自己评论 → 不生成 AI 反应
         if (userReply.byUser && target.role === 'self') return;
 
+        // v2.216 粉丝护主：用户回复黑子评论 → 粉丝帮腔声援 + 黑子下场抽签
+        // 嘴硬 45% / 认怂删评跑路 35% / 装死沉默 20%（代码抽签、prompt 按结局定制，输出可控）
+        const isAntiTarget = !targetIsOP && target.role === 'anti' && userReply.byUser;
+        let antiOutcome = null;
+        if (isAntiTarget) {
+            const roll = Math.random();
+            antiOutcome = roll < 0.45 ? 'defiant' : (roll < 0.8 ? 'retreat' : 'silent');
+        }
+
         // 构建 thread 上下文（最多最近 8 条 reply）
         const recentReplies = (tweet.replies || []).slice(-8);
 
@@ -1068,16 +1281,25 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 - ユーザー（${userIdent.name}）が返信した相手: ${target.name}（@${(target.handle || '').replace(/^@+/, '')}）
 - ユーザーの返信内容: 「${userReply.content}」
 
-${targetIsOP
+${isAntiTarget
     ? `生成内容（順番厳守）:
+1. ファン 2〜3 名によるユーザーへの援護リプライ（必ず）— ユーザーの側に立ち、${target.name} の元の発言「${(target.content || '').slice(0, 120)}」に反論・抗議すること。ファンダムでよく見る「仲間を守る」トーン: 擁護・正論での反駁・「通報した」「ブロック推奨」の呼びかけ・呆れ等を混ぜて多様に。過度な暴言・人格攻撃・差別的表現はせず、実際のTwitterで見かける範囲の言葉遣いで
+${antiOutcome === 'defiant'
+        ? `2. 最後に ${target.name} 本人（ROLE: anti、HANDLE: @${(target.handle || '').replace(/^@+/, '')}）がもう一度だけ強がりの捨て台詞を返す（1件のみ。反省ゼロで開き直る感じ）`
+        : antiOutcome === 'retreat'
+            ? `2. 最後に ${target.name} 本人（ROLE: anti、HANDLE: @${(target.handle || '').replace(/^@+/, '')}）が旗色が悪くなり、短く謝罪するか「消します」と言い残して引き下がる（1件のみ）`
+            : `（${target.name} 本人は返信しない。ファンの援護のみ生成すること）`}`
+    : targetIsOP
+        ? `生成内容（順番厳守）:
 1. ${target.name}（推主）からユーザーへの返信（必ず）
 2. 他のファン 1〜2 名による盛り上がり返信（オプション、0〜2 件）`
-    : `生成内容（順番厳守）:
+        : `生成内容（順番厳守）:
 1. ${target.name}（被返信者）からユーザーへの返信（必ず）
 2. 他のファン 0〜1 名のサイドコメント（オプション）`
 }
 
 ${npcList}
+${this._blockedPromptRule()}
 
 世界設定:
 ${worldContext || '（未設定 — 具体的なキャラ名・CP・ストーリーを捏造しないこと）'}
@@ -1091,7 +1313,7 @@ ROLE: [npc / op / fan / anti / media]
 CONTENT: [本文]`;
 
         const threadCtx = recentReplies.map(r =>
-            `- ${r.author}（${r.handle || '@user'}）: ${(r.content || '').slice(0, 200)}`
+            `- ${r.author}（${r.handle || '@user'}）: ${r.deletedByAuthor ? '（削除済み）' : (!r.byUser && this._isFrozen(r) ? '（凍結済み）' : (r.content || '').slice(0, 200))}`
         ).join('\n');
 
         const messages = [{
@@ -1101,7 +1323,7 @@ CONTENT: [本文]`;
 
         try {
             const raw = await Utils.callChatAPI(messages, systemPrompt);
-            const parsed = this._parseReplies(raw);
+            const parsed = this._filterBlockedParsed(this._parseReplies(raw));
             if (parsed.length === 0) return;
 
             const now = Date.now();
@@ -1119,6 +1341,13 @@ CONTENT: [本文]`;
                     parentReplyId: userReply.id
                 });
             });
+            // 认怂结局：黑子道歉后把原黑评标记为「投稿者により削除」——渲染成灰字占位、楼层结构保留
+            if (antiOutcome === 'retreat' && userReply.parentReplyId) {
+                const parent = (tweet.replies || []).find(x => x.id === userReply.parentReplyId);
+                if (parent) parent.deletedByAuthor = true;
+            }
+            // LINE 好友安慰（跨模块）：用户反击黑子成功落库 → 推安慰事件，LINE 打开时消费
+            if (isAntiTarget) this._pushComfortEvent('fought_back', target);
             tweet.lastReplyAt = Date.now();
             Utils.saveData();
             this.renderThread();
@@ -1473,7 +1702,8 @@ CONTENT: [本文]`;
         });
         (tweet.likedByNpcs || []).forEach(id => reactedNpcIds.add(id));
 
-        const candidates = allNpcs.filter(n => !reactedNpcIds.has(n.id));
+        const candidates = allNpcs.filter(n => !reactedNpcIds.has(n.id)
+            && !this._isExcluded({ handle: this._getNpcHandle(n), author: n.name || n.role, npcId: n.id }));
         if (candidates.length === 0) {
             if (opts.manual) Utils.showToast(I18n.t('t.tw_all_reacted', '全員すでに反応済みです'));
             return;

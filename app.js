@@ -345,6 +345,9 @@ const DesktopPager = {
 document.addEventListener('DOMContentLoaded', async () => {
     // 1. Core System & Data
     try {
+        // v2.215：申请持久存储——防浏览器/安卓 OEM 在存储压力下自动清空 IndexedDB。
+        // 已安装 PWA 多半自动授予；fire-and-forget，被拒也不影响任何功能
+        if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
         await Utils.loadData();
         // v2.69.0 数据迁移：CP 字段从 pixivData.settings + forumData.cpNickname 统一到 broadcast.cpSettings
         // 幂等检查：broadcast.cpSettings 已存在 = 已迁移、跳过

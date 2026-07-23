@@ -1374,7 +1374,8 @@ body.dark-mode .tw-profile-avatar-wrap { background: var(--bg-base); }
     gap: 10px;
     padding: 10px 14px calc(10px + env(safe-area-inset-bottom, 0));
     border-top: 1px solid var(--border-light);
-    background: var(--bg-primary);
+    /* v2.214：--bg-primary 不是本项目主题 token（仅 pixiv 作用域内有定义），这里解析失败=透明底 */
+    background: var(--bg-card);
 }
 .tw-thread-composer-avatar {
     flex-shrink: 0;
@@ -1441,12 +1442,23 @@ body.dark-mode .tw-profile-avatar-wrap { background: var(--bg-base); }
 .tw-sheet {
     width: 100%;
     max-width: 480px;
-    background: var(--bg-primary);
+    /* v2.214：同上，--bg-primary 未定义曾致整个 action sheet 透明 */
+    background: var(--bg-card);
     border-radius: 16px 16px 0 0;
     padding: 8px 0 calc(16px + env(safe-area-inset-bottom, 0));
     animation: twSheetSlideUp 0.22s ease-out;
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
 }
+/* v2.216 被投稿者删除的评论占位（黑子认怂删评跑路） */
+.tw-reply-deleted {
+    margin-top: 2px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 13.5px;
+}
+
 .tw-sheet-handle {
     width: 36px;
     height: 4px;

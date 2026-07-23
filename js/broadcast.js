@@ -566,7 +566,10 @@ Rules:
         }
     },
 
-    saveWorldSettings() {
+    // v2.215：toast 改在真实落盘之后——此前 saveData() 只是排 300ms 防抖、toast 同步先弹，
+    // 「已保存」说的是进了内存而非进了盘；OPPO 用户 CP 丢失悬案后改为 await flushSave()，
+    // 写失败时 _saveNow 已弹「⚠️ 保存失败」，这里不再报喜（等于给写入失败装了现形探针）
+    async saveWorldSettings() {
         const ws = document.getElementById('forumWorldSetting');
         if (ws) AppState.data.broadcast.worldSetting = ws.value.trim();
         AppState.data.broadcast.worldBookIds = [];
@@ -574,7 +577,7 @@ Rules:
             AppState.data.broadcast.worldBookIds.push(cb.dataset.wbid);
         });
         AppState.data.broadcast.worldBookId = AppState.data.broadcast.worldBookIds[0] || '';
-        Utils.saveData();
-        Utils.showToast(I18n.t('t.bc_saved', '✓ 已保存'));
+        const ok = await Utils.flushSave();
+        if (ok) Utils.showToast(I18n.t('t.bc_saved', '✓ 已保存'));
     }
 };

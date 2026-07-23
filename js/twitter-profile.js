@@ -9,6 +9,42 @@ Object.assign(Twitter, {
         Navigation.goTo('twitter-user-profile');
     },
 
+    // ===== ブロックリスト管理（v2.216：action sheet 复用，点条目=解除）=====
+    openBlockList() {
+        const t = this._ensureData();
+        const blocked = t.blockedUsers || [];
+        const reported = t.reportedUsers || [];
+        if (!blocked.length && !reported.length) {
+            Utils.showToast(I18n.t('tw.blocklist_empty', 'ブロック中のアカウントはありません'));
+            return;
+        }
+        const blockedItems = blocked.map(b => ({
+            label: `${b.author || '？'}（${b.handle || '@?'}）`,
+            icon: this._svg.ban,
+            onClick: () => {
+                if (!confirm(I18n.t('tw.confirm_unblock', {name: b.author || b.handle || '?'}))) return;
+                t.blockedUsers = (t.blockedUsers || []).filter(x => x !== b);
+                Utils.saveData();
+                Utils.showToast(I18n.t('tw.toast_unblocked', 'ブロックを解除しました'));
+                const profileEl = document.getElementById('twitter-user-profile');
+                if (profileEl?.classList.contains('active')) this.renderUserProfile();
+            }
+        }));
+        const reportedItems = reported.map(b => ({
+            label: `${b.author || '？'}（${b.handle || '@?'}）・${I18n.t('tw.blocklist_reported_tag', '通報済み')}`,
+            icon: this._svg.flag,
+            onClick: () => {
+                if (!confirm(I18n.t('tw.confirm_unreport', {name: b.author || b.handle || '?'}))) return;
+                t.reportedUsers = (t.reportedUsers || []).filter(x => x !== b);
+                Utils.saveData();
+                Utils.showToast(I18n.t('tw.toast_unreported', '通報を取り消しました'));
+                const profileEl = document.getElementById('twitter-user-profile');
+                if (profileEl?.classList.contains('active')) this.renderUserProfile();
+            }
+        }));
+        this._actionSheet([...blockedItems, ...reportedItems], { title: I18n.t('tw.blocklist_title', 'ブロック中のアカウント') });
+    },
+
     renderUserProfile() {
         const t = this._ensureData();
         const content = document.getElementById('twUserProfileContent');
@@ -130,6 +166,7 @@ Object.assign(Twitter, {
     <div class="tw-profile-services">
         <button class="tw-service-btn" onclick="Navigation.goTo('twitter-marshmallow')">${I18n.t('tw.title_marshmallow', '🍡 マシュマロ')}${t.marshmallows.filter(m => !m.isRead).length ? ` <span class="tw-service-badge">${t.marshmallows.filter(m => !m.isRead).length}</span>` : ''}</button>
         <button class="tw-service-btn" onclick="Navigation.goTo('twitter-poipiku')">${this._svg.palette} ${I18n.t('tw.title_poipiku', 'Poipiku')}</button>
+        <button class="tw-service-btn" onclick="Twitter.openBlockList()">${this._svg.ban} ${I18n.t('tw.profile_blocklist', 'ブロック中')}${((t.blockedUsers || []).length + (t.reportedUsers || []).length) ? ` (${(t.blockedUsers || []).length + (t.reportedUsers || []).length})` : ''}</button>
     </div>
 </div>
 <div class="tw-profile-tabs">

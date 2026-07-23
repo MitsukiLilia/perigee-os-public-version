@@ -137,10 +137,12 @@ const Utils = {
             Utils._saveNow();
         }, 300);
     },
-    // 真正落盘：全量序列化 + 写 IndexedDB；返回的 promise 永远 resolve（失败已内部 console + toast）
+    // 真正落盘：全量序列化 + 写 IndexedDB；返回的 promise 永远 resolve，值为 true/false 表示写入成败
+    // （失败已内部 console + toast；显式保存按钮可据返回值决定要不要报「已保存」——别在写失败时报喜）
     _saveNow() {
         return localforage.setItem('PerigeeOS', JSON.parse(JSON.stringify(AppState.data)))
-            .catch(e => { console.error('[Save Error]', e); Utils.showToast('⚠️ 保存失败：' + e.message, 6000); });
+            .then(() => true)
+            .catch(e => { console.error('[Save Error]', e); Utils.showToast('⚠️ 保存失败：' + e.message, 6000); return false; });
     },
     // 立即落盘（取消 pending 防抖，没有 pending 也照样写一次）
     // reload / 跳转前必须 await Utils.flushSave()，否则防抖窗口内的数据只在内存里
@@ -892,7 +894,8 @@ ${intro}以下の情報階層を厳守すること。
             travelData: null,
             paymentData: null,
             calendarEvents: [],
-            recentEvents: []
+            recentEvents: [],
+            pendingComfortEvents: []
         };
     },
 

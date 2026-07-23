@@ -63,6 +63,8 @@ const Line = {
         AppState.currentScreen = 'line-container';
 
         this.switchTab(initialTab || 'talk');
+        // LINE 好友安慰（跨模块）：推特侧事件消费入口。fire-and-forget，方法内部自己 catch，绝不阻塞/影响 show 流程
+        this._consumeComfortEvents();
     },
 
     hide() {
@@ -139,6 +141,143 @@ const Line = {
         if (listView) listView.style.display = 'flex';
         if (convView) convView.style.display = 'none';
         ChatList.render();
+    },
+
+    // ===== LINE 好友安慰（跨模块）=====
+    // 用户在推特上遭遇黑子并采取行动（反击/拉黑/通報）后，下次打开 LINE 时，一位关系好的好友/官方 NPC
+    // 已经主动发来了安慰私信（未读红点亮着）。事件队列拉模型：Twitter._pushComfortEvent push、这里 pull 消费。
+    // best-effort 氛围功能：AI 失败静默放弃，不重试；一天最多出一条（当日戳防重）。
+    _COMFORT_TYPE_LABEL: { fought_back: 'アンチに立ち向かった', blocked: 'アンチをブロックした', reported: 'アンチを通報した' },
+
+    // 今日日付スタンプ（YYYY-MM-DD）—— 生贺 anniversaryKikakuDone と同じ「当日戳防重」パターン
+    _todayStamp() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    },
+
+    // 挑收件人（纯逻辑、便于直测，不依赖 DOM）：置顶 ＞ 最近有聊天记录 ＞ twitter-fan 好友 ＞ 官方 NPC 兜底（懒实体化）。
+    // 全空 → null（调用方安全 return）
+    _pickComfortRecipient() {
+        const chars = AppState.data.characters || [];
+        const chatMeta = AppState.data.chatMeta || {};
+
+        const pinned = chars.find(c => chatMeta[c.id] && chatMeta[c.id].isPinned);
+        if (pinned) return pinned;
+
+        let mostRecent = null, mostRecentTs = -1;
+        chars.forEach(c => {
+            const msgs = AppState.data.conversations && AppState.data.conversations[c.id];
+            if (Array.isArray(msgs) && msgs.length) {
+                const last = msgs[msgs.length - 1];
+                const ts = (last && last.timestamp) || 0;
+                if (ts > mostRecentTs) { mostRecentTs = ts; mostRecent = c; }
+            }
+        });
+        if (mostRecent) return mostRecent;
+
+        const fan = chars.find(c => c.sourceType === 'twitter-fan');
+        if (fan) return fan;
+
+        // 都没有 → 官方 NPC 兜底：取第一个填了人设的，懒实体化
+        const npcs = (AppState.data.broadcast && AppState.data.broadcast.officialNpcs) || [];
+        const npc = npcs.find(n => (n.persona || '').trim());
+        if (npc && typeof LineHome !== 'undefined' && LineHome._materializeOfficialNpc) {
+            return LineHome._materializeOfficialNpc(npc.id);
+        }
+        return null;
+    },
+
+    // system prompt 构建（纯逻辑、便于直测）：人设 + 事件上下文 + 语言设定
+    _buildComfortSystemPrompt(char, events) {
+        let systemPrompt = `You are ${char.name}. ${char.personality || ''}`;
+
+        // 官方 NPC：注入人设块（照 triggerAI 官方 NPC 分支取 npc 的方式）；twitter-fan：补一句关系说明
+        const npc = (char.sourceType === 'official-npc' && char.sourceNpcId && typeof LineHome !== 'undefined')
+            ? LineHome._getOfficialNpc(char.sourceNpcId) : null;
+        if (npc) {
+            systemPrompt += Utils.PROMPTS.npcPersonaBlock(npc);
+        } else if (char.sourceType === 'twitter-fan') {
+            systemPrompt += `\nあなたはTwitterで知り合ったファン友達です。`;
+        }
+
+        // 事件上下文：按 type 汇总（反击/ブロック/通報、可带对方名）；语气按人设自由发挥，机制不写具体台词
+        const summary = (events || []).map(e => {
+            const label = this._COMFORT_TYPE_LABEL[e.type] || e.type;
+            return e.antiName ? `${label}（相手: ${e.antiName}）` : label;
+        }).join('、');
+        systemPrompt += `\n\n[Context]\nユーザーは先ほどTwitterでアンチに絡まれ、${summary}。あなたはタイムライン上でこの騒動を見かけた。あなたの人物設定・口調のまま、ユーザーを気遣って自主的にLINEでメッセージを送ること。\n- 1〜3通の短いメッセージに分け、1行＝1通（改行で区切る）\n- 定型的な自己紹介・前置きは書かないこと\n- 「システム」「イベント」などのメタ的な単語は使わないこと`;
+
+        // 言語設定（replyLang: ja / ja_zh / zh、旧 enableBilingual を後方互換。読 triggerAI の処理方式と同じ）
+        const replyLang = char.replyLang || (char.enableBilingual ? 'ja_zh' : 'ja');
+        if (replyLang === 'ja_zh') {
+            systemPrompt += `\n\n[Language]\n日本語で書き、各メッセージの直後に簡体字中国語訳を [TL]…[/TL] で付けること（同じ行に、改行をまたがないこと）。`;
+        } else if (replyLang === 'zh') {
+            systemPrompt += `\n\n[Language]\n簡体字中国語で書くこと。`;
+        } else {
+            systemPrompt += `\n\n[Language]\n日本語で書くこと。`;
+        }
+        return systemPrompt;
+    },
+
+    // 消费入口：Line.show() 末尾 fire-and-forget 调用。Utils.withLock 防并发，内部自己 catch，绝不向外抛错
+    async _consumeComfortEvents() {
+        try {
+            await Utils.withLock('comfort-consume', async () => {
+                if (!Array.isArray(AppState.data.pendingComfortEvents) || AppState.data.pendingComfortEvents.length === 0) return;
+
+                // 当日戳防重：一天最多一条安慰，当天多次事件合并进同一条；过期事件不隔夜炸出
+                const stamp = this._todayStamp();
+                if (AppState.data.lastComfortDateStamp === stamp) {
+                    AppState.data.pendingComfortEvents = [];
+                    Utils.saveData();
+                    return;
+                }
+
+                // 先取副本、立刻写戳 + 清空队列 + 落盘——AI 失败也静默放弃，不重试（best-effort）
+                const events = AppState.data.pendingComfortEvents.slice();
+                AppState.data.lastComfortDateStamp = stamp;
+                AppState.data.pendingComfortEvents = [];
+                Utils.saveData();
+
+                const char = this._pickComfortRecipient();
+                if (!char) return;
+
+                const systemPrompt = this._buildComfortSystemPrompt(char, events);
+                const raw = await Utils.callChatAPI([{ role: 'user', content: 'ユーザーにLINEでメッセージを送ってください。' }], systemPrompt);
+                let lines = String(raw || '').split(/\n+/).map(s => s.trim()).filter(Boolean);
+                if (lines.length > 3) lines = [lines[0], lines[1], lines.slice(2).join('\n')];
+                if (lines.length === 0) return;
+
+                if (!AppState.data.conversations[char.id]) AppState.data.conversations[char.id] = [];
+                lines.forEach(line => {
+                    AppState.data.conversations[char.id].push({
+                        id: Date.now() + Math.random(),
+                        role: 'assistant',
+                        type: 'text',
+                        content: line,
+                        timestamp: Date.now()
+                    });
+                });
+
+                // 边界：用户此刻正开着这个会话 → 不加未读，直接上屏；否则照 chatMeta 惰性补齐写法加未读 + 刷新角标
+                const convViewEl = document.getElementById('line-talk-conversation');
+                const isViewingThisChat = !!(convViewEl && convViewEl.style && convViewEl.style.display === 'flex'
+                    && AppState.currentCharacter && AppState.currentCharacter.id === char.id);
+
+                if (isViewingThisChat) {
+                    Utils.saveData();
+                    if (typeof Conversation !== 'undefined') Conversation.render();
+                } else {
+                    if (!AppState.data.chatMeta) AppState.data.chatMeta = {};
+                    if (!AppState.data.chatMeta[char.id]) AppState.data.chatMeta[char.id] = {};
+                    AppState.data.chatMeta[char.id].unreadCount = (AppState.data.chatMeta[char.id].unreadCount || 0) + lines.length;
+                    Utils.saveData();
+                    if (typeof this._updateBadges === 'function') this._updateBadges();
+                }
+            });
+        } catch (e) {
+            console.warn('[ComfortEvents]', e);
+        }
     }
 };
 
@@ -303,10 +442,11 @@ const LineHome = {
         </div>`;
     },
 
-    // 官方 NPC 懒实体化（照抄 inviteFanToLine 三件套：sourceType / sourceNpcId / lineCharId 双向链）
-    openOfficialNpc(npcId, mode) {
+    // 官方 NPC 懒实体化本体（照抄 inviteFanToLine 三件套：sourceType / sourceNpcId / lineCharId 双向链）
+    // 无 UI 副作用，返回实体化后的 char（找不到 npc 时返回 null）——openOfficialNpc 和 LINE 好友安慰消费复用
+    _materializeOfficialNpc(npcId) {
         const npc = this._getOfficialNpc(npcId);
-        if (!npc) return;
+        if (!npc) return null;
         let char = npc.lineCharId ? (AppState.data.characters || []).find(c => c.id === npc.lineCharId) : null;
         if (!char) {
             char = {
@@ -323,6 +463,12 @@ const LineHome = {
             npc.lineCharId = char.id;
             Utils.saveData();
         }
+        return char;
+    },
+
+    openOfficialNpc(npcId, mode) {
+        const char = this._materializeOfficialNpc(npcId);
+        if (!char) return;
         if (mode === 'profile') this.showCharProfile(char.id);
         else Line.openConversation(char.id);
     },
@@ -1708,12 +1854,12 @@ const Conversation = {
             // 气泡内容
             let bubbleContent = '';
             if (msg.type === 'image') {
-                bubbleContent = `<img src="${msg.content}" alt="Image">`;
+                bubbleContent = `<img src="${this._esc(msg.content)}" alt="Image">`;
             } else if (msg.type === 'sticker') {
                 // 贴纸无气泡
                 html += `<div class="line-message ${msg.role}" data-msg-id="${msgId}">
                     ${!isUser ? `<div class="line-message-avatar ${showAvatar ? '' : 'hidden-avatar'}"><img src="${char.avatar || DEFAULT_AVATAR}"></div>` : ''}
-                    <div class="sticker-content">${msg.content.startsWith('data:') || msg.content.startsWith('http') ? `<img src="${msg.content}">` : `<span class="sticker-emoji">${msg.content}</span>`}</div>
+                    <div class="sticker-content">${msg.content.startsWith('data:') || msg.content.startsWith('http') ? `<img src="${this._esc(msg.content)}">` : `<span class="sticker-emoji">${this._esc(msg.content)}</span>`}</div>
                     ${metaHtml}
                     <div class="line-message-actions">
                         <button class="line-msg-action-btn" onclick="Conversation.deleteMessage(${msgId})" title="${I18n.t('line.action_delete', 'Delete')}"><span class="line-btn-icon">${LINE_SVG.trash}</span></button>
@@ -1806,7 +1952,7 @@ const Conversation = {
                 </div>`;
                 continue;
             } else {
-                bubbleContent = msg.content;
+                bubbleContent = this._esc(msg.content);
             }
 
             // [TL]...[/TL] 折りたたみ翻訳処理
