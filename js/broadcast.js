@@ -267,25 +267,31 @@ const Broadcast = {
         const cpA = document.getElementById('broadcastCpCharA');
         const cpB = document.getElementById('broadcastCpCharB');
         const cpN = document.getElementById('broadcastCpNickname');
+        // v2.221: 每个 handler 先兜 cpSettings 存在（任何形态的旧数据都不该让 oninput 抛错静默失效），
+        // 落库后同步影子副本（见 Utils.syncCpShadow 注释——CP 丢失悬案的自愈数据源）
+        const ensureCp = () => AppState.data.broadcast.cpSettings || (AppState.data.broadcast.cpSettings = {});
         if (cpA) {
             cpA.value = cp.cpCharA || '';
             cpA.oninput = () => {
-                AppState.data.broadcast.cpSettings.cpCharA = cpA.value.trim();
+                ensureCp().cpCharA = cpA.value.trim();
                 Utils.saveData();
+                Utils.syncCpShadow();
             };
         }
         if (cpB) {
             cpB.value = cp.cpCharB || '';
             cpB.oninput = () => {
-                AppState.data.broadcast.cpSettings.cpCharB = cpB.value.trim();
+                ensureCp().cpCharB = cpB.value.trim();
                 Utils.saveData();
+                Utils.syncCpShadow();
             };
         }
         if (cpN) {
             cpN.value = cp.cpNickname || '';
             cpN.oninput = () => {
-                AppState.data.broadcast.cpSettings.cpNickname = cpN.value.trim();
+                ensureCp().cpNickname = cpN.value.trim();
                 Utils.saveData();
+                Utils.syncCpShadow();
             };
         }
         // v2.71.0: productionName 字段（微博作品超话用）
@@ -293,8 +299,9 @@ const Broadcast = {
         if (pn) {
             pn.value = cp.productionName || '';
             pn.oninput = () => {
-                AppState.data.broadcast.cpSettings.productionName = pn.value.trim();
+                ensureCp().productionName = pn.value.trim();
                 Utils.saveData();
+                Utils.syncCpShadow();
             };
         }
         // v2.139.0: CP 参考立绘上传槽（仅 gpt-image-2 生图读取）
@@ -332,6 +339,7 @@ const Broadcast = {
                     // 引用在但 Blob 没了（如跨设备导入）→ 自愈清脏 id，否则删除按钮被隐藏后界面无法清除该引用
                     AppState.data.broadcast.cpSettings[refIdKey] = null;
                     Utils.saveData();
+                    Utils.syncCpShadow();
                 }
             }
             // revoke 旧→建新→赋值 放在 await 之后同步完成，避免并发 refresh(连点/切 tab) 提前 revoke 正在显示的 url 或泄漏孤儿
@@ -376,6 +384,7 @@ const Broadcast = {
             await IllustGallery.save(blobId, blobToSave);
             AppState.data.broadcast.cpSettings[refIdKey] = blobId;
             Utils.saveData();
+            Utils.syncCpShadow();
             await refresh();
             Utils.showToast(I18n.t('bc.cp_ref_saved', '参考立绘已保存'));
         };
@@ -386,6 +395,7 @@ const Broadcast = {
                 if (id && typeof IllustGallery !== 'undefined') { try { await IllustGallery.remove(id); } catch (e) {} }
                 if (AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings[refIdKey] = null;
                 Utils.saveData();
+                Utils.syncCpShadow();
                 await refresh();
             };
         }
@@ -413,6 +423,7 @@ const Broadcast = {
             if (!AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings = {};
             AppState.data.broadcast.cpSettings[tagsKey] = area.value.trim();
             Utils.saveData();
+            Utils.syncCpShadow();
         };
         if (genBtn) genBtn.onclick = () => this._generateCpTags(slot, tagsKey, refIdKey, area, genBtn);
     },
@@ -469,6 +480,7 @@ Rules:
             if (!AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings = {};
             AppState.data.broadcast.cpSettings[tagsKey] = tags;
             Utils.saveData();
+            Utils.syncCpShadow();
         });
     },
 
@@ -577,7 +589,31 @@ Rules:
             AppState.data.broadcast.worldBookIds.push(cb.dataset.wbid);
         });
         AppState.data.broadcast.worldBookId = AppState.data.broadcast.worldBookIds[0] || '';
+        // v2.221: CP 四字段改为保存时从输入框现场取值（与 worldSetting 同一条路）——
+        // 此前 CP 只靠 oninput 时点写进内存，是全项目唯一「保存按钮不现读 DOM」的字段；
+        // 任何设备上 input 事件失灵/中途抛错，就会出现「世界观保住了、CP 静默丢失、toast 照样报喜」，
+        // 与悬案用户描述逐字吻合。现读之后 oninput 只是锦上添花，不再是唯一防线
+        const s = AppState.data.broadcast.cpSettings || (AppState.data.broadcast.cpSettings = {});
+        const cpFieldIds = {
+            broadcastCpCharA: 'cpCharA', broadcastCpCharB: 'cpCharB',
+            broadcastCpNickname: 'cpNickname', broadcastProductionName: 'productionName'
+        };
+        for (const [elId, key] of Object.entries(cpFieldIds)) {
+            const el = document.getElementById(elId);
+            if (el) s[key] = el.value.trim();
+        }
+        Utils.syncCpShadow();
         const ok = await Utils.flushSave();
-        if (ok) Utils.showToast(I18n.t('t.bc_saved', '✓ 已保存'));
+        if (!ok) return;
+        // v2.221 探针：写后回读 IndexedDB 校验 CP 三字段。写入报成功但回读不一致 = 存储层在说谎，
+        // 当场弹警告让用户带证据回来（只在显式点保存时多读一次，成本可忽略）
+        let verified = true;
+        try {
+            const disk = await localforage.getItem('PerigeeOS');
+            const d = (disk && disk.broadcast && disk.broadcast.cpSettings) || {};
+            verified = ['cpCharA', 'cpCharB', 'cpNickname'].every(k => (d[k] || '') === (s[k] || ''));
+        } catch (e) { /* 回读失败只影响探针，不拦报喜 */ }
+        if (verified) Utils.showToast(I18n.t('t.bc_saved', '✓ 已保存'));
+        else Utils.showToast(I18n.t('t.bc_save_verify_failed', '⚠️ 保存校验异常：写入后回读与输入不一致，请截图反馈'), 8000);
     }
 };

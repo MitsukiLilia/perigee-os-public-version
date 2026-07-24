@@ -366,6 +366,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             Utils.saveData();
             console.log('[Migration v2.69.0] CP settings → broadcast.cpSettings', AppState.data.broadcast.cpSettings);
         }
+        // v2.221: CP 影子自愈——主库（IndexedDB）CP 丢失而 localStorage 影子有值时自动恢复
+        // （悬案：某用户 CP 反复丢而全库其他数据无恙）。条件与实现见 Utils.restoreCpShadowIfLost
+        Utils.restoreCpShadowIfLost();
         // v2.70.0 一次性迁移：doujin → doujin_writer + fanFriend schema 扩展
         if (!AppState.data._doujinTypeMigratedV2) {
             const fanFriends = (AppState.data.twitterData && AppState.data.twitterData.fanFriends) || [];

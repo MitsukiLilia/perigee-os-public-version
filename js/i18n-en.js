@@ -927,6 +927,8 @@ I18n.translations.en = {
             't.lv_play_failed': 'Voice playback failed: ',
             't.dp_gen_failed': 'Generation failed: ',
             't.bc_saved': '✓ Saved',
+            't.bc_save_verify_failed': '⚠️ Save verification failed: database read-back does not match input. Please report with a screenshot',
+            't.cp_restored': '✓ CP settings auto-restored (loss detected in main database)',
             't.tarot_cleared': 'Cleared',
 
             // Writer

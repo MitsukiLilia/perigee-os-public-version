@@ -1,6 +1,6 @@
 // Service Worker for Perigee OS
 // 版本号：每次更新代码时修改此版本号以强制更新缓存
-const VERSION = '2.220.1';
+const VERSION = '2.221.0';
 const CACHE_NAME = `perigee-os-v${VERSION}`;
 // vendor 大库独立持久缓存（js/vendor/ 内容不随版本变，activate 清理旧缓存时不删，
 // 避免每次发版重拉 ~1MB；不进 precache，首次用到时缓存、之后离线可用）

@@ -8,7 +8,7 @@
 // 同步 deploy.sh DEFAULT_FILES（sw.js 不 precache 归档、靠 runtime cache）。条目内容永不修改（数据只增）。
 
 const Changelog = {
-    CURRENT: '2.220.0',
+    CURRENT: '2.221.0',
 
     // 冻结月归档（新→旧）。file 相对站点根。
     ARCHIVES: [
@@ -18,6 +18,15 @@ const Changelog = {
     ],
 
     versions: [
+        {
+            version: '2.221.0',
+            date: '2026-07-24',
+            highlights: [
+                'CP 设定保存三重加固：点「保存」时直接从输入框现场取值（不再依赖输入过程中的自动保存曾经生效）；保存成功后立即从数据库回读校验，万一写入的数据和输入不一致会明确报警；CP 同时多存一份「影子副本」在另一条独立的存储通道里',
+                '启动时如果发现主数据库里的 CP 消失了而影子副本还在，会自动恢复并弹出提示——就算设备存储层真的丢过数据，CP 也能自己回来',
+            ],
+            voiceFromKlaude: '',
+        },
         {
             version: '2.220.0',
             date: '2026-07-23',
