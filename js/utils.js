@@ -150,40 +150,6 @@ const Utils = {
         if (Utils._saveTimer) { clearTimeout(Utils._saveTimer); Utils._saveTimer = null; }
         return Utils._saveNow();
     },
-    // ── v2.221 CP 影子副本：cpSettings 镜像到 localStorage（独立于 IndexedDB 的第二存储通道）──
-    // 背景：一位用户 CP 反复丢失而全库其他数据无恙、v2.215 探针证明写入本身成功——丢失发生在写入之后
-    // （嫌疑：后台残留实例带旧内存整库覆盖写 / OEM 存储层回滚）。影子只跟随 CP 编辑路径更新，
-    // 不进 _saveNow——否则携带旧状态的整库覆盖写会把影子一起污染，自愈就失效了。
-    // 导入/云恢复路径必须显式调一次（镜像导入后的值），防止影子把导入前的 CP 复活。
-    CP_SHADOW_KEY: 'PerigeeCPShadow',
-    syncCpShadow() {
-        try {
-            const cp = AppState.data.broadcast && AppState.data.broadcast.cpSettings;
-            if (cp) localStorage.setItem(Utils.CP_SHADOW_KEY, JSON.stringify({ ...cp, _ts: Date.now() }));
-        } catch (e) { /* localStorage 不可用/满：影子失效不影响主流程 */ }
-    },
-    // 启动自愈（app.js DOMContentLoaded、v2.69 迁移之后调一次）：主库 CP 三字段全空而影子有值
-    // = 主库发生过丢失 → 恢复 + 提示。用户主动清空 CP 时影子已同步为空、不会复活；
-    // 主库部分有值（如只填了 cpCharA）视为正常状态不碰。返回是否发生了恢复
-    restoreCpShadowIfLost() {
-        try {
-            const raw = localStorage.getItem(Utils.CP_SHADOW_KEY);
-            if (!raw || !AppState.data.broadcast || !AppState.data.broadcast.cpSettings) return false;
-            const cpNow = AppState.data.broadcast.cpSettings;
-            if (cpNow.cpCharA || cpNow.cpCharB || cpNow.cpNickname) return false;
-            const shadow = JSON.parse(raw);
-            if (!(shadow.cpCharA || shadow.cpCharB || shadow.cpNickname)) return false;
-            const { _ts, ...shadowFields } = shadow;
-            AppState.data.broadcast.cpSettings = { ...cpNow, ...shadowFields };
-            Utils.saveData();
-            console.warn('[CP Shadow] 主库 CP 为空、影子有值（影子最后写入 ' +
-                (_ts ? new Date(_ts).toISOString() : '未知') + '）→ 已自动恢复。主库曾发生一次 CP 丢失');
-            setTimeout(() => {
-                try { Utils.showToast(I18n.t('t.cp_restored', '✓ CP 设定已自动恢复（检测到主数据库曾丢失该字段）'), 6000); } catch (e) { /* 无 UI 环境 */ }
-            }, 1500);
-            return true;
-        } catch (e) { console.error('[CP Shadow] 恢复检查失败', e); return false; }
-    },
     // ── Schema 迁移执行器：按 data._v（缺省 0）顺序执行 MIGRATIONS 里所有 v > 当前 的条目 ──
     // 单条抛错：_v 停在上一条不推进、console.error、不阻断 loadData 其余流程；有推进才落盘（防抖版）
     _runMigrations() {
@@ -325,7 +291,6 @@ const Utils = {
                 if (confirm('This will replace all current data. Continue?')) {
                     AppState.data = { ...AppState.data, ...importedData };
                     AppState.data._v = 0;   // 导入可能带入旧结构数据：重置 _v，reload 后全量重跑迁移（各条自带幂等守卫，重跑无害）
-                    Utils.syncCpShadow();   // 影子跟随导入后的 CP，防止启动自愈把导入前的值复活
                     await Utils.flushSave();   // 立即落盘（同时取消 pending 防抖）再刷新
                     alert('✓ Data imported successfully. Refreshing...');
                     location.reload();

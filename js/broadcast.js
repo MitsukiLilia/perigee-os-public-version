@@ -243,15 +243,15 @@ const Broadcast = {
         const ws = document.getElementById('forumWorldSetting');
         if (ws) ws.value = AppState.data.broadcast.worldSetting || '';
 
+        // v2.222: CP 区先于世界书列表、且无条件执行（顺序即防线，别再挪到守卫后面）
+        this._initCpFields();
+
         const wbContainer = document.getElementById('forumWorldBooks');
         if (!wbContainer) return;
         const currentWbIds = Utils.getActiveWorldBookIds();
         const allBooks = AppState.data.worldBooks || [];
-        if (allBooks.length === 0) {
-            wbContainer.innerHTML = `<span style="font-size:13px;color:var(--text-secondary);">${I18n.t('bc.no_worldbooks')}</span>`;
-            return;
-        }
-        wbContainer.innerHTML = allBooks.map(b => {
+        // v2.222: 空集合只换文案、不再 early return（此前的 return 会把后面整个 CP 区跳过）
+        wbContainer.innerHTML = allBooks.length ? allBooks.map(b => {
             const enabledCount = (b.entries || []).filter(e => e.enabled !== false).length;
             const totalCount = (b.entries || []).length;
             const countHint = totalCount > 0 ? ` <span style="font-size:11px;color:var(--text-secondary);">(${enabledCount}/${totalCount})</span>` : '';
@@ -260,22 +260,28 @@ const Broadcast = {
         ${currentWbIds.includes(b.id) ? 'checked' : ''} style="width:auto;accent-color:var(--accent);">
     <span>${Utils.escHtml(b.name)}${countHint}</span>
 </label>`;
-        }).join('');
+        }).join('') : `<span style="font-size:13px;color:var(--text-secondary);">${I18n.t('bc.no_worldbooks')}</span>`;
+    },
 
+    // v2.222: CP 区回填 + 绑定（从 _initWorldTab 抽出，逻辑一字未改）。
+    // ⚠️ 必须无条件执行、绝不能与世界书列表渲染共存亡——这就是 CP 丢失悬案的病根：
+    // 此前 CP 整区排在 `if (!wbContainer) return;` 和「0 本世界书 → 提示后 return」之后，
+    // 一本世界书都没有的用户打开世界 tab 时四个 CP 框全被跳过回填（显示为空，数据其实还在库里），
+    // 而 saveWorldSettings 是从 DOM 现读的 → 一按保存就用空值覆盖真数据。
+    // 对照组 worldSetting 从来没丢过，正因为它的回填排在所有 return 之前。
+    _initCpFields() {
         // v2.69.0: CP 设置回填 + 监听 input change 保存
         const cp = AppState.data.broadcast.cpSettings || { cpCharA: '', cpCharB: '', cpNickname: '' };
         const cpA = document.getElementById('broadcastCpCharA');
         const cpB = document.getElementById('broadcastCpCharB');
         const cpN = document.getElementById('broadcastCpNickname');
-        // v2.221: 每个 handler 先兜 cpSettings 存在（任何形态的旧数据都不该让 oninput 抛错静默失效），
-        // 落库后同步影子副本（见 Utils.syncCpShadow 注释——CP 丢失悬案的自愈数据源）
+        // v2.221: 每个 handler 先兜 cpSettings 存在（任何形态的旧数据都不该让 oninput 抛错静默失效）
         const ensureCp = () => AppState.data.broadcast.cpSettings || (AppState.data.broadcast.cpSettings = {});
         if (cpA) {
             cpA.value = cp.cpCharA || '';
             cpA.oninput = () => {
                 ensureCp().cpCharA = cpA.value.trim();
                 Utils.saveData();
-                Utils.syncCpShadow();
             };
         }
         if (cpB) {
@@ -283,7 +289,6 @@ const Broadcast = {
             cpB.oninput = () => {
                 ensureCp().cpCharB = cpB.value.trim();
                 Utils.saveData();
-                Utils.syncCpShadow();
             };
         }
         if (cpN) {
@@ -291,7 +296,6 @@ const Broadcast = {
             cpN.oninput = () => {
                 ensureCp().cpNickname = cpN.value.trim();
                 Utils.saveData();
-                Utils.syncCpShadow();
             };
         }
         // v2.71.0: productionName 字段（微博作品超话用）
@@ -301,7 +305,6 @@ const Broadcast = {
             pn.oninput = () => {
                 ensureCp().productionName = pn.value.trim();
                 Utils.saveData();
-                Utils.syncCpShadow();
             };
         }
         // v2.139.0: CP 参考立绘上传槽（仅 gpt-image-2 生图读取）
@@ -339,7 +342,6 @@ const Broadcast = {
                     // 引用在但 Blob 没了（如跨设备导入）→ 自愈清脏 id，否则删除按钮被隐藏后界面无法清除该引用
                     AppState.data.broadcast.cpSettings[refIdKey] = null;
                     Utils.saveData();
-                    Utils.syncCpShadow();
                 }
             }
             // revoke 旧→建新→赋值 放在 await 之后同步完成，避免并发 refresh(连点/切 tab) 提前 revoke 正在显示的 url 或泄漏孤儿
@@ -384,7 +386,6 @@ const Broadcast = {
             await IllustGallery.save(blobId, blobToSave);
             AppState.data.broadcast.cpSettings[refIdKey] = blobId;
             Utils.saveData();
-            Utils.syncCpShadow();
             await refresh();
             Utils.showToast(I18n.t('bc.cp_ref_saved', '参考立绘已保存'));
         };
@@ -395,7 +396,6 @@ const Broadcast = {
                 if (id && typeof IllustGallery !== 'undefined') { try { await IllustGallery.remove(id); } catch (e) {} }
                 if (AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings[refIdKey] = null;
                 Utils.saveData();
-                Utils.syncCpShadow();
                 await refresh();
             };
         }
@@ -423,7 +423,6 @@ const Broadcast = {
             if (!AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings = {};
             AppState.data.broadcast.cpSettings[tagsKey] = area.value.trim();
             Utils.saveData();
-            Utils.syncCpShadow();
         };
         if (genBtn) genBtn.onclick = () => this._generateCpTags(slot, tagsKey, refIdKey, area, genBtn);
     },
@@ -480,7 +479,6 @@ Rules:
             if (!AppState.data.broadcast.cpSettings) AppState.data.broadcast.cpSettings = {};
             AppState.data.broadcast.cpSettings[tagsKey] = tags;
             Utils.saveData();
-            Utils.syncCpShadow();
         });
     },
 
@@ -602,7 +600,6 @@ Rules:
             const el = document.getElementById(elId);
             if (el) s[key] = el.value.trim();
         }
-        Utils.syncCpShadow();
         const ok = await Utils.flushSave();
         if (!ok) return;
         // v2.221 探针：写后回读 IndexedDB 校验 CP 三字段。写入报成功但回读不一致 = 存储层在说谎，

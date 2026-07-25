@@ -928,7 +928,6 @@ I18n.translations.ja = {
             't.dp_gen_failed': '生成に失敗しました：',
             't.bc_saved': '✓ 保存しました',
             't.bc_save_verify_failed': '⚠️ 保存検証エラー：書き込み後の読み戻しが入力と一致しません。スクリーンショットでご報告ください',
-            't.cp_restored': '✓ CP設定を自動復元しました（データベースからの消失を検出）',
             't.tarot_cleared': 'クリアしました',
 
             // 文书/邮箱

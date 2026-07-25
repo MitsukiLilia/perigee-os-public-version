@@ -224,7 +224,6 @@ const DataExport = {
 
         for (const f of planFields) AppState.data[f] = data[f];
         AppState.data._v = 0;   // 分板块导入可能往新 _v 的树里塞旧结构板块数据：重置 _v，reload 后全量重跑迁移（各条自带幂等守卫，重跑无害）
-        Utils.syncCpShadow();   // 影子跟随导入后的 CP（broadcast 板块可能被覆盖），防止启动自愈把导入前的值复活
         // v2.198.0 复检修复：导入可能改写 systemConfig.language，语言镜像跟上再 reload，
         // 否则重启先按旧镜像预载错语言、boot 后才自愈闪一下（i18n 懒加载 v2.196 起）。
         try {

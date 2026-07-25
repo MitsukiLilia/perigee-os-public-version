@@ -928,7 +928,6 @@ I18n.translations.zh = {
             't.dp_gen_failed': '生成失败：',
             't.bc_saved': '✓ 已保存',
             't.bc_save_verify_failed': '⚠️ 保存校验异常：写入后回读与输入不一致，请截图反馈',
-            't.cp_restored': '✓ CP 设定已自动恢复（检测到主数据库曾丢失该字段）',
             't.tarot_cleared': '已清空',
 
             // 文书/邮箱

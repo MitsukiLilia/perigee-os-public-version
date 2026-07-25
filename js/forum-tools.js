@@ -1,25 +1,35 @@
 // forum-tools.js — 从 js/forum.js 纯搬运拆出（v2.203.0）。
-// 内容零改动；加载顺序：forum.js → generate → npc → goods → plot → tools（见 index.html）。
+// 拆分时内容零改动（首次正当内容改动 v2.222：initSettings 节点守卫，字节层验证已按预案退役）。
+// 加载顺序：forum.js → generate → npc → goods → plot → tools（见 index.html）。
 Object.assign(Forum, {
     // ===== 论坛设置 =====
+    // v2.222: 每个节点单独守卫——此前是无守卫直取（`getElementById(...).value = ...`），
+    // 任一节点缺失就 TypeError 中断整个函数、后面的绑定全跳过（等价 early return），
+    // 而 saveSettings 是无条件现读回写的。单点缺失不该连坐整页设置。
     initSettings() {
         const data = AppState.data.forumData;
-        document.getElementById('forumRules').value = data.forumRules || '';
-        document.getElementById('forumAnonymous').checked = data.isAnonymous !== false;
-        document.getElementById('forumUserName').value = data.userName || '';
-        document.getElementById('forumUserName').disabled = data.isAnonymous !== false;
+        const rules = document.getElementById('forumRules');
+        if (rules) rules.value = data.forumRules || '';
+        const anon = document.getElementById('forumAnonymous');
+        if (anon) anon.checked = data.isAnonymous !== false;
+        const userName = document.getElementById('forumUserName');
+        if (userName) {
+            userName.value = data.userName || '';
+            userName.disabled = data.isAnonymous !== false;
+        }
 
-        document.getElementById('forumAnonymous').onchange = (e) => {
-            document.getElementById('forumUserName').disabled = e.target.checked;
+        if (anon) anon.onchange = (e) => {
+            const un = document.getElementById('forumUserName');
+            if (un) un.disabled = e.target.checked;
         };
 
         const fontSlider = document.getElementById('forumFontSize');
         const fontLabel = document.getElementById('forumFontSizeLabel');
         const savedSize = parseInt(data.fontSize) || 15;
-        fontSlider.value = savedSize;
-        fontLabel.textContent = I18n.t('forum.font_size_current', { n: savedSize });
-        fontSlider.oninput = () => {
-            fontLabel.textContent = I18n.t('forum.font_size_current', { n: fontSlider.value });
+        if (fontSlider) fontSlider.value = savedSize;
+        if (fontLabel) fontLabel.textContent = I18n.t('forum.font_size_current', { n: savedSize });
+        if (fontSlider) fontSlider.oninput = () => {
+            if (fontLabel) fontLabel.textContent = I18n.t('forum.font_size_current', { n: fontSlider.value });
             document.documentElement.style.setProperty('--fch-font-size', fontSlider.value + 'px');
         };
 
