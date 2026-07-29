@@ -791,10 +791,15 @@ const Widgets = {
     },
 
     // 同步 desktopLayout 里对应 widget 的 colSpan（尺寸切换后使用）
+    // v2.223：span 换算跟随桌面列数（3/4 列），裸标识符 + typeof 守卫——本文件在 index.html 里比
+    // desktop-edit.js 先加载，但这个方法只在用户点击尺寸切换按钮时才会真正执行，那时两个脚本都已
+    // 跑完，_widgetSpan 必然存在；守卫只是兜底（node 测试等场景下单独加载 widgets.js）。
     _syncLayoutSpan(widgetId, size) {
         const layout = AppState.data.desktopLayout;
         if (!layout) return;
-        const span = ({ small: 1, medium: 2, wide: 3 })[size] || 1;
+        const span = (typeof _widgetSpan === 'function')
+            ? _widgetSpan(size)
+            : (({ small: 1, medium: 2, wide: 3 })[size] || 1);
         for (const page of layout.pages) {
             for (const item of page.items) {
                 if (item.type === 'widget' && item.widgetId === widgetId) {

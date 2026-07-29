@@ -151,6 +151,12 @@ I18n.translations.en = {
             'appr.icon_header': 'Customize App Icons',
             'appr.icon_desc': 'Set a custom icon for each app — URL or local image upload',
             'appr.widget_header': 'Desktop Widgets',
+            'appr.sticker_header': 'Desktop Stickers',
+            'appr.sticker_open': 'Open Sticker Drawer',
+            'appr.sticker_note': 'Stickers sit on top of the desktop for decoration. Long-press the desktop to enter edit mode: drag to move, two-finger to rotate/scale, tap × to delete.',
+            'appr.grid_header': 'Desktop Grid',
+            'appr.grid_cols': 'Icons per row',
+            'appr.grid_cols_note': '3 columns means bigger icons; 4 columns matches modern phone density. Switching only changes the layout density, icon order stays the same.',
             'appr.widget_add': '+ Add Widget',
             'appr.dock_header': 'Dock',
             'appr.dock_labels': 'Show Dock icon labels',
@@ -1543,6 +1549,16 @@ I18n.translations.en = {
 
             'deco.confirm_delete_sticker': 'Delete this sticker? Any copies placed on the desktop will be removed too.',
             'deco.upload_failed_prefix': 'Sticker upload failed: ',
+            'deco.drawer_title': 'Stickers',
+            'deco.builtin': 'Built-in',
+            'deco.custom': 'Custom',
+            'deco.upload': '+ Upload',
+            'deco.empty': 'Tap "Upload" in the top right to add your own sticker (SVG/PNG/JPG)',
+            'deco.hint': 'Tap a sticker to add it to the center of the current page; drag / rotate / scale it in edit mode',
+            'deco.menu_delete': 'Delete Sticker',
+            'deco.menu_move': 'Move to',
+            'deco.menu_page': 'Page {n}',
+            'deco.menu_cancel': 'Cancel',
 
             'fortune.no_themes': 'No themes yet, tap below to create one',
             'fortune.option_count': '{n} options',
@@ -1551,12 +1567,6 @@ I18n.translations.en = {
 
             'ghb.confirm_push': 'Data ~{mb} MB, push may be slow (depending on network). Continue?',
             'ghb.confirm_restore': 'Restoring from cloud will overwrite all current data with cloud data.\n\nRecommend "Export All Data" first for a local backup, then restore.\n\nConfirm?',
-
-            'desktop.layout_grid': '⊞ Grid',
-            'desktop.layout_free': '✦ Free',
-            'desktop.auto_tidy': 'Auto Tidy',
-            'desktop.auto_tidy_confirm': 'Auto Tidy: arrange all icons and widgets into the grid?',
-            'desktop.stickers': 'Stickers',
 
             'magazine.generating': 'Generating...',
             'magazine.gen_failed_prefix': 'Generation failed: ',

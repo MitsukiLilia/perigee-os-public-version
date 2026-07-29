@@ -128,6 +128,12 @@ const Decorations = {
         this._save();
     },
 
+    // v2.223：贴纸入口从长按工具栏搬进 设置→外观→桌面贴纸，逻辑和小组件同款——跳桌面再开抽屉
+    openFromSettings() {
+        Navigation.goTo('desktop');
+        this.openDrawer();
+    },
+
     // ── 贴纸抽屉（编辑模式下的 + 按钮调出） ──
     openDrawer() {
         // 当前页
@@ -153,23 +159,23 @@ const Decorations = {
             <div class="deco-drawer">
                 <div class="deco-drawer-handle"></div>
                 <div class="deco-drawer-header">
-                    <h3>装饰贴纸</h3>
-                    <button class="deco-drawer-close" type="button">完了</button>
+                    <h3>${I18n.t('deco.drawer_title', '装饰贴纸')}</h3>
+                    <button class="deco-drawer-close" type="button">${I18n.t('btn.done', '完成')}</button>
                 </div>
                 <div class="deco-drawer-section">
-                    <div class="deco-drawer-section-title">内置</div>
+                    <div class="deco-drawer-section-title">${I18n.t('deco.builtin', '内置')}</div>
                     <div class="deco-drawer-grid">${builtinHtml}</div>
                 </div>
                 <div class="deco-drawer-section">
                     <div class="deco-drawer-section-title">
-                        <span>自定义</span>
-                        <button class="deco-upload-btn" type="button">＋ 上传</button>
+                        <span>${I18n.t('deco.custom', '自定义')}</span>
+                        <button class="deco-upload-btn" type="button">${I18n.t('deco.upload', '＋ 上传')}</button>
                     </div>
                     <div class="deco-drawer-grid deco-user-grid">
-                        ${userHtml || '<div class="deco-empty">点击右上角"上传"添加自己的贴纸（SVG/PNG/JPG）</div>'}
+                        ${userHtml || `<div class="deco-empty">${I18n.t('deco.empty', '点击右上角「上传」添加自己的贴纸（SVG/PNG/JPG）')}</div>`}
                     </div>
                 </div>
-                <p class="deco-drawer-hint">点击贴纸添加到当前页中央，编辑模式下可拖动 / 旋转 / 缩放</p>
+                <p class="deco-drawer-hint">${I18n.t('deco.hint', '点击贴纸添加到当前页中央，编辑模式下可拖动 / 旋转 / 缩放')}</p>
             </div>`;
         document.body.appendChild(sheet);
 
@@ -277,16 +283,16 @@ const Decorations = {
             if (i !== currentPage) otherPages.push(i);
         }
 
-        let html = `<button type="button" class="danger" data-action="delete">删除装饰</button>`;
+        let html = `<button type="button" class="danger" data-action="delete">${I18n.t('deco.menu_delete', '删除装饰')}</button>`;
         if (otherPages.length > 0) {
             html += `<div class="deco-menu-divider"></div>`;
-            html += `<div class="deco-menu-label">移到</div>`;
+            html += `<div class="deco-menu-label">${I18n.t('deco.menu_move', '移到')}</div>`;
             for (const pi of otherPages) {
-                html += `<button type="button" data-action="move" data-page="${pi}">第 ${pi + 1} 屏</button>`;
+                html += `<button type="button" data-action="move" data-page="${pi}">${I18n.t('deco.menu_page', { n: pi + 1 })}</button>`;
             }
         }
         html += `<div class="deco-menu-divider"></div>`;
-        html += `<button type="button" data-action="cancel">取消</button>`;
+        html += `<button type="button" data-action="cancel">${I18n.t('deco.menu_cancel', '取消')}</button>`;
         menu.innerHTML = html;
 
         // 先插入再量尺寸定位（避免离屏）

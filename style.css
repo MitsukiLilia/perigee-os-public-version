@@ -114,6 +114,11 @@ body {
     bottom: calc(-1 * env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    /* v2.223：长按图标经常连带选中桌面文字（图标名/时间等），文本被选中会打断 touch 序列、
+       是拖拽被系统掐断的元凶之一。#desktop 内无任何输入框，禁用选择是安全的。 */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
 }
 
 /* 背景纹理覆盖层（和纸/水彩/淡花/格紋/磨砂等）
@@ -187,20 +192,6 @@ body.dark-mode #desktop::before {
 .edit-mode .app-item:nth-child(5n) { animation-delay: 0.15s; }
 /* Dock 图标（className 含 .app-item）编辑态跟随 .edit-mode .app-item 一起抖动，可拖拽编辑 */
 
-/* 自由模式：item 用 translate(-50%,-50%) 居中定位，jiggle 的 rotate 会覆盖掉 translate
-   导致每个 item 整体偏移半个身位、溢出错乱。这里用带 translate 的专用 keyframe 保住居中。 */
-@keyframes jiggle-free {
-    0%   { transform: translate(-50%, -50%) rotate(-1deg); }
-    25%  { transform: translate(-50%, -50%) rotate(1deg); }
-    50%  { transform: translate(-50%, -50%) rotate(-0.5deg); }
-    75%  { transform: translate(-50%, -50%) rotate(0.5deg); }
-    100% { transform: translate(-50%, -50%) rotate(-1deg); }
-}
-.edit-mode .app-grid.free-mode > .app-item,
-.edit-mode .app-grid.free-mode > .desktop-grid-widget {
-    animation: jiggle-free 0.3s ease-in-out infinite;
-}
-
 .drag-source { opacity: 0.3; animation: none !important; }
 
 .drag-ghost {
@@ -244,6 +235,9 @@ body.dark-mode #desktop::before {
     border: 1px solid var(--glass-border);
     border-radius: 22px;
     box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+    /* v2.223：长按图标常误选中这里的按钮文字，选中文本会打断 touch 序列 */
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 /* 工具栏内的按钮统一基样式（覆盖掉旧的 absolute 定位） */
@@ -264,11 +258,10 @@ body.dark-mode #desktop::before {
     white-space: nowrap;
 }
 .edit-toolbar > button:active { opacity: 0.6; }
-.edit-toolbar .edit-sticker-btn svg { color: var(--accent-color); }
 
-/* 完成 = 主操作，填充强调色，排在最右 */
+/* 完成 = 主操作，填充强调色（v2.223 起工具栏只剩这一个按钮：贴纸入口搬进了 设置→外观，
+   自由排列模式退役） */
 .edit-toolbar .edit-done-btn {
-    order: 10;
     font-weight: 600;
     color: #fff;
     background: var(--accent-color);
@@ -1414,6 +1407,10 @@ body.dark-mode .widget-clock {
 }
 
 .desktop-pages>.app-grid {
+    /* v2.223：width 显式钉死视口宽。此前只有 min-width，flex 子项按 max-content 计宽——
+       任何一个带固定宽内容的小组件（如定宽图片）都会把所有 1fr 轨道一起抬高、整页横向溢出
+       （3 列时代就存在的隐性雷，4 列密度下更易触发） */
+    width: 100%;
     min-width: 100%;
     flex-shrink: 0;
 }
@@ -1495,32 +1492,20 @@ body.dark-mode .widget-clock {
 .app-grid {
     padding: 20px 30px;
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* minmax(0,1fr)：轨道可压缩到内容 min-content 以下——超宽的组件内容在自己格子里溢出/被裁，
+       而不是把整行轨道一起撑宽（与上面 width:100% 配套，双保险） */
+    grid-template-columns: repeat(var(--desktop-cols, 3), minmax(0, 1fr));
     gap: 30px 20px;
     align-content: start;
     position: relative; /* 装饰图层用绝对定位需要 */
 }
 
-/* 自由排列模式：图标和组件用百分比绝对定位，允许重叠和留白 */
-.app-grid.free-mode {
-    display: block;
-    min-height: calc(100vh - 200px);
-    padding: 20px 0;
+/* v2.223：4 列时收窄内边距 + 间距，360px 窄屏也放得下 64px 图标
+   （4×64 + 3×14 + 2×22 = 344 < 360） */
+#desktop.cols-4 .app-grid {
+    padding: 20px 22px;
+    gap: 26px 14px;
 }
-.app-grid.free-mode > .app-item,
-.app-grid.free-mode > .desktop-grid-widget {
-    position: absolute;
-    grid-column: unset !important;
-    grid-row: unset !important;
-    transform: translate(-50%, -50%);
-}
-.app-grid.free-mode > .app-item {
-    width: 80px;
-}
-/* 自由模式下 widget 的 width 取决于 size class（small=120 / medium=240 / wide=full） */
-.app-grid.free-mode > .desktop-grid-widget[data-span="1"] { width: 25vw; max-width: 130px; }
-.app-grid.free-mode > .desktop-grid-widget[data-span="2"] { width: 55vw; max-width: 280px; }
-.app-grid.free-mode > .desktop-grid-widget[data-span="3"] { width: 90vw; max-width: 420px; }
 
 .app-item {
     display: flex;
@@ -2404,11 +2389,12 @@ body.dark-mode .widget-clock {
     margin-top: 14px;
 }
 
-/* 1:1 方屏幕适配 */
+/* 1:1 方屏幕适配（⚠️ max-aspect-ratio:1/1 = 所有竖屏手机都命中，不只方屏——
+   这里的 .app-grid 排在基础规则之后，同名属性会覆盖基础规则，列数必须同样走 var） */
 @media (aspect-ratio: 1/1),
 (max-aspect-ratio: 1/1) {
     .app-grid {
-        grid-template-columns: repeat(3, 1fr);
+        grid-template-columns: repeat(var(--desktop-cols, 3), minmax(0, 1fr));
         gap: 20px 15px;
         padding: 15px 20px;
     }
@@ -3255,6 +3241,9 @@ details.tl>span {
 
 .icon-url-input {
     flex: 1;
+    /* v2.223.1：text input 自带 ~170px 固有最小宽（flex min-width:auto），窄行里挤不动
+       会把右侧 ✓/↺ 按钮顶出卡片右缘，必须显式放开 */
+    min-width: 0;
     padding: 8px 10px;
     border: 1px solid var(--border-light);
     border-radius: 8px;
@@ -3275,6 +3264,7 @@ details.tl>span {
     justify-content: center;
     width: 36px;
     height: 36px;
+    flex-shrink: 0;
     background: var(--bg-card);
     border: 1px solid var(--border-medium);
     border-radius: 8px;
@@ -3293,6 +3283,7 @@ details.tl>span {
 .icon-reset-btn {
     width: 36px;
     height: 36px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -29,43 +29,63 @@ const APP_REGISTRY = {
 const DEFAULT_DOCK = ['broadcast','worldbook','settings'];
 const DOCK_MAX = 4;   // iPhone 风格 Dock 上限；下限「最少 1 个」在 _applyMoveFromDock 守
 // 默认网格不含 DEFAULT_DOCK 里的三个（它们去了底栏）。
-// 第1页时钟下 3×3 满 9 个，第2页日历下 8 个，两页更均衡。
+// 第1页顶部时钟，第2页顶部日历，两页更均衡；具体每行几个由 DEFAULT_COLS_NEW（新档）/ desktopLayout.cols（存量档）决定。
 const DEFAULT_PAGE0 = ['chat','forum','pixiv-novel','twitter','magazine','melonbooks','niconico','mercari','lyric-lab'];
 const DEFAULT_PAGE1 = ['weibo','lofter','writer','payment-tracker','fortune','tarot','travel-account','language'];
-const COLS = 3;
-const MAX_ROWS = 4; // visible rows per page on SE3
+// v2.223 桌面全网格化：新档默认 4 列（当代手机密度）；存量档在 _ensureLayout 里钉 3 列，桌面不挪一个像素
+const DEFAULT_COLS_NEW = 4;
 
-// Widget size → grid colSpan 映射（small=正方形 / medium=2格横向 / wide=整行条）
-const WIDGET_SIZE_SPAN = { small: 1, medium: 2, wide: 3 };
-function _widgetSpan(size) { return WIDGET_SIZE_SPAN[size] || 1; }
-
-// 自由模式坐标：行距贴合网格（实测网格行距 ≈100px / 容器 772px ≈ 0.13），
-// 顶部锚定 0.145，不再用 /5 把行摊满整屏 → 紧凑、不重叠、行数多也不挤。
-const FREE_ROW_PITCH = 0.13;
-const FREE_TOP_OFFSET = 0.145;
-function _freeY(row) {
-    const y = FREE_TOP_OFFSET + (typeof row === 'number' ? row : 0) * FREE_ROW_PITCH;
-    return Math.max(0.04, Math.min(0.96, y));
+// 桌面每行列数：3（旧默认）或 4（当代手机密度），存在 desktopLayout.cols，可在 设置→外观→桌面网格 切换
+function _cols() {
+    return (AppState.data.desktopLayout && AppState.data.desktopLayout.cols) || 3;
 }
-function _freeX(col, span) {
-    const x = (typeof col === 'number') ? (col + (span || 1) / 2) / COLS : 0.5;
-    return Math.max(0.06, Math.min(0.94, x));
+
+// 每页可见行数：早年 SE3 小屏写死 4，大屏应该能放更多行；node 测试环境没有 window 时安全回退 4
+function _maxRows() {
+    return (typeof window !== 'undefined' && window.innerHeight)
+        ? Math.max(4, Math.floor((window.innerHeight - 300) / 110))
+        : 4;
+}
+
+// Widget size → grid colSpan 映射（small=正方形 / medium=2格横向（2 列封顶）/ wide=整行，跟随当前列数）
+function _widgetSpan(size) {
+    const c = _cols();
+    return size === 'wide' ? c : size === 'medium' ? Math.min(2, c) : 1;
+}
+
+// item 实际占用列数：icon 恒 1；widget 以 widgets 表里记录的 size 为准源（忽略存档里可能过期的 colSpan——
+// 例如 4 列档里遗留的旧 colSpan=3 wide 组件，必须按当前列数整行铺开，不能停留在 3/4 行宽）
+function _itemSpan(item) {
+    if (item.type !== 'widget') return 1;
+    const widgets = AppState.data.widgets || [];
+    const w = widgets.find(x => x.id === item.widgetId);
+    if (w) return _widgetSpan(w.size);
+    return Math.min(item.colSpan || 1, _cols());
 }
 
 // ── Desktop Renderer ──
 const DesktopRenderer = {
     render() {
+        // v2.223 兜底自愈：拖拽被系统打断等未知路径下残留的幽灵克隆节点，下次重绘统统清掉
+        document.querySelectorAll('.drag-ghost').forEach(n => n.remove());
+
         this._ensureLayout();
         const pages = document.getElementById('desktopPages');
         if (!pages) return;
 
         const layout = AppState.data.desktopLayout;
-        const freeMode = !!layout.freeMode;
+        const cols = _cols();
         pages.innerHTML = '';
+
+        const desktopEl = document.getElementById('desktop');
+        if (desktopEl) {
+            desktopEl.style.setProperty('--desktop-cols', cols);
+            desktopEl.classList.toggle('cols-4', cols === 4);
+        }
 
         layout.pages.forEach((page, pi) => {
             const grid = document.createElement('div');
-            grid.className = 'app-grid' + (freeMode ? ' free-mode' : '');
+            grid.className = 'app-grid';
             grid.dataset.page = pi;
 
             // Sort items by row then col for proper rendering order
@@ -73,9 +93,9 @@ const DesktopRenderer = {
 
             for (const item of sorted) {
                 if (item.type === 'icon') {
-                    grid.appendChild(this._renderIcon(item, freeMode));
+                    grid.appendChild(this._renderIcon(item));
                 } else if (item.type === 'widget') {
-                    const el = this._renderWidgetInGrid(item, freeMode);
+                    const el = this._renderWidgetInGrid(item);
                     if (el) grid.appendChild(el);
                 }
             }
@@ -115,7 +135,7 @@ const DesktopRenderer = {
         }
     },
 
-    _renderIcon(item, freeMode) {
+    _renderIcon(item) {
         const app = APP_REGISTRY[item.appId];
         if (!app) return document.createElement('div');
 
@@ -124,15 +144,8 @@ const DesktopRenderer = {
         div.dataset.app = item.appId;
         div.dataset.layoutId = item.id || '';
 
-        if (freeMode) {
-            // 自由模式：百分比绝对定位，中心点对齐；缺/越界自动吸回视口
-            const { x, y } = this._safeFreeCoords(item, 1);
-            div.style.left = (x * 100) + '%';
-            div.style.top = (y * 100) + '%';
-        } else {
-            div.style.gridColumn = (item.col + 1).toString();
-            div.style.gridRow = (item.row + 1).toString();
-        }
+        div.style.gridColumn = (item.col + 1).toString();
+        div.style.gridRow = (item.row + 1).toString();
 
         div.innerHTML = `
             <div class="app-icon ${app.iconClass}">
@@ -170,7 +183,7 @@ const DesktopRenderer = {
         if (showLabels && typeof I18n !== 'undefined' && I18n.applyTranslations) I18n.applyTranslations();
     },
 
-    _renderWidgetInGrid(item, freeMode) {
+    _renderWidgetInGrid(item) {
         const widgets = AppState.data.widgets || [];
         const w = widgets.find(x => x.id === item.widgetId);
         if (!w) return null;
@@ -180,48 +193,28 @@ const DesktopRenderer = {
         div.dataset.layoutId = item.id || '';
         div.dataset.widgetId = item.widgetId;
 
-        const span = item.colSpan || _widgetSpan(w.size);
-
-        if (freeMode) {
-            const { x, y } = this._safeFreeCoords(item, span);
-            div.style.left = (x * 100) + '%';
-            div.style.top = (y * 100) + '%';
-            div.dataset.span = span;
-        } else {
-            div.style.gridColumn = `${item.col + 1} / span ${span}`;
-            div.style.gridRow = (item.row + 1).toString();
-        }
+        const span = _itemSpan(item);
+        div.style.gridColumn = `${item.col + 1} / span ${span}`;
+        div.style.gridRow = (item.row + 1).toString();
 
         div.innerHTML = Widgets._renderWidget(w);
         return div;
     },
 
-    // 自由模式下坐标兜底：缺值用 col/row 推导，再缺退到中心，最后 clamp 进视口
-    _safeFreeCoords(item, span) {
-        let x = (item.x !== undefined && !isNaN(item.x)) ? item.x : null;
-        let y = (item.y !== undefined && !isNaN(item.y)) ? item.y : null;
-        if (x === null) x = _freeX(item.col, span);
-        if (y === null) y = _freeY(item.row);
-        // Clamp：避免 NaN/越界把 item 甩出视口
-        x = Math.max(0.06, Math.min(0.94, x));
-        y = Math.max(0.04, Math.min(0.96, y));
-        return { x, y };
-    },
-
     // 在指定 page 找第一个能容纳 span 列的空 cell，找不到返回 null
     _findEmptyCell(page, span) {
         if (!page || !Array.isArray(page.items)) return null;
+        const cols = _cols();
         const occupied = new Set();
         for (const it of page.items) {
-            const sp = it.colSpan || 1;
+            const sp = _itemSpan(it);
             for (let c = it.col; c < it.col + sp; c++) {
                 occupied.add(`${it.row},${c}`);
             }
         }
-        const startCols = span > 1 ? [0] : [0, 1, 2];
-        for (let row = 0; row < MAX_ROWS; row++) {
-            for (const col of startCols) {
-                if (col + span > COLS) continue;
+        const maxRows = _maxRows();
+        for (let row = 0; row < maxRows; row++) {
+            for (let col = 0; col + span <= cols; col++) {
                 let allFree = true;
                 for (let c = col; c < col + span; c++) {
                     if (occupied.has(`${row},${c}`)) { allFree = false; break; }
@@ -402,6 +395,9 @@ const DesktopRenderer = {
 
     _ensureLayout() {
         if (AppState.data.desktopLayout && AppState.data.desktopLayout.pages.length > 0) {
+            const layout = AppState.data.desktopLayout;
+            // v2.223 全网格化：存量档钉 3 列，桌面不挪一个像素；想要 4 列去 设置→外观→桌面网格 手动切
+            if (!layout.cols) layout.cols = 3;
             this._migrateDock();   // 必须在 _ensureBroadcastIcon 之前：先把 broadcast 落进 dock，它才不会被补回网格
             this._ensureBroadcastIcon();
             this._ensureMercariIcon();
@@ -411,7 +407,7 @@ const DesktopRenderer = {
             return;
         }
 
-        // 首次部署：构建默认布局 — 第 1 页顶部时钟，第 2 页顶部日历
+        // 首次部署：构建默认布局 — 第 1 页顶部时钟，第 2 页顶部日历，新档默认 DEFAULT_COLS_NEW 列
         if (!AppState.data.widgets) AppState.data.widgets = [];
         const widgets = AppState.data.widgets;
 
@@ -434,19 +430,27 @@ const DesktopRenderer = {
             widgets.push(calendarWidget);
         }
 
-        const pages = [{ items: [] }, { items: [] }];
+        // 先把 desktopLayout（含 cols）建好，后面依赖 _cols()/_widgetSpan() 的调用才能读到正确列数
+        AppState.data.desktopLayout = {
+            pages: [{ items: [] }, { items: [] }],
+            dock: DEFAULT_DOCK.slice(),
+            _dockMigratedV1: true,
+            cols: DEFAULT_COLS_NEW
+        };
+        const layout = AppState.data.desktopLayout;
+        const pages = layout.pages;
         let idCounter = 0;
         const mkId = () => 'di_' + (idCounter++);
 
         // Page 0: clock(wide) + DEFAULT_PAGE0 icons
         pages[0].items.push({
             id: mkId(), type: 'widget', widgetId: clockWidget.id,
-            col: 0, row: 0, colSpan: COLS, rowSpan: 1
+            col: 0, row: 0, colSpan: DEFAULT_COLS_NEW, rowSpan: 1
         });
         DEFAULT_PAGE0.forEach((appId, i) => {
             pages[0].items.push({
                 id: mkId(), type: 'icon', appId,
-                col: i % COLS, row: 1 + Math.floor(i / COLS),
+                col: i % DEFAULT_COLS_NEW, row: 1 + Math.floor(i / DEFAULT_COLS_NEW),
                 colSpan: 1, rowSpan: 1
             });
         });
@@ -467,17 +471,16 @@ const DesktopRenderer = {
         // Page 1: calendar(wide) + DEFAULT_PAGE1 icons
         pages[1].items.push({
             id: mkId(), type: 'widget', widgetId: calendarWidget.id,
-            col: 0, row: 0, colSpan: COLS, rowSpan: 1
+            col: 0, row: 0, colSpan: DEFAULT_COLS_NEW, rowSpan: 1
         });
         DEFAULT_PAGE1.forEach((appId, i) => {
             pages[1].items.push({
                 id: mkId(), type: 'icon', appId,
-                col: i % COLS, row: 1 + Math.floor(i / COLS),
+                col: i % DEFAULT_COLS_NEW, row: 1 + Math.floor(i / DEFAULT_COLS_NEW),
                 colSpan: 1, rowSpan: 1
             });
         });
 
-        AppState.data.desktopLayout = { pages, dock: DEFAULT_DOCK.slice(), _dockMigratedV1: true };
         AppState.data._clockWidgetMigrated = true;
         Utils.saveData();
     },
@@ -504,9 +507,8 @@ const DesktopRenderer = {
         });
         if (affected.length) {
             dirty = true;
-            // 仅首次迁移重排填洞（网格模式）；自由模式不动（不打乱用户自由布局，同 removeWidgetFromLayout 约定）。
-            // 首次之后的自愈式去重只移除不重排（一个空洞胜过一个重复图标）。
-            if (!layout._dockMigratedV1 && !layout.freeMode) {
+            // 仅首次迁移重排填洞；首次之后的自愈式去重只移除不重排（一个空洞胜过一个重复图标）。
+            if (!layout._dockMigratedV1) {
                 affected.forEach(pi => this.reflow(pi));
             }
         }
@@ -514,16 +516,17 @@ const DesktopRenderer = {
         if (dirty) Utils.saveData();
     },
 
-    // Recalculate positions: pack items sequentially in 3-col grid
+    // Recalculate positions: pack items sequentially in a _cols() 列网格
     reflow(pageIndex) {
         const layout = AppState.data.desktopLayout;
         if (!layout || !layout.pages[pageIndex]) return;
 
         const page = layout.pages[pageIndex];
+        const cols = _cols();
         let row = 0, col = 0;
 
         for (const item of page.items) {
-            const span = item.colSpan || 1;
+            const span = _itemSpan(item);
 
             // Wide widgets must start at col 0
             if (span > 1 && col > 0) {
@@ -535,7 +538,7 @@ const DesktopRenderer = {
             item.row = row;
 
             col += span;
-            if (col >= COLS) {
+            if (col >= cols) {
                 col = 0;
                 row++;
             }
@@ -572,10 +575,6 @@ const DesktopRenderer = {
             col: spot.col, row: spot.row,
             colSpan: span, rowSpan: 1
         };
-        if (layout.freeMode) {
-            newItem.x = _freeX(spot.col, span);
-            newItem.y = _freeY(spot.row);
-        }
 
         layout.pages[targetIdx].items.push(newItem);
         Utils.saveData();
@@ -588,56 +587,7 @@ const DesktopRenderer = {
         for (const page of layout.pages) {
             page.items = page.items.filter(i => !(i.type === 'widget' && i.widgetId === widgetId));
         }
-        // freeMode 下保留其它 item 的 col/row，不重排（用户布局不被打乱）；grid 模式正常 reflow
-        if (!layout.freeMode) {
-            layout.pages.forEach((_, i) => this.reflow(i));
-        }
-        Utils.saveData();
-        this.render();
-    },
-
-    // 切换自由/网格模式
-    toggleFreeMode() {
-        const layout = AppState.data.desktopLayout;
-        if (!layout) return;
-        if (!layout.freeMode) {
-            // 进入自由模式：把现有 grid 坐标转成 x_pct, y_pct，并 clamp 在视口内
-            for (const page of layout.pages) {
-                for (const item of page.items) {
-                    if (item.x === undefined || item.y === undefined || isNaN(item.x) || isNaN(item.y)) {
-                        const span = item.colSpan || 1;
-                        item.x = _freeX(item.col, span);
-                        item.y = _freeY(item.row);
-                    }
-                }
-            }
-            layout.freeMode = true;
-        } else {
-            layout.freeMode = false;
-        }
-        Utils.saveData();
-        this.render();
-
-        // 同步刷新编辑模式按钮状态
-        const modeBtn = document.getElementById('editLayoutModeBtn');
-        if (modeBtn) modeBtn.textContent = layout.freeMode ? I18n.t('desktop.layout_grid', '⊞ 网格') : I18n.t('desktop.layout_free', '✦ 自由');
-        const arrangeBtn = document.getElementById('editArrangeBtn');
-        if (arrangeBtn) arrangeBtn.style.display = layout.freeMode ? '' : 'none';
-    },
-
-    // 一键整理：把所有 item 重新摆回 grid，同时保留 freeMode
-    arrangeToGrid() {
-        const layout = AppState.data.desktopLayout;
-        if (!layout) return;
         layout.pages.forEach((_, i) => this.reflow(i));
-        // 同步 x, y 到新的 grid 位置
-        for (const page of layout.pages) {
-            for (const item of page.items) {
-                const span = item.colSpan || 1;
-                item.x = _freeX(item.col, span);
-                item.y = _freeY(item.row);
-            }
-        }
         Utils.saveData();
         this.render();
     }
@@ -655,6 +605,7 @@ const DesktopEdit = {
     sourcePageIndex: 0,
     _edgeScrollTimer: null,
     _dragItemData: null, // {type, appId/widgetId, ...} of the item being dragged
+    _cellH: 105, // 拖拽吸附用的行高，_beginDrag 里量一次实际值，量不到用这个兜底
 
     init() {
         const wrapper = document.querySelector('.desktop-pages-wrapper');
@@ -669,7 +620,9 @@ const DesktopEdit = {
         el.addEventListener('touchstart', (e) => this._onTouchStart(e), { passive: false });
         el.addEventListener('touchmove', (e) => this._onTouchMove(e), { passive: false });
         el.addEventListener('touchend', (e) => this._onTouchEnd(e));
-        el.addEventListener('touchcancel', () => this._cancelPress());
+        // v2.223：安卓上长按拖拽极易被系统手势打断（返回手势/下拉通知栏），touchcancel 之前只清
+        // 长按计时器，对进行中的拖拽毫无清理——必须同时中止拖拽，否则幽灵图标永远挂在屏幕上
+        el.addEventListener('touchcancel', () => { this._cancelPress(); this._abortDrag(); });
     },
 
     _onTouchStart(e) {
@@ -732,6 +685,35 @@ const DesktopEdit = {
         }
     },
 
+    // v2.223：touch 序列被系统打断（touchcancel）时的无条件安全清理。不落位、不写数据——
+    // 行为等价于「图标弹回原处」，编辑模式保持不退出。任何时候调用都必须安全（哪怕当前没有在拖拽）。
+    _abortDrag() {
+        if (this._edgeScrollTimer) {
+            clearTimeout(this._edgeScrollTimer);
+            this._edgeScrollTimer = null;
+        }
+        if (this.ghost) {
+            this.ghost.remove();
+            this.ghost = null;
+        }
+        const indicator = document.getElementById('dropIndicator');
+        if (indicator) indicator.style.display = 'none';
+        if (this.dragItem) {
+            this.dragItem.style.visibility = '';
+            this.dragItem.classList.remove('drag-source');
+        }
+        const dockEl = document.getElementById('dock');
+        if (dockEl) dockEl.classList.remove('drag-over');
+
+        this.dragStarted = false;
+        this.dragItem = null;
+        this._dragItemData = null;
+        this._dropCol = undefined;
+        this._dropRow = undefined;
+        this._dropDockIdx = undefined;
+        this._dragFromDock = false;
+    },
+
     // ── Edit Mode ──
     enterEditMode() {
         this.active = true;
@@ -747,7 +729,7 @@ const DesktopEdit = {
             document.body.appendChild(toolbar);
         }
 
-        // 完成
+        // 完成（v2.223 起工具栏只留这一个按钮：贴纸入口搬去了 设置→外观，自由排列模式退役）
         let btn = document.getElementById('editDoneBtn');
         if (!btn) {
             btn = document.createElement('button');
@@ -757,44 +739,7 @@ const DesktopEdit = {
             btn.onclick = () => this.exitEditMode();
         }
 
-        // 贴纸
-        let stickerBtn = document.getElementById('editStickerBtn');
-        if (!stickerBtn) {
-            stickerBtn = document.createElement('button');
-            stickerBtn.id = 'editStickerBtn';
-            stickerBtn.className = 'edit-sticker-btn';
-            stickerBtn.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 11h.01M15 11h.01M9 15c1 1.5 5 1.5 6 0"/></svg><span>' + I18n.t('desktop.stickers', '贴纸') + '</span>';
-            stickerBtn.onclick = () => {
-                if (typeof Decorations !== 'undefined') Decorations.openDrawer();
-            };
-        }
-
-        // 自由/网格 模式切换
-        let modeBtn = document.getElementById('editLayoutModeBtn');
-        if (!modeBtn) {
-            modeBtn = document.createElement('button');
-            modeBtn.id = 'editLayoutModeBtn';
-            modeBtn.className = 'edit-layout-mode-btn';
-            modeBtn.onclick = () => DesktopRenderer.toggleFreeMode();
-        }
-        const isFree = !!(AppState.data.desktopLayout && AppState.data.desktopLayout.freeMode);
-        modeBtn.textContent = isFree ? I18n.t('desktop.layout_grid', '⊞ 网格') : I18n.t('desktop.layout_free', '✦ 自由');
-
-        // 一键整理（仅自由模式可见）
-        let arrangeBtn = document.getElementById('editArrangeBtn');
-        if (!arrangeBtn) {
-            arrangeBtn = document.createElement('button');
-            arrangeBtn.id = 'editArrangeBtn';
-            arrangeBtn.className = 'edit-arrange-btn';
-            arrangeBtn.textContent = I18n.t('desktop.auto_tidy', '一键整理');
-            arrangeBtn.onclick = () => {
-                if (confirm(I18n.t('desktop.auto_tidy_confirm', '一键整理：把所有图标和组件按网格排列？'))) DesktopRenderer.arrangeToGrid();
-            };
-        }
-        arrangeBtn.style.display = isFree ? '' : 'none';
-
-        // 按固定顺序塞进工具栏：贴纸 / 模式 / 整理 / 完成（append 会移动已存在的节点，保证顺序）
-        toolbar.append(stickerBtn, modeBtn, arrangeBtn, btn);
+        toolbar.append(btn);
         toolbar.style.display = 'flex';
     },
 
@@ -824,6 +769,19 @@ const DesktopEdit = {
             appId: target.dataset.app || null,
             widgetId: target.dataset.widgetId || null
         };
+
+        // 量一次当前页实际行高（首个图标高度 + row-gap），拖拽吸附用；量不到就用兜底值 105
+        this._cellH = 105;
+        const grids = document.querySelectorAll('.app-grid');
+        const currentGrid = grids[this.sourcePageIndex];
+        const firstItem = currentGrid && currentGrid.querySelector('.app-item');
+        if (firstItem) {
+            const h = firstItem.getBoundingClientRect().height;
+            if (h) {
+                const rowGap = parseFloat(getComputedStyle(currentGrid).rowGap);
+                this._cellH = h + (isNaN(rowGap) ? 0 : rowGap);
+            }
+        }
 
         // Create ghost
         const rect = target.getBoundingClientRect();
@@ -886,9 +844,8 @@ const DesktopEdit = {
                 this._dropDockIdx = this._computeDockInsertIdx(x);
                 const ind = document.getElementById('dropIndicator');
                 if (ind) ind.style.display = 'none';
-                // 清掉网格/自由落点，确保 _endDrag 走 Dock 分支
+                // 清掉网格落点，确保 _endDrag 走 Dock 分支
                 this._dropCol = undefined; this._dropRow = undefined;
-                this._dropXPct = undefined; this._dropYPct = undefined;
                 return;
             }
             dockEl.classList.remove('drag-over');
@@ -904,20 +861,11 @@ const DesktopEdit = {
         const relX = x - gridRect.left;
         const relY = y - gridRect.top;
 
-        // 自由模式：直接记录百分比，不做格子吸附
-        if (AppState.data.desktopLayout && AppState.data.desktopLayout.freeMode) {
-            this._dropXPct = Math.max(0, Math.min(1, relX / gridRect.width));
-            this._dropYPct = Math.max(0, Math.min(1, relY / gridRect.height));
-            // 隐藏 grid 模式的 drop 指示器
-            const ind = document.getElementById('dropIndicator');
-            if (ind) ind.style.display = 'none';
-            return;
-        }
-
-        // 网格模式：吸附到 cell
-        const cellW = gridRect.width / COLS;
-        const cellH = 105; // approximate row height
-        const dropCol = Math.max(0, Math.min(COLS - 1, Math.floor(relX / cellW)));
+        // 吸附到 cell
+        const cols = _cols();
+        const cellW = gridRect.width / cols;
+        const cellH = this._cellH || 105;
+        const dropCol = Math.max(0, Math.min(cols - 1, Math.floor(relX / cellW)));
         const dropRow = Math.max(0, Math.floor(relY / cellH));
 
         this._dropCol = dropCol;
@@ -976,16 +924,13 @@ const DesktopEdit = {
 
         // Apply the move
         if (this._dragItemData) {
-            const layout = AppState.data.desktopLayout;
             const dockEl = document.getElementById('dock');
             if (dockEl) dockEl.classList.remove('drag-over');
             if (this._dropDockIdx !== undefined) {
                 this._applyMoveToDock(this._dropDockIdx);
             } else if (this._dragFromDock) {
-                // 源是 Dock、落点是网格/自由
+                // 源是 Dock、落点是网格
                 this._applyMoveFromDock();
-            } else if (layout && layout.freeMode && this._dropXPct !== undefined) {
-                this._applyMoveFree(this._dropXPct, this._dropYPct);
             } else if (this._dropCol !== undefined) {
                 this._applyMove(this._dropCol, this._dropRow);
             }
@@ -993,42 +938,10 @@ const DesktopEdit = {
 
         this.dragItem = null;
         this._dragItemData = null;
-        this._dropXPct = undefined;
-        this._dropYPct = undefined;
         this._dropCol = undefined;
         this._dropRow = undefined;
         this._dropDockIdx = undefined;
         this._dragFromDock = false;
-    },
-
-    // 自由模式下的拖拽落点：直接写 x, y 百分比，不重排
-    _applyMoveFree(xPct, yPct) {
-        const layout = AppState.data.desktopLayout;
-        const dropPageIdx = DesktopPager.currentPage;
-        const sourcePageIdx = this.sourcePageIndex;
-        const sourcePage = layout.pages[sourcePageIdx];
-        const dropPage = layout.pages[dropPageIdx];
-        if (!sourcePage || !dropPage) return;
-
-        const d = this._dragItemData;
-        let itemIdx = -1;
-        if (d.layoutId) itemIdx = sourcePage.items.findIndex(i => i.id === d.layoutId);
-        else if (d.appId) itemIdx = sourcePage.items.findIndex(i => i.type === 'icon' && i.appId === d.appId);
-        else if (d.widgetId) itemIdx = sourcePage.items.findIndex(i => i.type === 'widget' && i.widgetId === d.widgetId);
-        if (itemIdx < 0) return;
-
-        const item = sourcePage.items[itemIdx];
-        item.x = xPct;
-        item.y = yPct;
-
-        // 跨页移动：item 从 sourcePage 拿走、放到 dropPage
-        if (sourcePageIdx !== dropPageIdx) {
-            sourcePage.items.splice(itemIdx, 1);
-            dropPage.items.push(item);
-        }
-
-        Utils.saveData();
-        DesktopRenderer.render();
     },
 
     // 清理 items 为空的尾页（保留至少 1 页）——与 _applyMove 内的空页清理一致，供 Dock 增删复用
@@ -1065,8 +978,8 @@ const DesktopEdit = {
         // Remove from source page
         const item = sourcePage.items.splice(itemIdx, 1)[0];
 
-        // Calculate target index in the flat list (row * COLS + col)
-        const targetIndex = targetRow * COLS + targetCol;
+        // Calculate target index in the flat list (row * cols + col)
+        const targetIndex = targetRow * _cols() + targetCol;
         const insertAt = Math.min(targetIndex, dropPage.items.length);
         dropPage.items.splice(insertAt, 0, item);
 
@@ -1123,7 +1036,7 @@ const DesktopEdit = {
                 if (i >= 0) sourcePage.items.splice(i, 1);
             }
             dock.splice(Math.max(0, Math.min(idx, dock.length)), 0, d.appId);
-            if (!layout.freeMode) DesktopRenderer.reflow(this.sourcePageIndex);
+            DesktopRenderer.reflow(this.sourcePageIndex);
         }
 
         this._cleanupEmptyPages();   // 把图标拖进 Dock 后可能掏空源页 / edge-scroll 翻出的空页一并清掉
@@ -1146,7 +1059,7 @@ const DesktopEdit = {
             DesktopRenderer.render();   // 回弹
             return;
         }
-        // 先校验落点页存在再动 dock（对齐 _applyMove/_applyMoveFree：先校验落点、再改数据），
+        // 先校验落点页存在再动 dock（对齐 _applyMove：先校验落点、再改数据），
         // 避免「dock 已移除但落点页缺失」的半成品态
         const pageIdx = DesktopPager.currentPage;
         const page = layout.pages[pageIdx];
@@ -1158,12 +1071,8 @@ const DesktopEdit = {
             type: 'icon', appId: d.appId, col: 0, row: 0, colSpan: 1, rowSpan: 1
         };
 
-        if (layout.freeMode && this._dropXPct !== undefined) {
-            newItem.x = this._dropXPct;
-            newItem.y = this._dropYPct;
-            page.items.push(newItem);
-        } else if (this._dropCol !== undefined) {
-            const targetIndex = this._dropRow * COLS + this._dropCol;
+        if (this._dropCol !== undefined) {
+            const targetIndex = this._dropRow * _cols() + this._dropCol;
             const insertAt = Math.min(targetIndex, page.items.length);
             page.items.splice(insertAt, 0, newItem);
             DesktopRenderer.reflow(pageIdx);

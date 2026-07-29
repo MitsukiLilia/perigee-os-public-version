@@ -151,6 +151,12 @@ I18n.translations.ja = {
             'appr.icon_header': 'アプリアイコン設定',
             'appr.icon_desc': '各アプリにカスタムアイコンを設定。URLまたは画像アップロードに対応',
             'appr.widget_header': 'デスクトップウィジェット',
+            'appr.sticker_header': 'ステッカー',
+            'appr.sticker_open': 'ステッカードロワーを開く',
+            'appr.sticker_note': 'ステッカーはデスクトップに貼って飾るもの。長押しして編集モードに入れば：ドラッグで移動、二本指で回転・拡大縮小、×タップで削除。',
+            'appr.grid_header': 'デスクトップグリッド',
+            'appr.grid_cols': '1行あたりのアイコン数',
+            'appr.grid_cols_note': '3列はアイコンが大きめ、4列は最近のスマホと同じ密度。切り替えても並び順は変わらず、密度だけ変わります。',
             'appr.widget_add': '+ ウィジェットを追加',
             'appr.dock_header': 'Dock 栏 / Dock',
             'appr.dock_labels': '显示 Dock 图标名称',
@@ -1543,6 +1549,16 @@ I18n.translations.ja = {
 
             'deco.confirm_delete_sticker': 'このステッカーを削除しますか？デスクトップに貼ってあるものも一緒に消えます。',
             'deco.upload_failed_prefix': 'ステッカーアップロード失敗：',
+            'deco.drawer_title': 'ステッカー',
+            'deco.builtin': '内蔵',
+            'deco.custom': 'カスタム',
+            'deco.upload': '＋ アップロード',
+            'deco.empty': '右上の「アップロード」から自分のステッカーを追加（SVG/PNG/JPG）',
+            'deco.hint': 'ステッカーをタップすると現在のページ中央に追加。編集モードでドラッグ / 回転 / 拡大縮小できます',
+            'deco.menu_delete': '装飾を削除',
+            'deco.menu_move': '移動先',
+            'deco.menu_page': '{n} ページ目',
+            'deco.menu_cancel': 'キャンセル',
 
             'fortune.no_themes': 'テーマがまだありません、下から新規作成してください',
             'fortune.option_count': '{n} 個の選択肢',
@@ -1551,12 +1567,6 @@ I18n.translations.ja = {
 
             'ghb.confirm_push': 'データ約 {mb} MB、プッシュは少し時間がかかります（ネットワーク次第）。続けますか？',
             'ghb.confirm_restore': 'クラウドから復元するとクラウドのデータで現在のすべてのデータが上書きされます。\n\n先に「すべてのデータをエクスポート」でローカルバックアップを取ることを推奨。\n\n続けますか？',
-
-            'desktop.layout_grid': '⊞ グリッド',
-            'desktop.layout_free': '✦ フリー',
-            'desktop.auto_tidy': '一括整列',
-            'desktop.auto_tidy_confirm': '一括整列：すべてのアイコンとウィジェットをグリッドに並べ直しますか？',
-            'desktop.stickers': 'ステッカー',
 
             'magazine.generating': '生成中...',
             'magazine.gen_failed_prefix': '生成失敗：',

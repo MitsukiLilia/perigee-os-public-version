@@ -120,6 +120,62 @@ const MIGRATIONS = [
             }
         }
     },
+    {
+        v: 4,
+        desc: 'v2.223 桌面全网格化：free 模式退役（按视觉序回网格）+ cols 落地（存量=3 列，新档走 _ensureLayout 默认 4 列）',
+        run(data) {
+            const layout = data.desktopLayout;
+            if (!layout || !Array.isArray(layout.pages)) return;          // 无桌面档：新档由 _ensureLayout 建、自带 cols
+            if (layout.cols !== undefined && !layout.freeMode) return;    // 幂等守卫
+            const C = 3;   // 存量档一律钉 3 列（桌面不动像素；想 4 列去设置里切）
+            const wasFree = !!layout.freeMode;
+            if (wasFree) {
+                // free 档按「当前视觉位置」排序（y 主序、半行阈值内看 x），用户看到的排列不乱
+                const PITCH = 0.13, TOP = 0.145;   // 旧 _freeY/_freeX 推导公式，坐标缺失时兜底
+                const yOf = it => (typeof it.y === 'number' && !isNaN(it.y)) ? it.y
+                    : Math.max(0.04, Math.min(0.96, TOP + (it.row || 0) * PITCH));
+                const xOf = it => (typeof it.x === 'number' && !isNaN(it.x)) ? it.x
+                    : Math.max(0.06, Math.min(0.94, ((it.col || 0) + (it.colSpan || 1) / 2) / C));
+                for (const page of layout.pages) {
+                    if (!Array.isArray(page.items)) continue;
+                    page.items.sort((a, b) => {
+                        const dy = yOf(a) - yOf(b);
+                        return Math.abs(dy) > 0.045 ? dy : xOf(a) - xOf(b);
+                    });
+                }
+            }
+            delete layout.freeMode;
+            // x/y 残留统一清掉（老版本 free→grid 来回切过的网格档也会带着）
+            for (const page of layout.pages) {
+                if (!Array.isArray(page.items)) continue;
+                for (const it of page.items) { delete it.x; delete it.y; }
+            }
+            // 只有 free 档需要重排落进网格；非 free 档 col/row 原样保留——网格渲染是显式
+            // col/row 定位，dock 去重自愈留下的空洞本来就合法（数组序 ≠ 视觉序，按数组序
+            // reflow 会压洞、挪动 _ensure*Icon 补在洞里的图标，违背「存量桌面不动像素」）
+            if (wasFree) {
+                const widgets = Array.isArray(data.widgets) ? data.widgets : [];
+                const spanOf = it => {
+                    if (it.type !== 'widget') return 1;
+                    const w = widgets.find(x => x.id === it.widgetId);
+                    if (w) return w.size === 'wide' ? C : w.size === 'medium' ? 2 : 1;
+                    return Math.max(1, Math.min(it.colSpan || 1, C));
+                };
+                for (const page of layout.pages) {
+                    if (!Array.isArray(page.items)) continue;
+                    let row = 0, col = 0;
+                    for (const it of page.items) {
+                        const span = spanOf(it);
+                        if (span > 1 && col > 0) { row++; col = 0; }
+                        it.col = col; it.row = row;
+                        col += span;
+                        if (col >= C) { col = 0; row++; }
+                    }
+                }
+            }
+            if (layout.cols === undefined) layout.cols = 3;
+        }
+    },
     // ↑ 新迁移只在这里 append（v 递增），并遵守顶部铁律 ①②③
 ];
 

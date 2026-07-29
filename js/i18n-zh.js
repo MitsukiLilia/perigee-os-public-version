@@ -152,6 +152,12 @@ I18n.translations.zh = {
             'appr.icon_desc': '为每个 App 设置自定义图标，支持 URL 或本地图片上传',
             'appr.widget_header': '桌面小组件',
             'appr.widget_add': '+ 添加小组件',
+            'appr.sticker_header': '桌面贴纸',
+            'appr.sticker_open': '打开贴纸抽屉',
+            'appr.sticker_note': '贴纸会盖在桌面上装饰用。长按桌面进入编辑模式后：拖动移动、双指旋转缩放、点 × 删除。',
+            'appr.grid_header': '桌面网格',
+            'appr.grid_cols': '每行图标数',
+            'appr.grid_cols_note': '3 列图标更大，4 列与当代手机一致。切换只改排版密度，图标顺序不变。',
             'appr.dock_header': 'Dock 栏 / Dock',
             'appr.dock_labels': '显示 Dock 图标名称',
             'appr.dock_labels_note': '关闭后底部 Dock 只显示图标、更简洁（放送局 / 世界书 / 设置）',
@@ -1575,6 +1581,16 @@ I18n.translations.zh = {
             // 贴纸
             'deco.confirm_delete_sticker': '删除这张贴纸？已经放在桌面上的会一起消失。',
             'deco.upload_failed_prefix': '贴纸上传失败：',
+            'deco.drawer_title': '装饰贴纸',
+            'deco.builtin': '内置',
+            'deco.custom': '自定义',
+            'deco.upload': '＋ 上传',
+            'deco.empty': '点击右上角「上传」添加自己的贴纸（SVG/PNG/JPG）',
+            'deco.hint': '点击贴纸添加到当前页中央，编辑模式下可拖动 / 旋转 / 缩放',
+            'deco.menu_delete': '删除装饰',
+            'deco.menu_move': '移到',
+            'deco.menu_page': '第 {n} 屏',
+            'deco.menu_cancel': '取消',
 
             // Fortune
             'fortune.no_themes': '暂无主题，点击下方创建新主题',
@@ -1585,13 +1601,6 @@ I18n.translations.zh = {
             // GitHub 备份 confirm
             'ghb.confirm_push': '数据约 {mb} MB，推送会比较慢（取决于网络），请耐心等待。继续？',
             'ghb.confirm_restore': '从云端恢复会用云端数据覆盖当前所有数据。\n\n建议先点"导出全部数据"留一份本地备份，然后再恢复。\n\n确认继续？',
-
-            // 桌面编辑
-            'desktop.layout_grid': '⊞ 网格',
-            'desktop.layout_free': '✦ 自由',
-            'desktop.auto_tidy': '一键整理',
-            'desktop.auto_tidy_confirm': '一键整理：把所有图标和组件按网格排列？',
-            'desktop.stickers': '贴纸',
 
             // Magazine 漏的
             'magazine.generating': '生成中...',

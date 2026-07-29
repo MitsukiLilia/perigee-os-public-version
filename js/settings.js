@@ -637,6 +637,7 @@ const SystemConfig = {
         this._updateGlassQualityRow();
         const dockLabelsToggle = document.getElementById('dockLabelsToggle');
         if (dockLabelsToggle) dockLabelsToggle.checked = cfg.showDockLabels !== false;
+        this._syncDesktopColsButtons();
         this._syncTexturePicker(cfg.bgTexture);
         this._syncThemeHighlight(cfg.theme);
         this._syncFontHighlight(cfg.fontFamily);
@@ -937,9 +938,17 @@ const SystemConfig = {
         const cfg = AppState.data.systemConfig || {};
         const toggle = document.getElementById('themeEffectToggle');
         if (toggle) toggle.checked = cfg[eff.key] !== false;
+        // v2.223.1：文案挂 data-i18n 再写一次当前值——字典懒加载（v2.196 起）晚到时这里的
+        // t() 会返回裸 key，挂上属性后字典到货的 applyTranslations 会自动补翻，不再永久裸奔
         const labelEl = row.querySelector('[data-effect-label]');
-        if (labelEl && typeof I18n !== 'undefined') labelEl.textContent = I18n.t(eff.label);
-        if (note && typeof I18n !== 'undefined') note.textContent = I18n.t(eff.note);
+        if (labelEl) {
+            labelEl.setAttribute('data-i18n', eff.label);
+            if (typeof I18n !== 'undefined') labelEl.textContent = I18n.t(eff.label);
+        }
+        if (note) {
+            note.setAttribute('data-i18n', eff.note);
+            if (typeof I18n !== 'undefined') note.textContent = I18n.t(eff.note);
+        }
     },
 
     // 应用背景纹理（设置 CSS 变量 --bg-texture，#desktop::before 自动叠加）
@@ -1103,6 +1112,32 @@ const SystemConfig = {
         cfg.showDockLabels = !!checked;
         Utils.saveData();
         if (typeof DesktopRenderer !== 'undefined' && DesktopRenderer.render) DesktopRenderer.render();
+    },
+
+    // v2.223 桌面网格密度切换（3/4 列）：cols 存在 desktopLayout 不在 systemConfig。
+    // 按当前视觉序（row 主序、col 次序）重新铺排，图标顺序不变，只是每行放几个变了。
+    _syncDesktopColsButtons() {
+        const cols = (AppState.data.desktopLayout && AppState.data.desktopLayout.cols) || 3;
+        const b3 = document.getElementById('desktopCols3');
+        const b4 = document.getElementById('desktopCols4');
+        if (b3) b3.classList.toggle('primary', cols === 3);
+        if (b4) b4.classList.toggle('primary', cols === 4);
+    },
+
+    onDesktopColsChange(n) {
+        if (n !== 3 && n !== 4) return;
+        const layout = AppState.data.desktopLayout;
+        if (!layout || !Array.isArray(layout.pages)) return;
+        layout.cols = n;
+        layout.pages.forEach((page, pi) => {
+            if (Array.isArray(page.items)) {
+                page.items.sort((a, b) => (a.row - b.row) || (a.col - b.col));
+            }
+            DesktopRenderer.reflow(pi);
+        });
+        Utils.saveData();
+        DesktopRenderer.render();
+        this._syncDesktopColsButtons();
     },
 
     // 保留 saveConfig 给「应用背景设置」按钮使用：保存壁纸 + 纹理 + 雨效果开关

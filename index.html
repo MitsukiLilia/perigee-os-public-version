@@ -1781,6 +1781,28 @@
                 </div>
             </div>
 
+            <!-- 桌面贴纸（v2.223：入口从长按工具栏搬进这里） -->
+            <div class="settings-card">
+                <div class="card-header" data-i18n="appr.sticker_header">桌面贴纸</div>
+                <div style="padding: 0 16px 16px;">
+                    <button class="glass-btn primary" onclick="Decorations.openFromSettings()" data-i18n="appr.sticker_open">打开贴纸抽屉</button>
+                </div>
+                <p style="font-size:11px; color:var(--text-tertiary); margin:-8px 16px 16px;" data-i18n="appr.sticker_note">贴纸会盖在桌面上；长按桌面进入编辑模式可拖动、双指旋转缩放、点 × 删除</p>
+            </div>
+
+            <!-- 桌面网格（v2.223：每行 3/4 图标可选，自由排列模式退役） -->
+            <div class="settings-card">
+                <div class="card-header" data-i18n="appr.grid_header">桌面网格</div>
+                <div class="setting-row" style="flex-direction:row;justify-content:space-between;align-items:center;">
+                    <label style="margin:0;" data-i18n="appr.grid_cols">每行图标数</label>
+                    <div style="display:flex;gap:8px;">
+                        <button type="button" id="desktopCols3" class="glass-btn small" onclick="SystemConfig.onDesktopColsChange(3)">3</button>
+                        <button type="button" id="desktopCols4" class="glass-btn small" onclick="SystemConfig.onDesktopColsChange(4)">4</button>
+                    </div>
+                </div>
+                <p style="font-size:11px; color:var(--text-tertiary); margin-top:-4px;" data-i18n="appr.grid_cols_note">3 列图标更大，4 列与当代手机一致。切换只改排版密度，图标顺序不变。</p>
+            </div>
+
             <!-- Dock 栏 -->
             <div class="settings-card">
                 <div class="card-header" data-i18n="appr.dock_header">Dock 栏 / Dock</div>
