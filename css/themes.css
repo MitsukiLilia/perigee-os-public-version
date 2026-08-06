@@ -171,6 +171,196 @@
     background: #b08a90;
 }
 
+/* ── sakura 小组件生图皮肤（试点）──
+   底图集：assets/widgets/sakura/（水彩撕纸贴纸，与 sakura 图标同画风同产线）。
+   卡片壳整个交给底图（撕纸白边画在图里）：原 border/底色/backdrop-filter 必须清掉——
+   backdrop-filter 留着会在撕纸边外的透明角落糊出一块方形雾斑；box-shadow 是矩形轮廓，
+   在透明角落会露出方形阴影角，改用 drop-shadow 贴合 alpha 轮廓。
+   圆形档（月相/天气）不清 border：贴纸白圈是 .widget-card.widget-circle 的 !important 守卫，
+   底图用 cover 填进圆内即可。活数据（时间/温度/列表/照片）全是 DOM 原样叠加，图内零文字。 */
+[data-theme="sakura"] .widget-clock.clock-square,
+[data-theme="sakura"] .widget-clock.clock-wide,
+[data-theme="sakura"] .widget-news,
+[data-theme="sakura"] .widget-mercari,
+[data-theme="sakura"] .widget-notifhub,
+[data-theme="sakura"] .widget-polaroid-j {
+    border: none;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    filter: drop-shadow(0 3px 6px rgba(150, 95, 105, 0.16));
+}
+[data-theme="sakura"] .widget-clock.clock-square { background-image: url('../assets/widgets/sakura/clock-small.webp'); }
+[data-theme="sakura"] .widget-clock.clock-wide   { background-image: url('../assets/widgets/sakura/clock-wide.webp'); padding-left: 17%; padding-right: 24%; }
+[data-theme="sakura"] .widget-news               { background-image: url('../assets/widgets/sakura/news-medium.webp'); }
+[data-theme="sakura"] .widget-mercari            { background-image: url('../assets/widgets/sakura/mercari-wide.webp'); padding-right: 16%; }
+[data-theme="sakura"] .widget-notifhub           { background-image: url('../assets/widgets/sakura/notifhub-wide.webp'); }
+[data-theme="sakura"] .widget-clock .clock-spark { display: none; }
+
+/* 圆形档：cover 填圆，撕纸边被圆裁掉（量产时这两枚会按圆贴纸重烧） */
+[data-theme="sakura"] .widget-moonphase,
+[data-theme="sakura"] .widget-weather {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+[data-theme="sakura"] .widget-moonphase { background-image: url('../assets/widgets/sakura/moonphase-small.webp'); }
+[data-theme="sakura"] .widget-moonphase .moon-label { color: #e9e6f2; opacity: 0.92; }
+[data-theme="sakura"] .widget-weather   { background-image: url('../assets/widgets/sakura/weather-small.webp'); }
+/* 画里已有暖阳软云，原 SVG 天气图标退场；温度/字样沉到下半留白区 */
+[data-theme="sakura"] .widget-weather > svg { display: none; }
+[data-theme="sakura"] .widget-weather { justify-content: flex-end; padding-bottom: 18%; }
+
+/* 拍立得：整卡=画出来的相纸（含纯色照片窗），DOM 照片按画中窗口比例对位；
+   胶带装饰按设计撤下（桌面上显累赘·2026-07-30 作者拍板） */
+[data-theme="sakura"] .widget-polaroid-j { background-image: url('../assets/widgets/sakura/polaroid.webp'); padding: 6.5% 6.6% 0 6.3%; }
+[data-theme="sakura"] .widget-polaroid-j .pj-frame { gap: 0; }
+[data-theme="sakura"] .widget-polaroid-j .pj-image,
+[data-theme="sakura"] .widget-polaroid-j .pj-empty { background: transparent; }
+/* 29% = 画中加宽手写区占比（实测法式芭蕾 polaroid.webp 窗口下沿 71.3%） */
+[data-theme="sakura"] .widget-polaroid-j .pj-caption { min-height: 29%; }
+
+/* 拍立得 中/宽 专属画（v2.227）：原先三档共用小方 polaroid.webp 拉伸（糊+比例失调，
+   作者点名重烧）。产线=现款小方图当 --ref 烧双联 sheet；蝴蝶结先打补丁摘下、平坦
+   相纸拉到精确目标比例（wide 为保方窗只拉右段平坦区）、蝴蝶结再原比例贴回——
+   音乐/日历三段切片工法的近亲。窗位数值全部来自合成脚本输出的像素映射；
+   padding 百分比一律相对卡宽（CSS padding % 规则），caption min-height 相对卡高。 */
+[data-theme="sakura"] .widget-polaroid-j.widget-medium {
+    background-image: url('../assets/widgets/sakura/polaroid-medium.webp');
+    padding: 3.7% 5.7% 0 5.3%;
+}
+/* flex 定高而非 min-height：中卡矮（92px），caption 原生高度（14px 字+24px padding=42px）
+   会顶穿 32.7% 的下限把照片区挤得比画中窗矮 12px；flex-basis 钉死高度、padding 收紧到
+   30px 预算内，窗位随卡宽等比走 */
+[data-theme="sakura"] .widget-polaroid-j.widget-medium .pj-caption {
+    flex: 0 0 35.2%;   /* 32.7%卡高 换算到 frame 高（卡高-padding-top）的占比 */
+    min-height: 0;
+    padding: 4px 8px 4px;
+}
+[data-theme="sakura"] .widget-polaroid-j.widget-wide {
+    background-image: url('../assets/widgets/sakura/polaroid-wide.webp');
+    aspect-ratio: 900 / 281;   /* 锁卡高跟画走（同 charcard-wide 先例），窗位映射才稳 */
+    padding: 2.6% 3.5% 3.6% 3.5%;
+}
+[data-theme="sakura"] .widget-polaroid-j.widget-wide .pj-image {
+    flex: 0 0 auto;
+    height: 100%;
+    aspect-ratio: 209 / 225;   /* 画中方窗实测宽高比，DOM 照片框与窗逐边贴合 */
+}
+
+/* 补齐（v2.224）：音乐方卡专属画（角饰蝴蝶结垂珍珠·中央留给黑胶唱盘）；
+   便签/立绘卡/相册三形态 共用素面纸纹 paper.webp——这些卡内容占满
+   或高度可变（便签自适应行高），定位装饰会被裁或被拉伸，纹理 cover 抗一切。
+   圆形档（音乐圆盘/圆相框）内容即主角，保持原样不入皮肤。 */
+[data-theme="sakura"] .widget-vinyl.vinyl-square,
+[data-theme="sakura"] .widget-vinyl.vinyl-wide,
+[data-theme="sakura"] .widget-note,
+[data-theme="sakura"] .widget-charcard,
+[data-theme="sakura"] .widget-polaroid {
+    border: none;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    filter: drop-shadow(0 3px 6px rgba(150, 95, 105, 0.16));
+}
+[data-theme="sakura"] .widget-vinyl.vinyl-square {
+    background-image: url('../assets/widgets/sakura/music-small.webp');
+    background-size: 100% 100%;
+}
+/* 画里的蝴蝶结替代 CSS 顶部蝴蝶结 */
+[data-theme="sakura"] .widget-vinyl.vinyl-square .vinyl-bow-top { display: none; }
+[data-theme="sakura"] .widget-note,
+[data-theme="sakura"] .widget-charcard,
+[data-theme="sakura"] .widget-polaroid {
+    background-image: url('../assets/widgets/sakura/paper.webp');
+    background-size: cover;
+    background-position: center;
+}
+
+/* 音乐宽条专属画（v2.226）：垂珠蝴蝶结+卷缎带横幅 music-wide.webp（946x202）——
+   宽条实际渲染 ~4.5:1 与条子原生比例吻合，100% 100% 免裁切；左右 padding 躲画中
+   装饰区（左垂珠链、右卷缎带），黑胶+文字+控件收进中段留白。画里装饰齐全，
+   CSS 角落蝴蝶结/爱心 SVG 退场（同 vinyl-square 撤顶部蝴蝶结）。 */
+[data-theme="sakura"] .widget-vinyl.vinyl-wide {
+    background-image: url('../assets/widgets/sakura/music-wide.webp');
+    background-size: 100% 100%;
+    padding-left: 14%;
+    padding-right: 14%;
+}
+[data-theme="sakura"] .widget-vinyl.vinyl-wide .vinyl-bow-corner,
+[data-theme="sakura"] .widget-vinyl.vinyl-wide .vinyl-heart { display: none; }
+
+/* 日历宽条专属画（v2.226）：足尖鞋+右缘蕾丝，三段切片法（作者的 9-slice 工法）——
+   日历实际渲染 ~2.4:1 与横幅原生 4.6:1 不合，整条 100% 100% 会把鞋纵向拉 1.9 倍
+   （CDP 实测确认 v2.224 预警的变形），所以拆三片：左鞋/右蕾丝 auto 100% 锚两端保
+   原比例，中段素纸 100% 100% 垫底（三片同出一条画，衔接处纸色天然无缝）。
+   padding-left 118px = 鞋区实测宽（卡高 ~147px × 150/205 ≈ 108px）+ 呼吸位，
+   px 定值因为鞋宽跟卡高走、不跟卡宽走（375px 窄屏实测文字面板 43px 仍立得住）。 */
+[data-theme="sakura"] .widget-calendar-wide {
+    border: none;
+    background-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    filter: drop-shadow(0 3px 6px rgba(150, 95, 105, 0.16));
+    background-image: url('../assets/widgets/sakura/calendar-shoes.webp'),
+                      url('../assets/widgets/sakura/calendar-lace.webp'),
+                      url('../assets/widgets/sakura/calendar-paper.webp');
+    background-size: auto 100%, auto 100%, 100% 100%;
+    background-position: left center, right center, center;
+    background-repeat: no-repeat;
+    padding-left: 118px;
+}
+
+/* 立绘卡·单人档（v2.225）：专属画 charcard-wide.webp（980x291）——左 40% 立绘区平涂+
+   缎带分隔+右下蕾丝珍珠；卡高跟画的比例走（更高的卡立绘露得更多）。双人档保持素纸纹。 */
+[data-theme="sakura"] .widget-charcard:not(.cc-duo) {
+    background-image: url('../assets/widgets/sakura/charcard-wide.webp');
+    background-size: 100% 100%;
+    aspect-ratio: 980 / 291;
+    min-height: 0;
+}
+/* 立绘区对齐画中平涂区（x 0~40%），缎带分隔留在图里 */
+[data-theme="sakura"] .widget-charcard:not(.cc-duo) .cc-fig-wrap { width: 40%; }
+/* 画里已有缎带分隔线，CSS 短横线退场 */
+[data-theme="sakura"] .widget-charcard:not(.cc-duo) .cc-rule { display: none; }
+[data-theme="sakura"] .widget-charcard:not(.cc-duo) .cc-info { padding-right: 18%; }
+
+/* 双人相框（v2.225）：双联珍珠浮雕框=真透明生图 duoframe.webp 当背景，
+   照片槽几何由 Widgets._dfGeom 按主题给（viewBox 240x160·窗位实测），die-cut 无卡底不变 */
+[data-theme="sakura"] .widget-duoframe.widget-medium { aspect-ratio: 240 / 160; }
+[data-theme="sakura"] .widget-duoframe {
+    background: url('../assets/widgets/sakura/duoframe.webp') center / 100% 100% no-repeat;
+}
+
+/* 生图贴纸替换 CSS 蝴蝶结（对比生图装饰 CSS 版显简陋·作者 2026-07-30）——
+   真透明贴纸 deco-*.webp，::before 顶层叠放，位置对应原 _bowSvg 各锚点 */
+[data-theme="sakura"] .polaroid-bow-top,
+[data-theme="sakura"] .polaroid-bow-corner,
+[data-theme="sakura"] .polaroid-bow-deco,
+[data-theme="sakura"] .polaroid-spark { display: none; }
+[data-theme="sakura"] .widget-polaroid { position: relative; }
+[data-theme="sakura"] .polaroid-small::before,
+[data-theme="sakura"] .polaroid-medium::before,
+[data-theme="sakura"] .polaroid-wide::before {
+    content: '';
+    position: absolute;
+    background: url('../assets/widgets/sakura/deco-bow.webp') center / contain no-repeat;
+    pointer-events: none;
+    z-index: 2;
+}
+[data-theme="sakura"] .polaroid-small::before  { top: 3px; left: 50%; transform: translateX(-50%); width: 34px; height: 30px; }
+[data-theme="sakura"] .polaroid-medium::before { top: 4px; right: 5px; width: 30px; height: 44px; background-image: url('../assets/widgets/sakura/deco-bow-pearl.webp'); }
+[data-theme="sakura"] .polaroid-wide::before   { top: 50%; left: 7px; transform: translateY(-50%); width: 30px; height: 27px; }
+
 /* 夜空主题 — 深色 */
 [data-theme="night-sky"] {
     --bg-base: #1a1a2e;
@@ -736,6 +926,197 @@
     color: rgba(240, 246, 251, 0.85);
 }
 
+/* ── 夏雨小组件玻璃统一（v2.225·照 minimal 版式：清爽/去装饰/统一墨色·作者 2026-07-30 拍板）──
+   夏雨试穿过 2.224 的纸感通用皮肤、与玻璃雨气质不合已退货；正解是保住玻璃血统、
+   借 minimal 的版式纪律：装饰全隐、拍立得像拍立得、文字统一浅墨可读。 */
+[data-theme="summer-rain"] .polaroid-bow-top,
+[data-theme="summer-rain"] .polaroid-bow-corner,
+[data-theme="summer-rain"] .polaroid-bow-deco,
+[data-theme="summer-rain"] .polaroid-spark,
+[data-theme="summer-rain"] .polaroid-heart,
+[data-theme="summer-rain"] .vinyl-bow-top,
+[data-theme="summer-rain"] .widget-clock .clock-spark { display: none; }
+
+/* 拍立得：磨砂玻璃相纸——霜白框+深墨手写字 */
+[data-theme="summer-rain"] .widget-polaroid-j {
+    background: linear-gradient(160deg, rgba(240, 248, 253, 0.55), rgba(210, 228, 242, 0.35));
+    backdrop-filter: blur(8px) saturate(1.4);
+    -webkit-backdrop-filter: blur(8px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+}
+[data-theme="summer-rain"] .widget-polaroid-j .pj-image,
+[data-theme="summer-rain"] .widget-polaroid-j .pj-empty { background: rgba(235, 244, 250, 0.35); }
+[data-theme="summer-rain"] .widget-polaroid-j .pj-caption { color: #2f4356; }
+[data-theme="summer-rain"] .widget-polaroid-j .pj-caption-placeholder { color: rgba(47, 67, 86, 0.55); }
+
+/* 相册三形态：空态虚线框改霜面实线，净版玻璃 */
+[data-theme="summer-rain"] .polaroid-image {
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    background: rgba(235, 244, 250, 0.25);
+}
+[data-theme="summer-rain"] .polaroid-tagline { color: rgba(240, 246, 251, 0.85); }
+
+/* 立绘卡：占位/名字/台词提亮（现状淡字淡底不可读） */
+[data-theme="summer-rain"] .widget-charcard .cc-placeholder { color: rgba(240, 246, 251, 0.65); }
+[data-theme="summer-rain"] .widget-charcard .cc-name,
+[data-theme="summer-rain"] .widget-charcard .cc-duo-name { color: rgba(255, 255, 255, 0.92); }
+[data-theme="summer-rain"] .widget-charcard .cc-line { color: rgba(240, 246, 251, 0.75); }
+
+/* 便签：字提亮 */
+[data-theme="summer-rain"] .widget-note-text { color: rgba(240, 248, 253, 0.92); }
+[data-theme="summer-rain"] .widget-note-text .widget-note-empty { color: rgba(240, 248, 253, 0.5); }
+
+/* ── 夏雨小组件生图皮肤（v2.228·简约苹果风雨天清透——作者 2026-08-02 概念图定稿）──
+   v2.225 的 CSS 玻璃质感作者看后判「不对味」→ 全面生图化。产线=壁纸+概念图双 ref
+   四张 sheet（横条五连/方圆五枚/拍立得三档/便签+立绘卡），条子按水珠位对号入座。
+   玻璃是画死的（毛玻璃本就模糊、透出的云影不需与真壁纸对位，概念图已验证成立），
+   原 CSS 玻璃壳整体退场；画皮为浅雾蓝 → 卡内文字从白字全部翻成深雨墨 #2f4356
+   （--desktop-text 只在卡容器上局部覆写，桌面标签等壁纸上的浅字不动）。
+   活数据 DOM 叠加、图内零文字；唯一例外=天气雨云画进图、DOM svg 退场（sakura 同规）。 */
+[data-theme="summer-rain"] .widget-clock.clock-square,
+[data-theme="summer-rain"] .widget-clock.clock-wide,
+[data-theme="summer-rain"] .widget-news,
+[data-theme="summer-rain"] .widget-mercari,
+[data-theme="summer-rain"] .widget-notifhub,
+[data-theme="summer-rain"] .widget-calendar-wide,
+[data-theme="summer-rain"] .widget-vinyl.vinyl-square,
+[data-theme="summer-rain"] .widget-vinyl.vinyl-wide,
+[data-theme="summer-rain"] .widget-charcard:not(.cc-duo),
+[data-theme="summer-rain"] .widget-polaroid-j {
+    border: none;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    filter: drop-shadow(0 6px 14px rgba(12, 30, 50, 0.32));
+    --desktop-text: #2f4356;
+}
+[data-theme="summer-rain"] .widget-clock.clock-square { background-image: url('../assets/widgets/summer-rain/clock-small.webp'); }
+[data-theme="summer-rain"] .widget-clock.clock-wide   { background-image: url('../assets/widgets/summer-rain/clock-wide.webp'); }
+[data-theme="summer-rain"] .widget-news               { background-image: url('../assets/widgets/summer-rain/news-medium.webp'); }
+[data-theme="summer-rain"] .widget-mercari            { background-image: url('../assets/widgets/summer-rain/mercari-wide.webp'); }
+[data-theme="summer-rain"] .widget-notifhub           { background-image: url('../assets/widgets/summer-rain/notifhub-wide.webp'); }
+[data-theme="summer-rain"] .widget-calendar-wide      { background-image: url('../assets/widgets/summer-rain/calendar-wide.webp'); }
+[data-theme="summer-rain"] .widget-vinyl.vinyl-square { background-image: url('../assets/widgets/summer-rain/music-small.webp'); }
+[data-theme="summer-rain"] .widget-vinyl.vinyl-wide   { background-image: url('../assets/widgets/summer-rain/music-wide.webp'); }
+
+/* 白字→深雨墨（压过本段上方 v2.225 的白字规则；vinyl 控件走 currentColor 一并变色） */
+[data-theme="summer-rain"] .widget-clock.clock-square .clock-time,
+[data-theme="summer-rain"] .widget-clock.clock-wide .clock-time {
+    color: #2f4356;
+    text-shadow: none;
+}
+[data-theme="summer-rain"] .widget-clock.clock-square .clock-weekday,
+[data-theme="summer-rain"] .widget-clock.clock-square .clock-date,
+[data-theme="summer-rain"] .widget-clock.clock-wide .clock-weekday,
+[data-theme="summer-rain"] .widget-clock.clock-wide .clock-date { color: rgba(47, 67, 86, 0.72); }
+[data-theme="summer-rain"] .widget-vinyl.vinyl-square,
+[data-theme="summer-rain"] .widget-vinyl.vinyl-wide { color: #2f4356; }
+[data-theme="summer-rain"] .vinyl-square .vinyl-title,
+[data-theme="summer-rain"] .vinyl-wide .vinyl-title { color: #2f4356; }
+[data-theme="summer-rain"] .vinyl-square .vinyl-artist,
+[data-theme="summer-rain"] .vinyl-wide .vinyl-artist { color: rgba(47, 67, 86, 0.68); }
+[data-theme="summer-rain"] .widget-calendar-wide .wcw-month { color: #4a6a86; }
+/* 苹果风克制：CSS 爱心/角落蝴蝶结 SVG 退场（概念图上没有这些装饰，玻璃上只留水珠） */
+[data-theme="summer-rain"] .widget-vinyl.vinyl-wide .vinyl-bow-corner,
+[data-theme="summer-rain"] .widget-vinyl.vinyl-wide .vinyl-heart,
+[data-theme="summer-rain"] .widget-vinyl.vinyl-square .vinyl-spark { display: none; }
+/* 空态字压过 --text-tertiary 的浅灰，浅玻璃上要立得住 */
+[data-theme="summer-rain"] .widget-mercari .mcw-empty { color: rgba(47, 67, 86, 0.55); }
+
+/* 圆形档：cover 填圆（sakura 同规不清 border）；天气雨云在画里、DOM svg 退场 */
+[data-theme="summer-rain"] .widget-weather,
+[data-theme="summer-rain"] .widget-moonphase {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    --desktop-text: #2f4356;
+}
+[data-theme="summer-rain"] .widget-weather   { background-image: url('../assets/widgets/summer-rain/weather-small.webp'); color: #2f4356; justify-content: flex-end; padding-bottom: 16%; }
+[data-theme="summer-rain"] .widget-weather > svg { display: none; }
+[data-theme="summer-rain"] .widget-moonphase { background-image: url('../assets/widgets/summer-rain/moonphase-small.webp'); }
+[data-theme="summer-rain"] .widget-moonphase .moon-label { color: #33465a; opacity: 0.92; }
+
+/* 拍立得三档专属画：窗位=合成脚本实测像素映射（padding % 一律相对卡宽）。
+   medium caption 用 flex 定高（v2.227 sakura 教训：min-height 会被原生内容高度顶穿）。 */
+[data-theme="summer-rain"] .widget-polaroid-j { background-image: url('../assets/widgets/summer-rain/polaroid-small.webp'); padding: 6.5% 10.7% 0 7.8%; }
+/* 列布局（小/中卡）frame 自带 gap 会把照片底边抬离画中窗底 6px——清零（sakura 同规）；
+   wide 行布局的 gap 是窗与签名区的水平间距、保留 */
+[data-theme="summer-rain"] .widget-polaroid-j.widget-small .pj-frame,
+[data-theme="summer-rain"] .widget-polaroid-j.widget-medium .pj-frame { gap: 0; }
+[data-theme="summer-rain"] .widget-polaroid-j .pj-caption { min-height: 29.5%; }
+[data-theme="summer-rain"] .widget-polaroid-j.widget-medium {
+    background-image: url('../assets/widgets/summer-rain/polaroid-medium.webp');
+    padding: 3.6% 7.2% 0 4.5%;
+}
+[data-theme="summer-rain"] .widget-polaroid-j.widget-medium .pj-caption {
+    flex: 0 0 31.9%;   /* 29.8%卡高 → frame 高（卡高-padding-top）占比 */
+    min-height: 0;
+    padding: 4px 8px 4px;
+}
+[data-theme="summer-rain"] .widget-polaroid-j.widget-wide {
+    background-image: url('../assets/widgets/summer-rain/polaroid-wide.webp');
+    aspect-ratio: 900 / 281;
+    padding: 2.85% 3.3% 4.5% 3.3%;
+}
+[data-theme="summer-rain"] .widget-polaroid-j.widget-wide .pj-image {
+    flex: 0 0 auto;
+    height: 100%;
+    aspect-ratio: 226 / 215;
+}
+[data-theme="summer-rain"] .widget-polaroid-j .pj-image,
+[data-theme="summer-rain"] .widget-polaroid-j .pj-empty { background: transparent; }
+[data-theme="summer-rain"] .widget-polaroid-j .pj-empty { color: rgba(47, 67, 86, 0.45); }
+
+/* 立绘卡单人档：左深雾蓝立绘区+缝线+右留白（画中左区约 39% 宽）；卡高跟画走。
+   文字翻深墨仅限单人档，双人档保持 v2.225 玻璃+白字。 */
+[data-theme="summer-rain"] .widget-charcard:not(.cc-duo) {
+    background-image: url('../assets/widgets/summer-rain/charcard-wide.webp');
+    aspect-ratio: 798 / 295;
+    min-height: 0;
+}
+[data-theme="summer-rain"] .widget-charcard:not(.cc-duo) .cc-name { color: #2f4356; }
+[data-theme="summer-rain"] .widget-charcard:not(.cc-duo) .cc-line { color: rgba(47, 67, 86, 0.75); }
+[data-theme="summer-rain"] .widget-charcard:not(.cc-duo) .cc-placeholder { color: rgba(47, 67, 86, 0.5); }
+
+/* 便签·付箋形态：奶油纸（概念图里唯一的暖色·作者点名保留「很像雨天会写的便签」）。
+   高度自适应卡不能整贴带装饰的画（v2.224 铁律）→ 卷角单独切片挂右下角原比例、
+   平坦纸纹垫底 cover，同日历三段切片思路；灰底已抠透明防露馅。 */
+[data-theme="summer-rain"] .widget-note-paper {
+    background: url('../assets/widgets/summer-rain/note-curl.webp') right bottom / 64px auto no-repeat,
+                url('../assets/widgets/summer-rain/note-paper.webp') center / cover;
+    border-radius: 8px;
+    box-shadow: 0 6px 14px rgba(12, 30, 50, 0.28);
+}
+[data-theme="summer-rain"] .widget-note-paper .widget-note-text { color: #52463a; }
+[data-theme="summer-rain"] .widget-note-paper .widget-note-text .widget-note-empty { color: rgba(82, 70, 58, 0.55); }
+
+/* 生图图标（RainIcons 挂载 img 时）：画里已是完整玻璃瓦片，CSS 玻璃壳退场只留悬浮影；
+   圆角由容器 18px 裁（画中圆角渲染后 ~14px < 18px，灰角裁净——widgets 同机制） */
+[data-theme="summer-rain"] .app-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 18px;
+    pointer-events: none;
+}
+[data-theme="summer-rain"] .app-icon:has(img) {
+    background: none;
+    border: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: 0 8px 18px rgba(12, 30, 50, 0.38), 0 2px 4px rgba(12, 30, 50, 0.22);
+}
+.lg-supported:not(.lg-quality-off):not(.lg-degrade-icons)[data-theme="summer-rain"] .app-icon:has(img) {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
 /* 页码点：浅色玻璃点 + 激活态明显 */
 [data-theme="summer-rain"] .page-dots .dot {
     background: rgba(255, 255, 255, 0.4);
@@ -885,6 +1266,147 @@
     background: #d96b7a;
 }
 
+/* ── 草莓蛋糕小组件生图皮肤（v2.231·B 蛋糕切层——作者 2026-08-05 概念定稿「太可爱了」）──
+   卡=一块ショートケーキ切面：奶油唇顶沿+素海绵内容区+草莓夹心带底沿+角落草莓。
+   产线=壁纸+概念图双 ref 分炉烧（按尺寸分炉禁拉伸·宽条四叠强制）；
+   比例手术=海绵中段插镜像带增高/纯平涂窗减行/夹心带按扇贝周期(74px)整数倍切列，
+   误差 ≤0.5%；键控=全图 -transparent 画布灰。桌面字色 #6b4a45 深莓棕压得住淡金海绵、无需翻字色。
+   奶油白玻璃卡+顶沿扇贝花边(::before)在皮肤档退场（画内真奶油唇接棒）。
+   不做皮肤的形态（相册四形态/圆表盘/圆唱片/小日历/双人立绘/duoframe）维持上方奶油玻璃 CSS。 */
+[data-theme="strawberry"] .widget-clock.clock-square,
+[data-theme="strawberry"] .widget-clock.clock-wide,
+[data-theme="strawberry"] .widget-news,
+[data-theme="strawberry"] .widget-mercari,
+[data-theme="strawberry"] .widget-notifhub,
+[data-theme="strawberry"] .widget-calendar-wide,
+[data-theme="strawberry"] .widget-vinyl.vinyl-square,
+[data-theme="strawberry"] .widget-vinyl.vinyl-wide,
+[data-theme="strawberry"] .widget-charcard:not(.cc-duo),
+[data-theme="strawberry"] .widget-polaroid-j {
+    border: none;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    filter: drop-shadow(0 5px 12px rgba(180, 90, 100, 0.22));
+}
+[data-theme="strawberry"] .widget-clock.clock-square::before,
+[data-theme="strawberry"] .widget-clock.clock-wide::before,
+[data-theme="strawberry"] .widget-news::before,
+[data-theme="strawberry"] .widget-mercari::before,
+[data-theme="strawberry"] .widget-notifhub::before,
+[data-theme="strawberry"] .widget-calendar-wide::before,
+[data-theme="strawberry"] .widget-vinyl.vinyl-square::before,
+[data-theme="strawberry"] .widget-vinyl.vinyl-wide::before,
+[data-theme="strawberry"] .widget-charcard:not(.cc-duo)::before,
+[data-theme="strawberry"] .widget-polaroid-j::before {
+    content: none;
+}
+[data-theme="strawberry"] .widget-clock.clock-square { background-image: url('../assets/widgets/strawberry/clock-small.webp'); }
+[data-theme="strawberry"] .widget-clock.clock-wide   { background-image: url('../assets/widgets/strawberry/clock-wide.webp'); }
+[data-theme="strawberry"] .widget-news               { background-image: url('../assets/widgets/strawberry/news-medium.webp'); }
+[data-theme="strawberry"] .widget-mercari            { background-image: url('../assets/widgets/strawberry/mercari-wide.webp'); }
+[data-theme="strawberry"] .widget-notifhub           { background-image: url('../assets/widgets/strawberry/notifhub-wide.webp'); }
+[data-theme="strawberry"] .widget-calendar-wide      { background-image: url('../assets/widgets/strawberry/calendar-wide.webp'); }
+[data-theme="strawberry"] .widget-vinyl.vinyl-square { background-image: url('../assets/widgets/strawberry/music-small.webp'); }
+[data-theme="strawberry"] .widget-vinyl.vinyl-wide   { background-image: url('../assets/widgets/strawberry/music-wide.webp'); }
+
+/* 时钟当 hero（雪国/动森同规） */
+[data-theme="strawberry"] .widget-clock.clock-wide .clock-time-wide {
+    font-size: 48px;
+    letter-spacing: -2px;
+}
+
+/* 圆形档：cover+锚底（草莓在画顶、裁时保住下沿圆弧与夹心带；雪国同规） */
+[data-theme="strawberry"] .widget-weather,
+[data-theme="strawberry"] .widget-moonphase {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center bottom;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+[data-theme="strawberry"] .widget-weather   { background-image: url('../assets/widgets/strawberry/weather-small.webp'); }
+[data-theme="strawberry"] .widget-moonphase { background-image: url('../assets/widgets/strawberry/moonphase-small.webp'); }
+
+/* 日历/news：画顶草莓出头区=盒顶下方一小段透明带，顶部锚定的内容要让位
+   （时钟内容垂直居中天然无此问题）。日历格栅右让 14px 防末列星期字钻进草莓底下。 */
+[data-theme="strawberry"] .widget-calendar-wide { padding-top: 12px; }
+[data-theme="strawberry"] .widget-calendar-wide .wcw-grid { padding-right: 14px; }
+[data-theme="strawberry"] .widget-news { padding-top: 30px; }
+
+/* 拍立得三档：窗位=像素探针实测映射（padding % 一律相对卡宽·caption flex 定高 v2.227 教训） */
+[data-theme="strawberry"] .widget-polaroid-j {
+    background-image: url('../assets/widgets/strawberry/polaroid-small.webp');
+    padding: 7.5% 16.9% 0 7.9%;
+}
+[data-theme="strawberry"] .widget-polaroid-j.widget-small .pj-frame,
+[data-theme="strawberry"] .widget-polaroid-j.widget-medium .pj-frame { gap: 0; }
+[data-theme="strawberry"] .widget-polaroid-j.widget-small .pj-caption {
+    flex: 0 0 33.7%;
+    min-height: 0;
+    padding: 3px 4px;
+}
+[data-theme="strawberry"] .widget-polaroid-j.widget-medium {
+    background-image: url('../assets/widgets/strawberry/polaroid-medium.webp');
+    padding: 3.9% 9.1% 0 4.1%;
+}
+[data-theme="strawberry"] .widget-polaroid-j.widget-medium .pj-caption {
+    flex: 0 0 38%;
+    min-height: 0;
+    padding: 4px 8px;
+}
+[data-theme="strawberry"] .widget-polaroid-j.widget-wide {
+    background-image: url('../assets/widgets/strawberry/polaroid-wide.webp');
+    aspect-ratio: 583 / 170;
+    padding: 6.0% 3.0% 5.5% 2.9%;
+}
+[data-theme="strawberry"] .widget-polaroid-j.widget-wide .pj-image {
+    flex: 0 0 auto;
+    height: 100%;
+    aspect-ratio: 133 / 103;
+}
+[data-theme="strawberry"] .widget-polaroid-j .pj-image,
+[data-theme="strawberry"] .widget-polaroid-j .pj-empty { background: transparent; }
+[data-theme="strawberry"] .widget-polaroid-j .pj-empty { color: rgba(107, 74, 69, 0.45); }
+[data-theme="strawberry"] .widget-polaroid-j .pj-caption { color: var(--text-primary); }
+
+/* 画内已有草莓/夹心带装饰——CSS 蝴蝶结/爱心退场（雪国同规） */
+[data-theme="strawberry"] .polaroid-bow-top,
+[data-theme="strawberry"] .polaroid-bow-corner,
+[data-theme="strawberry"] .polaroid-bow-deco,
+[data-theme="strawberry"] .vinyl-bow-top,
+[data-theme="strawberry"] .vinyl-bow-corner,
+[data-theme="strawberry"] .polaroid-heart,
+[data-theme="strawberry"] .vinyl-heart {
+    display: none;
+}
+
+/* 立绘卡单人档：画中左奶油面板实测 35.3% 宽（DOM 默认 38%，收窄对齐画）；卡高跟画走 */
+[data-theme="strawberry"] .widget-charcard:not(.cc-duo) {
+    background-image: url('../assets/widgets/strawberry/charcard-wide.webp');
+    aspect-ratio: 900 / 206;
+    min-height: 0;
+}
+[data-theme="strawberry"] .widget-charcard:not(.cc-duo) .cc-fig-wrap { width: 35%; }
+[data-theme="strawberry"] .widget-charcard:not(.cc-duo) .cc-placeholder { color: rgba(107, 74, 69, 0.5); }
+
+/* 便签·付箋形态：海绵纸两件套——平坦纸纹 cover 垫底（高度自适应卡不整贴 v2.224 铁律）
+   + 右下草莓束羽化贴片锚角（贴片=确定性遮罩非泛洪） */
+[data-theme="strawberry"] .widget-note-paper {
+    background:
+        url('../assets/widgets/strawberry/note-berry.webp') right 6px bottom 6px / 52px auto no-repeat,
+        url('../assets/widgets/strawberry/note-paper.webp') center / cover;
+    border: 1px solid rgba(221, 192, 178, 0.6);
+    border-radius: 8px;
+    box-shadow: 0 5px 12px rgba(180, 90, 100, 0.18);
+}
+[data-theme="strawberry"] .widget-note-paper .widget-note-text { color: #6b4a45; }
+[data-theme="strawberry"] .widget-note-paper .widget-note-text .widget-note-empty { color: rgba(107, 74, 69, 0.5); }
+
 /* ============================================================
    雪国主题（snow-country）— 北海道清雪 · 冷蓝白基调 · 桌面专属 override
    《情书》般的清冷留白。图标 = 冰磨砂玻璃托盘（纯 CSS backdrop-filter，
@@ -1012,10 +1534,7 @@
 [data-theme="snow-country"] .vinyl-progress-fill {
     background: var(--accent-color);
 }
-/* 拍立得：手账胶带由暖棕改冷蓝;手写说明改冷墨色 */
-[data-theme="snow-country"] .widget-polaroid-j .pj-tape {
-    background: rgba(169,196,220,.6);
-}
+/* 拍立得：手写说明改冷墨色 */
 [data-theme="snow-country"] .widget-polaroid-j .pj-caption {
     color: var(--text-primary);
 }
@@ -1046,11 +1565,6 @@
     z-index: 4;
     pointer-events: none;
 }
-/* 拍立得顶部有胶带,雪花挪到左上避让 */
-[data-theme="snow-country"] .widget-polaroid-j::before {
-    right: auto; left: 10px;
-}
-
 /* 相册(photo):雪国下去掉虚线缝线、改干净大圆角相框(作者偏好 mockup 那版利落感)。
    纯照片不加标题——带文字说明的用拍立得(polaroid-j 自带 caption),两组件职责分开。 */
 [data-theme="snow-country"] .widget-polaroid .polaroid-image {
@@ -1067,6 +1581,137 @@
 [data-theme="snow-country"] .page-dots .dot.active {
     background: #6d8fb2;
 }
+
+/* ── 雪国小组件生图皮肤（v2.229·C 霜花蚀刻——作者 2026-08-03 概念定稿）──
+   产线=壁纸+图标+概念图三 ref；按实测比例分炉烧（作者同日新纪律：按尺寸烧、禁拉伸，
+   宽条用四叠强制出细条），比例误差全部 ≤2.5%；全程 slice_flat 免泛洪（雪国装饰全浅色
+   =泛洪教训③的极端案例）。画皮为浅霜蓝，雪国桌面字色本就深冷墨、无需翻字色。
+   原 CSS 冰玻璃壳退场；::before 雪花贴纸/::after 霜光线由画内装饰接棒。
+   活数据 DOM 叠加、图内零文字。不做皮肤的形态（相册四形态/圆表盘/圆唱片/
+   小日历/双人立绘/duoframe）维持上方冰玻璃 CSS。 */
+[data-theme="snow-country"] .widget-clock.clock-square,
+[data-theme="snow-country"] .widget-clock.clock-wide,
+[data-theme="snow-country"] .widget-news,
+[data-theme="snow-country"] .widget-mercari,
+[data-theme="snow-country"] .widget-notifhub,
+[data-theme="snow-country"] .widget-calendar-wide,
+[data-theme="snow-country"] .widget-vinyl.vinyl-square,
+[data-theme="snow-country"] .widget-vinyl.vinyl-wide,
+[data-theme="snow-country"] .widget-charcard:not(.cc-duo),
+[data-theme="snow-country"] .widget-polaroid-j {
+    border: none;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    filter: drop-shadow(0 6px 14px rgba(98, 130, 165, 0.28));
+}
+/* 画内已有雪盖/霜花/雪花——CSS 雪花贴纸(::before)与顶沿霜光线(::after)在皮肤档退场
+   （圆档本就在文件尾统一关闭） */
+[data-theme="snow-country"] .widget-clock.clock-square::before,
+[data-theme="snow-country"] .widget-clock.clock-wide::before,
+[data-theme="snow-country"] .widget-vinyl.vinyl-square::before,
+[data-theme="snow-country"] .widget-vinyl.vinyl-wide::before,
+[data-theme="snow-country"] .widget-polaroid-j::before,
+[data-theme="snow-country"] .widget-clock.clock-square::after,
+[data-theme="snow-country"] .widget-clock.clock-wide::after,
+[data-theme="snow-country"] .widget-news::after,
+[data-theme="snow-country"] .widget-mercari::after,
+[data-theme="snow-country"] .widget-notifhub::after,
+[data-theme="snow-country"] .widget-calendar-wide::after,
+[data-theme="snow-country"] .widget-vinyl.vinyl-square::after,
+[data-theme="snow-country"] .widget-vinyl.vinyl-wide::after,
+[data-theme="snow-country"] .widget-charcard:not(.cc-duo)::after,
+[data-theme="snow-country"] .widget-polaroid-j::after {
+    content: none;
+}
+[data-theme="snow-country"] .widget-clock.clock-square { background-image: url('../assets/widgets/snow-country/clock-small.webp'); }
+[data-theme="snow-country"] .widget-clock.clock-wide   { background-image: url('../assets/widgets/snow-country/clock-wide.webp'); }
+[data-theme="snow-country"] .widget-news               { background-image: url('../assets/widgets/snow-country/news-medium.webp'); }
+[data-theme="snow-country"] .widget-mercari            { background-image: url('../assets/widgets/snow-country/mercari-wide.webp'); }
+[data-theme="snow-country"] .widget-notifhub           { background-image: url('../assets/widgets/snow-country/notifhub-wide.webp'); }
+[data-theme="snow-country"] .widget-calendar-wide      { background-image: url('../assets/widgets/snow-country/calendar-wide.webp'); }
+[data-theme="snow-country"] .widget-vinyl.vinyl-square { background-image: url('../assets/widgets/snow-country/music-small.webp'); }
+[data-theme="snow-country"] .widget-vinyl.vinyl-wide   { background-image: url('../assets/widgets/snow-country/music-wide.webp'); }
+
+/* 圆形档：cover 填圆、锚底部（雪盖在画顶、圆裁时优先保住下沿圆弧与霜花）；
+   贴纸白边(--sticker-edge)保留——与图标白模切边同语言 */
+[data-theme="snow-country"] .widget-weather,
+[data-theme="snow-country"] .widget-moonphase {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center bottom;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+[data-theme="snow-country"] .widget-weather   { background-image: url('../assets/widgets/snow-country/weather-small.webp'); }
+[data-theme="snow-country"] .widget-moonphase { background-image: url('../assets/widgets/snow-country/moonphase-small.webp'); }
+/* 月相的月亮 SVG 硬编码奶油色（#f2e8c8 亮面/#d9cba4 陨坑）——雪国全冷调（作者拍板
+   零暖色），冷化成冰月白+冷蓝陨坑；CSS fill 属性压过 SVG fill attribute，主题作用域内生效 */
+[data-theme="snow-country"] .widget-moonphase svg > path { fill: #e9f1fa; }
+[data-theme="snow-country"] .widget-moonphase svg g circle { fill: #c3d4e6; }
+
+/* 拍立得三档：窗位=像素探针实测映射（padding % 一律相对卡宽）。
+   caption 用 flex 定高钉住画中签名区（min-height 会被内容顶穿，v2.227 教训）。 */
+[data-theme="snow-country"] .widget-polaroid-j {
+    background-image: url('../assets/widgets/snow-country/polaroid-small.webp');
+    padding: 11.3% 13.7% 0 14.0%;
+}
+[data-theme="snow-country"] .widget-polaroid-j.widget-small .pj-frame,
+[data-theme="snow-country"] .widget-polaroid-j.widget-medium .pj-frame { gap: 0; }
+[data-theme="snow-country"] .widget-polaroid-j.widget-small .pj-caption {
+    flex: 0 0 36.7%;
+    min-height: 0;
+    padding: 3px 4px;
+}
+[data-theme="snow-country"] .widget-polaroid-j.widget-medium {
+    background-image: url('../assets/widgets/snow-country/polaroid-medium.webp');
+    padding: 7.0% 9.2% 0 8.6%;
+}
+[data-theme="snow-country"] .widget-polaroid-j.widget-medium .pj-caption {
+    flex: 0 0 39.4%;
+    min-height: 0;
+    padding: 4px 8px;
+}
+[data-theme="snow-country"] .widget-polaroid-j.widget-wide {
+    background-image: url('../assets/widgets/snow-country/polaroid-wide.webp');
+    aspect-ratio: 1026 / 300;
+    padding: 3.4% 3.3% 3.0% 2.9%;
+}
+[data-theme="snow-country"] .widget-polaroid-j.widget-wide .pj-image {
+    flex: 0 0 auto;
+    height: 100%;
+    aspect-ratio: 250 / 234;
+}
+[data-theme="snow-country"] .widget-polaroid-j .pj-image,
+[data-theme="snow-country"] .widget-polaroid-j .pj-empty { background: transparent; }
+[data-theme="snow-country"] .widget-polaroid-j .pj-empty { color: rgba(51, 70, 90, 0.45); }
+
+/* 立绘卡单人档：画中左面板实测 32.0% 宽（DOM 默认 38%，收窄对齐画）；卡高跟画走 */
+[data-theme="snow-country"] .widget-charcard:not(.cc-duo) {
+    background-image: url('../assets/widgets/snow-country/charcard-wide.webp');
+    aspect-ratio: 900 / 206;
+    min-height: 0;
+}
+[data-theme="snow-country"] .widget-charcard:not(.cc-duo) .cc-fig-wrap { width: 32%; }
+[data-theme="snow-country"] .widget-charcard:not(.cc-duo) .cc-placeholder { color: rgba(51, 70, 90, 0.5); }
+
+/* 便签·付箋形态：霜纸两件套——平坦纸纹 cover 垫底（高度自适应卡不能整贴带装饰的画，
+   v2.224 铁律）+ 左下雪花羽化贴片锚角（贴片=确定性遮罩非泛洪）。
+   曾配顶沿冰凌贴片，CDP 实测贴片自带渐晕底与平坦纸纹拼出矩形鬼影、已撤。 */
+[data-theme="snow-country"] .widget-note-paper {
+    background:
+        url('../assets/widgets/snow-country/note-flake.webp') left 5px bottom 5px / 46px auto no-repeat,
+        url('../assets/widgets/snow-country/note-paper.webp') center / cover;
+    border: 1px solid rgba(176, 202, 224, 0.55);
+    border-radius: 8px;
+    box-shadow: 0 6px 14px rgba(98, 130, 165, 0.22);
+}
+[data-theme="snow-country"] .widget-note-paper .widget-note-text { color: #33465a; }
+[data-theme="snow-country"] .widget-note-paper .widget-note-text .widget-note-empty { color: rgba(51, 70, 90, 0.5); }
 
 /* ============================================================
    动森テーマ widget 深度スキン（v2.191 A1「奶油缝线」·作者选型）
@@ -1105,10 +1750,7 @@
     background: var(--accent-color);
 }
 
-/* 拍立得：胶带薄荷半透明、caption 深棕 */
-[data-theme="animal"] .widget-polaroid-j .pj-tape {
-    background: rgba(25, 200, 185, .4);
-}
+/* 拍立得：caption 深棕 */
 [data-theme="animal"] .widget-polaroid-j .pj-caption {
     color: var(--text-primary);
 }
@@ -1172,6 +1814,139 @@
     color: var(--text-primary);
 }
 
+/* ── 动森小组件生图皮肤（v2.232·B 毛毡贴布绣——作者 2026-08-05 概念定稿）──
+   卡=奶油毛毡+棕线跑针脚锁边；⭐产线升级「装饰与基体分离」：基体炉纯针脚卡，
+   补丁炉烧毛毡小补丁素材包（3x3 九宫格），键控切出后按语义 composite 到各形态——
+   mercari=铃钱袋·notifhub=铃铛·music宽=音符·日历/小时钟=三叶果·news=橡子·天气=绿叶·
+   便签=橘子(CSS 锚角)；时钟宽条两端有内容保持素卡。位置全可控=根治顶锚组件装饰压字
+   （草莓站 lesson），且毛毡卡零出头、无画顶透明带问题。
+   手术=毛毡纹镜像插带/切列（均匀纹理最友好基材）；拍立得宽卡说明区 89px 宽带 4 段整除插列。
+   原 A1 奶油缝线 CSS（虚线边+布偶投影+SVG 角贴纸）在皮肤档退场，画内真针脚接棒；
+   不做皮肤的形态（相册四形态/圆表盘/圆唱片/小日历/双人立绘/duoframe）维持 A1。 */
+[data-theme="animal"] .widget-clock.clock-square,
+[data-theme="animal"] .widget-clock.clock-wide,
+[data-theme="animal"] .widget-news,
+[data-theme="animal"] .widget-mercari,
+[data-theme="animal"] .widget-notifhub,
+[data-theme="animal"] .widget-calendar-wide,
+[data-theme="animal"] .widget-vinyl.vinyl-square,
+[data-theme="animal"] .widget-vinyl.vinyl-wide,
+[data-theme="animal"] .widget-charcard:not(.cc-duo),
+[data-theme="animal"] .widget-polaroid-j {
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    box-shadow: none;
+    filter: drop-shadow(0 4px 8px rgba(121, 79, 39, 0.20));
+}
+[data-theme="animal"] .widget-clock.clock-square::before,
+[data-theme="animal"] .widget-clock.clock-wide::before,
+[data-theme="animal"] .widget-news::before,
+[data-theme="animal"] .widget-mercari::before,
+[data-theme="animal"] .widget-notifhub::before,
+[data-theme="animal"] .widget-calendar-wide::before,
+[data-theme="animal"] .widget-vinyl.vinyl-square::before,
+[data-theme="animal"] .widget-vinyl.vinyl-wide::before,
+[data-theme="animal"] .widget-charcard:not(.cc-duo)::before,
+[data-theme="animal"] .widget-polaroid-j::before {
+    content: none;
+}
+[data-theme="animal"] .widget-clock.clock-square { background-image: url('../assets/widgets/animal/clock-small.webp'); }
+[data-theme="animal"] .widget-clock.clock-wide   { background-image: url('../assets/widgets/animal/clock-wide.webp'); }
+[data-theme="animal"] .widget-news               { background-image: url('../assets/widgets/animal/news-medium.webp'); }
+[data-theme="animal"] .widget-mercari            { background-image: url('../assets/widgets/animal/mercari-wide.webp'); }
+[data-theme="animal"] .widget-notifhub           { background-image: url('../assets/widgets/animal/notifhub-wide.webp'); }
+[data-theme="animal"] .widget-calendar-wide      { background-image: url('../assets/widgets/animal/calendar-wide.webp'); }
+[data-theme="animal"] .widget-vinyl.vinyl-square { background-image: url('../assets/widgets/animal/music-small.webp'); }
+[data-theme="animal"] .widget-vinyl.vinyl-wide   { background-image: url('../assets/widgets/animal/music-wide.webp'); }
+/* notifhub 图标瓦片满宽均布，右让给画里的铃铛补丁 */
+[data-theme="animal"] .widget-notifhub { padding-right: 62px; }
+
+/* 圆形档：毛毡圆零出头 → cover 居中即可 */
+[data-theme="animal"] .widget-weather,
+[data-theme="animal"] .widget-moonphase {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    border: none;
+    box-shadow: none;
+}
+[data-theme="animal"] .widget-weather   { background-image: url('../assets/widgets/animal/weather-small.webp'); }
+[data-theme="animal"] .widget-moonphase { background-image: url('../assets/widgets/animal/moonphase-small.webp'); }
+
+/* 拍立得三档：窗位=像素探针实测映射（padding % 相对卡宽·caption flex 定高） */
+[data-theme="animal"] .widget-polaroid-j {
+    background-image: url('../assets/widgets/animal/polaroid-small.webp');
+    padding: 12.0% 10.2% 0 11.6%;
+}
+[data-theme="animal"] .widget-polaroid-j.widget-small .pj-frame,
+[data-theme="animal"] .widget-polaroid-j.widget-medium .pj-frame { gap: 0; }
+[data-theme="animal"] .widget-polaroid-j.widget-small .pj-caption {
+    flex: 0 0 34.8%;
+    min-height: 0;
+    padding: 3px 4px;
+}
+[data-theme="animal"] .widget-polaroid-j.widget-medium {
+    background-image: url('../assets/widgets/animal/polaroid-medium.webp');
+    padding: 5.3% 5.1% 0 1.9%;
+}
+[data-theme="animal"] .widget-polaroid-j.widget-medium .pj-caption {
+    flex: 0 0 38%;
+    min-height: 0;
+    padding: 4px 8px;
+}
+[data-theme="animal"] .widget-polaroid-j.widget-wide {
+    background-image: url('../assets/widgets/animal/polaroid-wide.webp');
+    aspect-ratio: 917 / 268;
+    padding: 3.4% 3.0% 4.7% 2.6%;
+}
+[data-theme="animal"] .widget-polaroid-j.widget-wide .pj-image {
+    flex: 0 0 auto;
+    height: 100%;
+    aspect-ratio: 190 / 194;
+}
+[data-theme="animal"] .widget-polaroid-j .pj-image,
+[data-theme="animal"] .widget-polaroid-j .pj-empty { background: transparent; }
+[data-theme="animal"] .widget-polaroid-j .pj-empty { color: rgba(121, 79, 39, 0.45); }
+
+/* 皮肤档蝴蝶结/爱心/胶带类 CSS 装饰退场（画内针脚+毛毡补丁接棒）；相册/圆唱片等 A1 档不受影响 */
+[data-theme="animal"] .widget-polaroid-j .polaroid-bow-top,
+[data-theme="animal"] .widget-polaroid-j .polaroid-bow-corner,
+[data-theme="animal"] .widget-polaroid-j .polaroid-bow-deco,
+[data-theme="animal"] .widget-polaroid-j .polaroid-heart,
+[data-theme="animal"] .widget-vinyl.vinyl-square .vinyl-bow-top,
+[data-theme="animal"] .widget-vinyl.vinyl-square .vinyl-bow-corner,
+[data-theme="animal"] .widget-vinyl.vinyl-square .vinyl-heart,
+[data-theme="animal"] .widget-vinyl.vinyl-wide .vinyl-bow-top,
+[data-theme="animal"] .widget-vinyl.vinyl-wide .vinyl-bow-corner,
+[data-theme="animal"] .widget-vinyl.vinyl-wide .vinyl-heart {
+    display: none;
+}
+
+/* 立绘卡单人档：画中缝线分隔实测 35.7%（DOM 默认 38% 收窄对齐）；卡高跟画走 */
+[data-theme="animal"] .widget-charcard:not(.cc-duo) {
+    background-image: url('../assets/widgets/animal/charcard-wide.webp');
+    aspect-ratio: 900 / 207;
+    min-height: 0;
+}
+[data-theme="animal"] .widget-charcard:not(.cc-duo) .cc-fig-wrap { width: 35.5%; }
+[data-theme="animal"] .widget-charcard:not(.cc-duo) .cc-placeholder { color: rgba(121, 79, 39, 0.5); }
+
+/* 便签·付箋形态：毛毡纸 cover 垫底 + 右下橘子毛毡补丁锚角 */
+[data-theme="animal"] .widget-note-paper {
+    background:
+        url('../assets/widgets/animal/note-orange.webp') right 8px bottom 8px / 42px auto no-repeat,
+        url('../assets/widgets/animal/note-paper.webp') center / cover;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(121, 79, 39, 0.18);
+}
+[data-theme="animal"] .widget-note-paper .widget-note-text { color: #5c4426; }
+[data-theme="animal"] .widget-note-paper .widget-note-text .widget-note-empty { color: rgba(121, 79, 39, 0.5); }
+
 /* ============================================================
    手帐テーマ widget 深度スキン（v2.191 A1「横线信纸」·作者选型）
    卡面=白纸+细纸边+浅纸影；罫线只上文字卡（时钟/日历/情报），
@@ -1232,10 +2007,7 @@
     background: var(--accent-color);
 }
 
-/* 拍立得：胶带鼠尾草、caption 墨字 */
-[data-theme="journal"] .widget-polaroid-j .pj-tape {
-    background: rgba(122, 158, 138, .45);
-}
+/* 拍立得：caption 墨字 */
 [data-theme="journal"] .widget-polaroid-j .pj-caption {
     color: var(--text-primary);
 }
@@ -1265,6 +2037,150 @@
 [data-theme="journal"] .widget-news-label {
     color: var(--text-primary);
 }
+
+/* ── 手帐小组件生图皮肤（v2.233·A 方眼纸＋和纸胶带——作者 2026-08-06 概念定稿·量产收官站）──
+   卡=奶油方眼纸+毛边裁切；装饰与基体分离产线（动森站工法）：文具补丁包 3x3
+   （マステ三色/满天星/雏菊/日付印章圈/尤加利/回形针/封签），按「胶带节制令」分配——
+   胶带只三处（mercari 波点绿/music宽 格纹棕/天气 素蓝内贴）·压花组（小时钟满天星/日历雏菊/
+   便签尤加利）·印章组（时钟宽/news）·其余素卡。
+   ⭐方眼纸手术=整周期(21.5px)连续原生切片插删（非镜像堆·格线序列保持均匀）；
+   插入段必须取自卡面「中部均匀区」——尾部探进卡底渐变区会在拼缝处留亮度阶跃线（本站踩坑）。
+   ⭐键控按各炉实际灰值定（G炉169/F炉163≠请求的176）——greige 窗距灰仅5.7%，
+   通用 8% fuzz 会吞窗（雪国 fuzz 色距教训再确证）。
+   原 A1 横线信纸 CSS 在皮肤档退场；不做皮肤形态维持 A1。 */
+[data-theme="journal"] .widget-clock.clock-square,
+[data-theme="journal"] .widget-clock.clock-wide,
+[data-theme="journal"] .widget-news,
+[data-theme="journal"] .widget-mercari,
+[data-theme="journal"] .widget-notifhub,
+[data-theme="journal"] .widget-calendar-wide,
+[data-theme="journal"] .widget-vinyl.vinyl-square,
+[data-theme="journal"] .widget-vinyl.vinyl-wide,
+[data-theme="journal"] .widget-charcard:not(.cc-duo),
+[data-theme="journal"] .widget-polaroid-j {
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    filter: drop-shadow(0 4px 9px rgba(107, 92, 70, 0.18));
+}
+[data-theme="journal"] .widget-clock.clock-square::before,
+[data-theme="journal"] .widget-clock.clock-wide::before,
+[data-theme="journal"] .widget-news::before,
+[data-theme="journal"] .widget-mercari::before,
+[data-theme="journal"] .widget-notifhub::before,
+[data-theme="journal"] .widget-calendar-wide::before,
+[data-theme="journal"] .widget-vinyl.vinyl-square::before,
+[data-theme="journal"] .widget-vinyl.vinyl-wide::before,
+[data-theme="journal"] .widget-charcard:not(.cc-duo)::before,
+[data-theme="journal"] .widget-polaroid-j::before,
+[data-theme="journal"] .widget-clock.clock-square::after,
+[data-theme="journal"] .widget-clock.clock-wide::after,
+[data-theme="journal"] .widget-news::after,
+[data-theme="journal"] .widget-mercari::after,
+[data-theme="journal"] .widget-notifhub::after,
+[data-theme="journal"] .widget-calendar-wide::after,
+[data-theme="journal"] .widget-vinyl.vinyl-square::after,
+[data-theme="journal"] .widget-vinyl.vinyl-wide::after,
+[data-theme="journal"] .widget-charcard:not(.cc-duo)::after,
+[data-theme="journal"] .widget-polaroid-j::after {
+    content: none;
+}
+[data-theme="journal"] .widget-clock.clock-square { background-image: url('../assets/widgets/journal/clock-small.webp'); }
+[data-theme="journal"] .widget-clock.clock-wide   { background-image: url('../assets/widgets/journal/clock-wide.webp'); }
+[data-theme="journal"] .widget-news               { background-image: url('../assets/widgets/journal/news-medium.webp'); }
+[data-theme="journal"] .widget-mercari            { background-image: url('../assets/widgets/journal/mercari-wide.webp'); }
+[data-theme="journal"] .widget-notifhub           { background-image: url('../assets/widgets/journal/notifhub-wide.webp'); }
+[data-theme="journal"] .widget-calendar-wide      { background-image: url('../assets/widgets/journal/calendar-wide.webp'); }
+[data-theme="journal"] .widget-vinyl.vinyl-square { background-image: url('../assets/widgets/journal/music-small.webp'); }
+[data-theme="journal"] .widget-vinyl.vinyl-wide   { background-image: url('../assets/widgets/journal/music-wide.webp'); }
+
+/* 圆形档：方眼纸圆垫零出头 → cover 居中 */
+[data-theme="journal"] .widget-weather,
+[data-theme="journal"] .widget-moonphase {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    border: none;
+    box-shadow: none;
+}
+[data-theme="journal"] .widget-weather   { background-image: url('../assets/widgets/journal/weather-small.webp'); }
+[data-theme="journal"] .widget-moonphase { background-image: url('../assets/widgets/journal/moonphase-small.webp'); }
+
+/* 拍立得三档：窗位=像素探针实测映射 */
+[data-theme="journal"] .widget-polaroid-j {
+    background-image: url('../assets/widgets/journal/polaroid-small.webp');
+    padding: 7.1% 5.8% 0 5.8%;
+}
+[data-theme="journal"] .widget-polaroid-j.widget-small .pj-frame,
+[data-theme="journal"] .widget-polaroid-j.widget-medium .pj-frame { gap: 0; }
+[data-theme="journal"] .widget-polaroid-j.widget-small .pj-caption {
+    flex: 0 0 26.3%;
+    min-height: 0;
+    padding: 3px 4px;
+}
+[data-theme="journal"] .widget-polaroid-j.widget-medium {
+    background-image: url('../assets/widgets/journal/polaroid-medium.webp');
+    padding: 3.9% 3.2% 0 3.2%;
+}
+[data-theme="journal"] .widget-polaroid-j.widget-medium .pj-caption {
+    flex: 0 0 25.3%;
+    min-height: 0;
+    padding: 4px 8px;
+}
+[data-theme="journal"] .widget-polaroid-j.widget-wide {
+    background-image: url('../assets/widgets/journal/polaroid-wide.webp');
+    aspect-ratio: 1014 / 297;
+    padding: 1.7% 1.7% 1.7% 1.7%;
+}
+[data-theme="journal"] .widget-polaroid-j.widget-wide .pj-image {
+    flex: 0 0 auto;
+    height: 100%;
+    aspect-ratio: 252 / 263;
+}
+[data-theme="journal"] .widget-polaroid-j .pj-image,
+[data-theme="journal"] .widget-polaroid-j .pj-empty { background: transparent; }
+[data-theme="journal"] .widget-polaroid-j .pj-empty { color: rgba(92, 74, 50, 0.45); }
+
+/* 皮肤档蝴蝶结/爱心退场（非皮肤档不受影响） */
+[data-theme="journal"] .widget-polaroid-j .polaroid-bow-top,
+[data-theme="journal"] .widget-polaroid-j .polaroid-bow-corner,
+[data-theme="journal"] .widget-polaroid-j .polaroid-bow-deco,
+[data-theme="journal"] .widget-polaroid-j .polaroid-heart,
+[data-theme="journal"] .widget-vinyl.vinyl-square .vinyl-bow-top,
+[data-theme="journal"] .widget-vinyl.vinyl-square .vinyl-bow-corner,
+[data-theme="journal"] .widget-vinyl.vinyl-square .vinyl-heart,
+[data-theme="journal"] .widget-vinyl.vinyl-wide .vinyl-bow-top,
+[data-theme="journal"] .widget-vinyl.vinyl-wide .vinyl-bow-corner,
+[data-theme="journal"] .widget-vinyl.vinyl-wide .vinyl-heart {
+    display: none;
+}
+
+/* 立绘卡单人档：画中鼠尾草分隔线实测 38.6% */
+[data-theme="journal"] .widget-charcard:not(.cc-duo) {
+    background-image: url('../assets/widgets/journal/charcard-wide.webp');
+    aspect-ratio: 900 / 207;
+    min-height: 0;
+}
+[data-theme="journal"] .widget-charcard:not(.cc-duo) .cc-fig-wrap { width: 38.5%; }
+[data-theme="journal"] .widget-charcard:not(.cc-duo) .cc-placeholder { color: rgba(92, 74, 50, 0.5); }
+
+/* 便签·付箋形态：方眼纸 cover 垫底 + 右下尤加利小枝锚角 */
+[data-theme="journal"] .widget-note-paper {
+    background:
+        url('../assets/widgets/journal/note-sprig.webp') right 8px bottom 6px / 26px auto no-repeat,
+        url('../assets/widgets/journal/note-paper.webp') center / cover;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(107, 92, 70, 0.16);
+}
+[data-theme="journal"] .widget-note-paper .widget-note-text { color: #5c4a32; }
+[data-theme="journal"] .widget-note-paper .widget-note-text .widget-note-empty { color: rgba(92, 74, 50, 0.5); }
 
 /* ============================================================
    极简「利休鼠」widget 深度スキン（v2.191 A1「纯 hairline」·作者选型）
@@ -1302,10 +2218,7 @@
     background: var(--accent-color);
 }
 
-/* 拍立得：胶带抹茶极淡、caption 墨字 */
-[data-theme="minimal"] .widget-polaroid-j .pj-tape {
-    background: rgba(93, 110, 99, .25);
-}
+/* 拍立得：caption 墨字 */
 [data-theme="minimal"] .widget-polaroid-j .pj-caption {
     color: var(--text-primary);
 }
@@ -1373,10 +2286,6 @@
     background: rgba(20, 22, 44, 0.45);
     color: rgba(200, 206, 236, 0.4);
 }
-/* 胶带：牛皮纸暖棕 → 半透明星金（撕口伪元素 background:inherit 自动跟随） */
-[data-theme="night-sky"] .widget-polaroid-j .pj-tape {
-    background: rgba(232, 210, 160, 0.32);
-}
 /* 手写说明：月光银；占位斜体降一档 */
 [data-theme="night-sky"] .widget-polaroid-j .pj-caption {
     color: rgba(226, 230, 248, 0.92);
@@ -1443,3 +2352,53 @@
 [data-theme="strawberry"] .widget-card.widget-circle::before {
     content: none;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   通用简约生图皮肤（universal）— 当前仅 minimal 消费
+   资产 assets/widgets/universal/：日系简约（無印式）哑光纸感卡，直角满幅出图、
+   圆角由 .widget-card 原生 border-radius 裁；刻意不做贴纸/毛边（通用件要放哪
+   都不突兀），拍立得走写实相纸（2026-07-30 作者定调）。
+   染色：background-color(--widget-tint) × multiply 混入纸纹 + --widget-ink 字色，
+   别的主题想借用 = 主题根上加这两个变量即可，不重烧图。
+   ⚠ 夏雨试穿过纸卡、与玻璃雨气质不搭已退货（2026-07-30）：夏雨的正解是照
+   minimal 版式重画玻璃质感 CSS 组件（排期最后），别再把夏雨加回本块。
+   圆形档（月相/天气）不入此皮肤：白圈+主题底色本来就简约。
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="minimal"] { --widget-tint: #ffffff; --widget-ink: #3a3f45; }
+
+[data-theme="minimal"] .widget-card.widget-clock.clock-square,
+[data-theme="minimal"] .widget-card.widget-clock.clock-wide,
+[data-theme="minimal"] .widget-card.widget-news,
+[data-theme="minimal"] .widget-card.widget-mercari,
+[data-theme="minimal"] .widget-card.widget-notifhub,
+[data-theme="minimal"] .widget-card.widget-polaroid-j {
+    border: none;
+    background-color: var(--widget-tint, #ffffff);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-blend-mode: multiply;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: none;
+    filter: drop-shadow(0 2px 5px rgba(45, 55, 65, 0.14));
+    /* clock 走 --text-primary、其余组件文字走 --desktop-text，统一接到 ink */
+    color: var(--widget-ink, #3a3f45);
+    --desktop-text: var(--widget-ink, #3a3f45);
+    --text-primary: var(--widget-ink, #3a3f45);
+}
+[data-theme="minimal"] .widget-card.widget-clock.clock-square { background-image: url('../assets/widgets/universal/square.webp'); }
+[data-theme="minimal"] .widget-card.widget-clock.clock-wide,
+[data-theme="minimal"] .widget-card.widget-mercari,
+[data-theme="minimal"] .widget-card.widget-notifhub { background-image: url('../assets/widgets/universal/wide.webp'); }
+[data-theme="minimal"] .widget-card.widget-news { background-image: url('../assets/widgets/universal/medium.webp'); }
+[data-theme="minimal"] .widget-card.widget-clock .clock-spark { display: none; }
+
+/* 拍立得：画中窗口实测（写实相纸）上7.5% 左5.1% 右5.7% 下沿73.1%（手写区27%） */
+[data-theme="minimal"] .widget-card.widget-polaroid-j {
+    background-image: url('../assets/widgets/universal/polaroid.webp');
+    padding: 7.5% 5.7% 0 5.1%;
+}
+[data-theme="minimal"] .widget-polaroid-j .pj-frame { gap: 0; }
+[data-theme="minimal"] .widget-polaroid-j .pj-image,
+[data-theme="minimal"] .widget-polaroid-j .pj-empty { background: transparent; }
+[data-theme="minimal"] .widget-polaroid-j .pj-caption { min-height: 27%; }

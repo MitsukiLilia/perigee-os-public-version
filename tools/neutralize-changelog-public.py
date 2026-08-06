@@ -36,35 +36,35 @@ REPLACES = [
     ('借鉴预设的滑动窗口', '滑动窗口记忆策略'),
     ('Kitty 机', '既有方案'),
 ]
+# poipiku 条目（2026-07 月度轮转后从 js 搬进 2026-07.json——2026-08-06 按头注预案挪来对象层处理）
+V210_SENT_OLD = '当日两版的 review 修复轮：六路对抗审查确认 6 处小问题全修——开屏淡出瞬间不再吞你的第一下点击；poipiku 生成中途关页重开会如实显示「読み込み中…」；删除已揭示的 poipiku 推会顺手清掉图片存储；开屏画不再挤占每次更新的下载流量（挪进持久缓存，发版零重拉）'
+V210_SENT_NEW = '当日两版的 review 修复轮：六路对抗审查确认多处小问题全修——开屏淡出瞬间不再吞你的第一下点击；开屏画不再挤占每次更新的下载流量（挪进持久缓存，发版零重拉）'
+seen209 = seen210 = False
 for f in sorted(glob.glob('assets/changelog-archive/*.json')):
     with open(f) as fh:
         d = json.load(fh)
     for e in d.get('versions', []):
         if e.get('voiceFromKlaude'):
             e['voiceFromKlaude'] = ''
+        if e.get('version') == '2.209.0' and any('poipiku' in h.lower() for h in e.get('highlights', [])):
+            e['highlights'] = ['内部功能迭代与稳定性修复']
+            seen209 = True
+        if e.get('version') == '2.210.1':
+            hl = e.get('highlights', [])
+            if V210_SENT_OLD in hl:
+                e['highlights'] = [V210_SENT_NEW if h == V210_SENT_OLD else h for h in hl]
+                seen210 = True
     s = json.dumps(d, ensure_ascii=False, indent=1) + '\n'
     for old, new in REPLACES:
         s = s.replace(old, new)
     with open(f, 'w') as fh:
         fh.write(s)
+if not seen209:
+    fails.append('v2.209 poipiku 条目在归档中没找到（版本号/结构变了？人工核）')
+if not seen210:
+    fails.append('v2.210.1 修复轮句在归档中没找到（句子变了？人工核）')
 
-# ---- ② js/changelog.js 的 poipiku 条目（锚点精确匹配、匹配不上即中止） ----
-V209_OLD = """                'ワンドロ 企画迎来绘师参加者——poipiku（绘向）揭示卡上线，B 档 Phase 2 收官。时间线上出现蓝盒ポイピク链接卡，点进去是完整的 poipiku 页：ワンクッション warning 门、進捗/らくがき分类、そっとフォロー、AI学習禁止水印',
-                '点「全部表示する」当场懒生成一张 ワンドロ イラスト（复用推特生图管线）；没配生图 API 也能玩，会有 tasteful 占位',
-                'poipiku 招牌 emoji リアクション面板——よく使う/人気/おやつ/その他 四类，给喜欢的图丢🍰丢💖，反应会存下来',"""
-V209_NEW = "                '内部功能迭代与稳定性修复',"
-V210_OLD = "'当日两版的 review 修复轮：六路对抗审查确认 6 处小问题全修——开屏淡出瞬间不再吞你的第一下点击；poipiku 生成中途关页重开会如实显示「読み込み中…」；删除已揭示的 poipiku 推会顺手清掉图片存储；开屏画不再挤占每次更新的下载流量（挪进持久缓存，发版零重拉）'"
-V210_NEW = "'当日两版的 review 修复轮：六路对抗审查确认多处小问题全修——开屏淡出瞬间不再吞你的第一下点击；开屏画不再挤占每次更新的下载流量（挪进持久缓存，发版零重拉）'"
-
-with open('js/changelog.js') as fh:
-    src = fh.read()
-for old, new, tag in [(V209_OLD, V209_NEW, 'v2.209'), (V210_OLD, V210_NEW, 'v2.210.1')]:
-    if old in src:
-        src = src.replace(old, new)
-    elif new not in src:
-        fails.append(f'{tag} poipiku 条目锚点没匹配上（私有 changelog 结构变了？月度轮转搬进归档了？）')
-with open('js/changelog.js', 'w') as fh:
-    fh.write(src)
+# ---- ② js 锚点替换已退役（2026-08-06：条目随 7 月轮转进归档、①段对象层接管；③自检继续把关 js 零 poipiku） ----
 
 # ---- ③ 自检（fail-closed） ----
 ARCH_PAT = re.compile(r'月月|小克|宝和|宝的|宝就|poipiku|ポイピク', re.I)

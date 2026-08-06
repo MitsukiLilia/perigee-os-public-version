@@ -50,7 +50,7 @@ const StrawberryIcons = {
       } else if (c.dataset.iconDefault) {
         // 离开草莓主题：恢复原始 SVG；但若目标是夜空/手帐/雪国/梦之芭蕾/动森，交给它们接管（六方守卫对称）
         const t = document.documentElement.dataset.theme;
-        if (t !== 'night-sky' && t !== 'journal' && t !== 'snow-country' && t !== 'sakura' && t !== 'animal') {
+        if (t !== 'night-sky' && t !== 'journal' && t !== 'snow-country' && t !== 'sakura' && t !== 'animal' && t !== 'summer-rain') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

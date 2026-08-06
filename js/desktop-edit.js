@@ -40,8 +40,23 @@ function _cols() {
     return (AppState.data.desktopLayout && AppState.data.desktopLayout.cols) || 3;
 }
 
-// 每页可见行数：早年 SE3 小屏写死 4，大屏应该能放更多行；node 测试环境没有 window 时安全回退 4
+// 每页可见行数（放置容量的粗估上限）：优先量真实 DOM——页容器顶到 dock 顶的净高；
+// 量不到（node 测试 / 桌面未挂载）退回 innerHeight 估算，再退 4。
+// 行高 110 只是图标行/组件行的混排均值，精确的「这页还放不放得下」不靠它——
+// 由渲染后 DesktopRenderer._reflowOverflow 按真实像素测量兜底。
 function _maxRows() {
+    if (typeof document !== 'undefined') {
+        const wrap = document.getElementById('desktopPages');
+        if (wrap && wrap.clientHeight > 200) {
+            const wrapRect = wrap.getBoundingClientRect();
+            const dock = document.querySelector('.dock');
+            const bottom = (dock && dock.offsetParent !== null)
+                ? dock.getBoundingClientRect().top
+                : wrapRect.bottom;
+            const avail = bottom - wrapRect.top - 40;   // app-grid 上 padding + 底部呼吸
+            if (avail > 200) return Math.max(4, Math.floor(avail / 110));
+        }
+    }
     return (typeof window !== 'undefined' && window.innerHeight)
         ? Math.max(4, Math.floor((window.innerHeight - 300) / 110))
         : 4;
@@ -123,6 +138,7 @@ const DesktopRenderer = {
         if (typeof SnowIcons !== 'undefined') SnowIcons.apply();
         if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
         if (typeof AnimalIcons !== 'undefined') AnimalIcons.apply();
+        if (typeof RainIcons !== 'undefined') RainIcons.apply();
         // Apply custom icons if available
         if (typeof IconCustomizer !== 'undefined') IconCustomizer.applyCustomIcons();
         // Apply i18n
@@ -133,6 +149,88 @@ const DesktopRenderer = {
         if (typeof SystemConfig !== 'undefined' && SystemConfig.refreshClocks) {
             SystemConfig.refreshClocks();
         }
+
+        // v2.224 动态容量自愈：真实测量各页内容底边，溢出 dock/页点的行搬去后页或新页。
+        // 深度上限防御性封顶（正常一两轮就收敛：只向后搬、总量有限）
+        if (this._reflowDepth < layout.pages.length + 3) {
+            this._reflowDepth++;
+            try {
+                if (this._reflowOverflow()) {
+                    Utils.saveData();
+                    this.render();
+                }
+            } finally { this._reflowDepth--; }
+        }
+    },
+
+    // ── v2.224 动态容量自愈 ──
+    // 页面容量不靠估算行高判定（图标行/方卡行/便签自适应行高度都不同，估算必翻车）：
+    // 渲染完成后直接测量每页每个 item 的真实底边，超过可用下边界（dock 顶/页点顶）的
+    // 搬去后页——后页有空位就放进去，没有就开新页。只向后搬运，单调收敛。
+    // 同时是存量溢出档的自愈通道：老档首次渲染即归位，无需 MIGRATIONS（容量随设备而变，
+    // 装载期迁移本来就答不对，只有渲染期知道真实高度）。
+    _reflowDepth: 0,
+
+    _reflowOverflow() {
+        // 编辑模式不搬（别跟拖拽抢）；桌面不可见时测量全为 0，直接跳过
+        const desktopEl = document.getElementById('desktop');
+        if (!desktopEl || desktopEl.classList.contains('edit-mode')) return false;
+        const wrap = document.getElementById('desktopPages');
+        if (!wrap || wrap.clientHeight < 100) return false;
+        const layout = AppState.data.desktopLayout;
+        if (!layout || !Array.isArray(layout.pages)) return false;
+
+        // 可用下边界：dock 顶与页点顶取更高者；异常态（算出来太矮）不动存档
+        const wrapRect = wrap.getBoundingClientRect();
+        let limitY = wrapRect.bottom;
+        const dock = document.querySelector('.dock');
+        if (dock && dock.offsetParent !== null) limitY = Math.min(limitY, dock.getBoundingClientRect().top);
+        const dots = document.getElementById('pageDots');
+        if (dots && dots.offsetParent !== null) limitY = Math.min(limitY, dots.getBoundingClientRect().top);
+        if (limitY - wrapRect.top < 200) return false;
+
+        // 收集溢出 item（跳过各页自己的最顶行：单个超高 item 无处可去，搬了就是死循环）
+        const moves = [];
+        wrap.querySelectorAll('.app-grid').forEach(grid => {
+            const pi = parseInt(grid.dataset.page, 10);
+            const page = layout.pages[pi];
+            if (!page || !Array.isArray(page.items) || !page.items.length) return;
+            const minRow = Math.min(...page.items.map(i => i.row));
+            grid.querySelectorAll('[data-layout-id]').forEach(el => {
+                const item = page.items.find(i => i.id && i.id === el.dataset.layoutId);
+                if (!item || item.row <= minRow) return;
+                if (el.getBoundingClientRect().bottom > limitY + 1) moves.push({ pi, item });
+            });
+        });
+        if (!moves.length) return false;
+
+        // 按页序+行序搬运（保持阅读顺序），目标只在更后的页里找
+        moves.sort((a, b) => a.pi - b.pi || a.item.row - b.item.row || a.item.col - b.item.col);
+        for (const { pi, item } of moves) {
+            const srcItems = layout.pages[pi].items;
+            const idx = srcItems.indexOf(item);
+            if (idx < 0) continue;
+            srcItems.splice(idx, 1);
+            const span = _itemSpan(item);
+            let placed = false;
+            for (let t = pi + 1; t < layout.pages.length; t++) {
+                const cell = this._findEmptyCell(layout.pages[t], span);
+                if (cell) {
+                    item.col = cell.col;
+                    item.row = cell.row;
+                    layout.pages[t].items.push(item);
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
+                layout.pages.push({ items: [] });
+                item.col = 0;
+                item.row = 0;
+                layout.pages[layout.pages.length - 1].items.push(item);
+            }
+        }
+        return true;
     },
 
     _renderIcon(item) {
@@ -564,9 +662,11 @@ const DesktopRenderer = {
             }
         }
         if (!spot) {
-            const items = layout.pages[targetIdx].items;
-            const maxRow = items.reduce((m, it) => Math.max(m, it.row + (it.rowSpan || 1) - 1), -1);
-            spot = { col: 0, row: maxRow + 1 };
+            // v2.224：所有页都满 → 开新页放顶部。旧行为是钉在当前页 maxRow+1，
+            // 直接渲染到可视区外/dock 底下（作者实机反馈的「加到下面去露半截」）
+            layout.pages.push({ items: [] });
+            targetIdx = layout.pages.length - 1;
+            spot = { col: 0, row: 0 };
         }
 
         const newItem = {
@@ -579,6 +679,12 @@ const DesktopRenderer = {
         layout.pages[targetIdx].items.push(newItem);
         Utils.saveData();
         this.render();
+        // render 内的容量自愈可能又把它顺延了一页——按最终落点带用户过去，
+        // 免得「添加了但当前页没出现」的错觉
+        if (typeof DesktopPager !== 'undefined' && DesktopPager.goToPage) {
+            const finalIdx = layout.pages.findIndex(p => p.items.some(i => i.id === newItem.id));
+            if (finalIdx >= 0 && finalIdx !== currentPageIdx) DesktopPager.goToPage(finalIdx);
+        }
     },
 
     removeWidgetFromLayout(widgetId) {

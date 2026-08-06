@@ -1218,6 +1218,7 @@ I18n.translations.en = {
             'widgets.size_small': 'Small',
             'widgets.size_medium': 'Medium',
             'widgets.size_wide': 'Wide',
+            'widgets.tilt_label': 'Tilt',
             'widgets.rot_enable': 'Shuffle display',
             'widgets.rot_src_fav': 'pixiv bookmarks',
             'widgets.rot_src_refs': 'Character art registry',

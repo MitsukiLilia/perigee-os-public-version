@@ -239,12 +239,11 @@ const Widgets = {
             : caption
                 ? `<div class="pj-caption">${this._esc(caption)}</div>`
                 : `<div class="pj-caption pj-caption-placeholder">タップして文字を…</div>`;
-        // 顶部 washi 胶带装饰
-        const tape = `<span class="pj-tape" aria-hidden="true"></span>`;
+        // 全局规则（2026-08-03 作者拍板）：拍立得不贴胶带——各主题已有自己的质感语言，
+        // washi 胶带的拼贴感违和。勿在任何主题恢复 .pj-tape。
         return `<div class="widget-card ${sizeClass} widget-polaroid-j"
                      style="transform:rotate(${w.tilt.toFixed(2)}deg)"
                      onclick="Widgets.editPolaroidJ('${w.id}')">
-            ${tape}
             <div class="pj-frame">
                 <div class="pj-image">${photoBox}</div>
                 ${captionHtml}
@@ -314,10 +313,14 @@ const Widgets = {
                             style="flex:1;padding:8px;border:1px solid var(--border-light);border-radius:8px;background:none;color:var(--text-secondary);font-size:12px;cursor:pointer">
                         切换尺寸（当前：${ { small: '小', medium: '中', wide: '宽' }[w.size] || '小' } → 下一档）
                     </button>
-                    <button onclick="Widgets._reshufflePolaroidTilt('${id}', this.closest('.modal-overlay'))"
-                            style="flex:1;padding:8px;border:1px solid var(--border-light);border-radius:8px;background:none;color:var(--text-secondary);font-size:12px;cursor:pointer">
-                        换个角度
-                    </button>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
+                    <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap">${I18n.t('widgets.tilt_label', '倾斜角度')}</span>
+                    <input type="range" id="pjTilt" min="-6" max="6" step="0.5" value="${(w.tilt || 0).toFixed(1)}"
+                           oninput="Widgets._setPolaroidTilt('${id}', this.value)"
+                           onchange="Widgets._setPolaroidTilt('${id}', this.value, true)"
+                           style="flex:1;accent-color:var(--accent-color);cursor:pointer">
+                    <span id="pjTiltVal" style="font-size:12px;color:var(--text-secondary);min-width:42px;text-align:right;font-variant-numeric:tabular-nums">${(w.tilt || 0).toFixed(1)}°</span>
                 </div>
                 <div style="display:flex;gap:8px;margin-top:4px">
                     <button onclick="this.closest('.modal-overlay').remove()"
@@ -397,14 +400,22 @@ const Widgets = {
         if (modal) modal.remove();
     },
 
-    _reshufflePolaroidTilt(id, modal) {
+    // 倾角滑杆（2026-08-03 作者提议：随机换角度 → 用户自己定）。
+    // oninput 只更新 DOM（滑动才顺滑），onchange 才落盘；tiltManual 标记手调过，
+    // 轮播换相纸时不再重随机角度覆盖用户的选择。
+    _setPolaroidTilt(id, val, commit) {
         const w = this._getWidgets().find(x => x.id === id);
-        if (w) {
-            w.tilt = (Math.random() * 6 - 3); // 换角度幅度大一些 -3° ~ 3°
+        if (!w) return;
+        const deg = Math.max(-6, Math.min(6, parseFloat(val) || 0));
+        w.tilt = deg;
+        const label = document.getElementById('pjTiltVal');
+        if (label) label.textContent = deg.toFixed(1) + '°';
+        const card = document.querySelector(`.desktop-grid-widget[data-widget-id="${id}"] .widget-card`);
+        if (card) card.style.transform = `rotate(${deg.toFixed(2)}deg)`;
+        if (commit) {
+            w.tiltManual = true;
             this._save();
-            this.render();
         }
-        // 不关闭 modal，让用户继续编辑
     },
 
     // ══════════════════════════════════════
@@ -1813,10 +1824,9 @@ const Widgets = {
             ? this._esc(text).replace(/\n/g, '<br>')
             : `<span class="widget-note-empty">${I18n.t('widgets.note_placeholder', 'タップして書く')}</span>`;
         const textHtml = `<div class="widget-note-text fs-${fontSize}">${bodyHtml}</div>`;
-        const tapeHtml = style === 'paper' ? `<span class="widget-note-tape" aria-hidden="true"></span>` : '';
         const cls = `widget-note widget-note-${style}${vertical ? ' widget-note-v' : ''}`;
         return `<div class="widget-card ${sizeClass} ${cls}" onclick="Widgets.editNote('${w.id}')">
-            ${tapeHtml}${textHtml}
+            ${textHtml}
         </div>`;
     },
 
@@ -2167,13 +2177,17 @@ const Widgets = {
 
     // 空槽：虚线圆 + 加号
     _dfEmptySlotSvg(cx) {
-        return `<circle cx="${cx}" cy="65" r="39" fill="none" stroke="var(--sticker-edge, rgba(255,255,255,0.7))" stroke-width="2.5" stroke-dasharray="5 5" opacity="0.9"/>
-            <path d="M${cx - 9} 65 H${cx + 9} M${cx} 56 V74" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity="0.55"/>`;
+        // 几何跟主题走（v2.225）：生图框档虚线圈省略（画框本身就是框），只留 + 提示
+        const g = this._dfGeom();
+        const dash = g.art ? '' : `<circle cx="${cx}" cy="${g.cy}" r="${g.r}" fill="none" stroke="var(--sticker-edge, rgba(255,255,255,0.7))" stroke-width="2.5" stroke-dasharray="5 5" opacity="0.9"/>
+            `;
+        return `${dash}<path d="M${cx - 9} ${g.cy} H${cx + 9} M${cx} ${g.cy - 9} V${g.cy + 9}" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" opacity="0.55"/>`;
     },
 
     _dfSlotSvg(w, slot, ref, cx) {
         if (!ref) return this._dfEmptySlotSvg(cx);
-        const box = 78, half = 39, cy = 65;
+        const g = this._dfGeom();
+        const half = g.r, box = half * 2, cy = g.cy;
         const clipId = `dfclip-${slot}-${w.id}`;
         const isRef = ref.kind === 'ref' && ref.blobId;
         const t = this._dfImgTransform(cx, cy, box, ref.pos);
@@ -2193,11 +2207,40 @@ const Widgets = {
     // var(--wall) 改成贴纸描边语义 var(--sticker-edge, rgba(255,255,255,0.7))（真机没有
     // 单一壁纸纯色可依赖）；同一 token 也顺手垫进两圆白贴纸边的 fill，T10 落地 --sticker-edge
     // 之前用内联 fallback 兜底，避免变量未定义时 fill 失效。
+    // ── 双人相框几何解析（v2.225）──
+    // 默认=莫比乌斯星环 SVG 手绘（viewBox 240x130·窗位 83/157/65 r39）。
+    // 法式芭蕾(sakura)=生图双联珍珠浮雕框（assets/widgets/sakura/duoframe.webp 1536x1024
+    // 真透明资产·CSS 背景），SVG 只剩照片槽：窗位按画中实测（1536 坐标系
+    // cxA≈435 cxB≈1092 cy≈545 r≈230）×(240/1536) 换算进 viewBox 240x160。
+    // 换资产必须重测窗位；主题切换时 SystemConfig.applyTheme 会重渲染桌面取新几何。
+    _dfGeom() {
+        const theme = (typeof document !== 'undefined')
+            ? document.documentElement.getAttribute('data-theme') : '';
+        if (theme === 'sakura') {
+            return { vw: 240, vh: 160, cxA: 68, cxB: 170.5, cy: 85, r: 34, art: true };
+        }
+        return { vw: 240, vh: 130, cxA: 83, cxB: 157, cy: 65, r: 39, art: false };
+    },
+
     _renderDuoframe(w, sizeClass) {
         const d = w.data || (w.data = { refA: null, refB: null });
         this._queueDuoframeHydration(w.id);
+        const g = this._dfGeom();
         const edge = 'var(--sticker-edge, rgba(255,255,255,0.7))';
         const clipA = `dfclip-a-${Utils.escapeHtml(w.id)}`, clipB = `dfclip-b-${Utils.escapeHtml(w.id)}`;
+        if (g.art) {
+            // 生图框：装饰整层来自 CSS 背景资产，SVG 只保留照片槽（clip 圆按画中窗位）+空槽提示
+            return `<div class="${sizeClass} widget-duoframe widget-duoframe-art" onclick="Widgets.editDuoframe('${w.id}')">
+                <svg class="df-svg" viewBox="0 0 ${g.vw} ${g.vh}" style="color:var(--accent-soft)" aria-hidden="true">
+                    <defs>
+                        <clipPath id="${clipA}"><circle cx="${g.cxA}" cy="${g.cy}" r="${g.r}"/></clipPath>
+                        <clipPath id="${clipB}"><circle cx="${g.cxB}" cy="${g.cy}" r="${g.r}"/></clipPath>
+                    </defs>
+                    ${this._dfSlotSvg(w, 'a', d.refA, g.cxA)}
+                    ${this._dfSlotSvg(w, 'b', d.refB, g.cxB)}
+                </svg>
+            </div>`;
+        }
         return `<div class="${sizeClass} widget-duoframe" onclick="Widgets.editDuoframe('${w.id}')">
             <svg class="df-svg" viewBox="0 0 240 130" style="color:var(--accent-soft)" aria-hidden="true">
                 <ellipse cx="120" cy="65" rx="106" ry="32" transform="rotate(-7 120 65)"
@@ -2659,7 +2702,7 @@ const Widgets = {
             );
             const pick = this._pickRotation(pool, w._rotPick && w._rotPick.blobKey);
             w._rotPick = pick;   // 随 saveData 落盘无害；blobKey 失效由水合兜底
-            if (pick && w.type === 'polaroid') w.tilt = (Math.random() * 4 - 2);   // 换相纸重随机角度
+            if (pick && w.type === 'polaroid' && !w.tiltManual) w.tilt = (Math.random() * 4 - 2);   // 换相纸重随机角度（用户手调过则不动）
             if (!opts || opts.rerender !== false) this._rerenderWidgetInPlace(w.id);
         });
     },

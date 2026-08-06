@@ -1218,6 +1218,7 @@ I18n.translations.ja = {
             'widgets.size_small': '小',
             'widgets.size_medium': '中',
             'widgets.size_wide': '横長',
+            'widgets.tilt_label': '傾き',
             'widgets.rot_enable': 'ランダム表示',
             'widgets.rot_src_fav': 'pixivブックマーク',
             'widgets.rot_src_refs': '立絵レジストリ',

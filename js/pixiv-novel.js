@@ -1685,16 +1685,30 @@ Full chapter text. Do NOT repeat the title. Start immediately.
             const _overrideCfg = settings?.apiOverride;
             const response = await Utils.callChatAPI(messages, systemPrompt, _overrideCfg?.enabled ? _overrideCfg : null);
 
+            // 预清理：剥掉 LLM 偶尔多包的 markdown 代码围栏（与 generateNovel 同款）
+            const resp = response.replace(/```[a-zA-Z]*/g, '');
+
             const extractTag = (tag) => {
                 const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
-                const m = response.match(regex);
+                const m = resp.match(regex);
                 return m ? m[1].trim() : '';
             };
             const stripHtmlFn = (text) => text.replace(/<details[^>]*>[\s\S]*?<\/details>/gi, '').replace(/<[^>]*>/g, '').trim();
 
             const chapterTitle = stripHtmlFn(extractTag('CHAPTER')) || `第${chapterNum}章`;
             const synopsis = extractTag('SYNOPSIS');
-            const content = extractTag('CONTENT');
+            let content = extractTag('CONTENT');
+
+            // 兜底①：<CONTENT> 开了但没闭合（输出被上限截断时，正文是格式里最后一个块）→ 取到结尾
+            if (!content) {
+                const openTag = resp.match(/<CONTENT>/i);
+                if (openTag) content = resp.slice(openTag.index + openTag[0].length).replace(/<\/?CONTENT>/gi, '').trim();
+            }
+            // 兜底②：连结构标签都没有 → 只剥自家结构标签后整段当正文
+            // （不能像 generateNovel 那样通剥裸标签：正文里合法的 <details> 翻译块会被打断）
+            if (!content) {
+                content = resp.replace(/<\/?(TITLE|CHAPTER|TAGS|AUTHOR|SYNOPSIS|CONTENT)>/gi, '').trim();
+            }
 
             if (!content) {
                 Utils.showToast(I18n.t('t.pixiv_no_content', '生成失败：未找到正文，请重试'));
@@ -2445,8 +2459,9 @@ Make sure to include line breaks and dialogue as normal.
                     if (m) result.content = resp.slice(m.index + m[0].length).replace(/<\/?CONTENT>/gi, '').trim();
                 }
                 // 兜底②：整段连结构标签都没有 → 整段正文当 content，不丢弃整次生成
+                // v2.230.0: 通剥裸标签改为只剥自家结构标签——正文里合法的 <details> 翻译块闭合标签会被误伤
                 if (!result.content) {
-                    const stripped = resp.replace(/<\/?[A-Za-z]+>/g, '').trim();
+                    const stripped = resp.replace(/<\/?(TITLE|CHAPTER|TAGS|AUTHOR|SYNOPSIS|CONTENT)>/gi, '').trim();
                     if (stripped) {
                         result.content = stripped;
                         if (!result.title) result.title = (tagsInput || '').split(/[,，]/)[0].trim() || '無題';
@@ -2699,9 +2714,12 @@ ${autoPerspectiveInstruction}
 
             let result = {};
             try {
+                // 预清理：剥掉 LLM 偶尔多包的 markdown 代码围栏（与 generateNovel 同款）
+                const resp = response.replace(/```[a-zA-Z]*/g, '');
+
                 const extractTag = (tag) => {
                     const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
-                    const match = response.match(regex);
+                    const match = resp.match(regex);
                     return match ? match[1].trim() : '';
                 };
 
@@ -2712,6 +2730,16 @@ ${autoPerspectiveInstruction}
                 result.tags = rawTags ? rawTags.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
                 result.author = extractTag('AUTHOR');
                 result.content = extractTag('CONTENT');
+
+                // 兜底①：<CONTENT> 开了但没闭合（输出被截断）→ 取到结尾
+                if (!result.content) {
+                    const openTag = resp.match(/<CONTENT>/i);
+                    if (openTag) result.content = resp.slice(openTag.index + openTag[0].length).replace(/<\/?CONTENT>/gi, '').trim();
+                }
+                // 兜底②：连结构标签都没有 → 只剥自家结构标签后整段当正文（勿通剥裸标签，保 <details> 翻译块）
+                if (!result.content) {
+                    result.content = resp.replace(/<\/?(TITLE|CHAPTER|TAGS|AUTHOR|SYNOPSIS|CONTENT)>/gi, '').trim();
+                }
 
                 // v2.70.0: author 强制覆盖（仅当 pickedNpc 非空）
                 // v2.124.0: 用日文笔名（NPC name = 推特显示名，作者要的）；handle 仅作兜底
@@ -2876,9 +2904,11 @@ ${autoPerspectiveInstruction}
             const response = await Utils.callChatAPI(messages, systemPrompt, _overrideCfg?.enabled ? _overrideCfg : null);
 
             let result = {};
+            // 预清理：剥掉 LLM 偶尔多包的 markdown 代码围栏（与 generateNovel 同款）
+            const resp = response.replace(/```[a-zA-Z]*/g, '');
             const extractTag = (tag) => {
                 const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
-                const match = response.match(regex);
+                const match = resp.match(regex);
                 return match ? match[1].trim() : '';
             };
             const stripHtml = (text) => text.replace(/<details[^>]*>[\s\S]*?<\/details>/gi, '').replace(/<[^>]*>/g, '').trim();
@@ -2888,6 +2918,16 @@ ${autoPerspectiveInstruction}
             result.tags = rawTags ? rawTags.split(/[,，]/).map(t => t.trim()).filter(Boolean) : [];
             result.author = extractTag('AUTHOR');
             result.content = extractTag('CONTENT');
+
+            // 兜底①：<CONTENT> 开了但没闭合（输出被截断）→ 取到结尾
+            if (!result.content) {
+                const openTag = resp.match(/<CONTENT>/i);
+                if (openTag) result.content = resp.slice(openTag.index + openTag[0].length).replace(/<\/?CONTENT>/gi, '').trim();
+            }
+            // 兜底②：连结构标签都没有 → 只剥自家结构标签后整段当正文（勿通剥裸标签，保 <details> 翻译块）
+            if (!result.content) {
+                result.content = resp.replace(/<\/?(TITLE|CHAPTER|TAGS|AUTHOR|SYNOPSIS|CONTENT)>/gi, '').trim();
+            }
 
             if (!result.content) return null; // 解析失败 → null
 

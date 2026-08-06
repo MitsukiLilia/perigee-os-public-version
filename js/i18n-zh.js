@@ -1230,6 +1230,7 @@ I18n.translations.zh = {
             'widgets.size_small': '小',
             'widgets.size_medium': '中',
             'widgets.size_wide': '宽',
+            'widgets.tilt_label': '倾斜角度',
             'widgets.rot_enable': '随机轮播',
             'widgets.rot_src_fav': 'pixiv 收藏',
             'widgets.rot_src_refs': '立绘注册表',

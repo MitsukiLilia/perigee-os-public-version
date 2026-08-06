@@ -609,29 +609,6 @@ body.dark-mode {
 }
 .widget-polaroid-j:active { transform: scale(0.97) !important; }
 
-.widget-polaroid-j .pj-tape {
-    position: absolute;
-    top: -8px;
-    left: 50%;
-    width: 56px;
-    height: 18px;
-    transform: translateX(-50%) rotate(-2deg);
-    background: rgba(212, 167, 116, 0.55);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
-    z-index: 3;
-}
-.widget-polaroid-j .pj-tape::before,
-.widget-polaroid-j .pj-tape::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    width: 8px;
-    height: 18px;
-    background: inherit;
-}
-.widget-polaroid-j .pj-tape::before { left: -4px; clip-path: polygon(0 30%, 100% 0, 100% 100%, 0 70%); }
-.widget-polaroid-j .pj-tape::after  { right: -4px; clip-path: polygon(0 0, 100% 30%, 100% 70%, 0 100%); }
-
 .widget-polaroid-j .pj-frame {
     display: flex;
     flex-direction: column;
@@ -752,7 +729,7 @@ body.dark-mode .widget-polaroid {
     min-height: 0;
     overflow: hidden;
     border-radius: 6px;
-    border: 1.5px dashed currentColor;
+    /* v2.225 虚线描边退役（作者：照片和外框直接融合更好）；空态仍有底色+「更换照片」文案作提示 */
     background: rgba(255,255,255,0.6);
 }
 body.dark-mode .polaroid-image {
@@ -892,7 +869,6 @@ body.dark-mode .polaroid-image {
 .polaroid-wide .polaroid-image-wide {
     aspect-ratio: auto;
     height: 48px;
-    border-style: dashed;
 }
 .polaroid-wide .spark-a { top: 14px; right: 30px; }
 .polaroid-wide .spark-b { bottom: 14px; right: 14px; }
@@ -5345,18 +5321,6 @@ details.tl>span {
     transform: rotate(-1.8deg);
 }
 .widget-note-paper:active { transform: rotate(-1.8deg) scale(0.97); }
-.widget-note-paper .widget-note-tape {
-    position: absolute;
-    top: -7px;
-    left: 50%;
-    transform: translateX(-50%) rotate(2deg);
-    width: 46px;
-    height: 14px;
-    background: var(--accent-soft);
-    opacity: 0.55;
-    border-radius: 2px;
-}
-
 /* 编辑弹窗内的单选 chip（見た目/書く向き/文字サイズ 三组共用） */
 .widget-note-chip {
     padding: 7px 14px;

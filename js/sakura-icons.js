@@ -51,7 +51,7 @@ const SakuraIcons = {
       } else if (c.dataset.iconDefault) {
         // 离开梦之芭蕾：恢复原始 SVG；但若目标是夜空/手帐/草莓/雪国/动森，交给它们接管（六方守卫对称）
         const t = document.documentElement.dataset.theme;
-        if (t !== 'night-sky' && t !== 'journal' && t !== 'strawberry' && t !== 'snow-country' && t !== 'animal') {
+        if (t !== 'night-sky' && t !== 'journal' && t !== 'strawberry' && t !== 'snow-country' && t !== 'animal' && t !== 'summer-rain') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }
