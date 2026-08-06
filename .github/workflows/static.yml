@@ -31,3 +31,7 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # 2026-08-06 平台侧部署缓慢（默认 10 分钟超时三连挂在 deployment_in_progress）——放大窗口熬过去
+          timeout: 1800000
+          error_count: 15
