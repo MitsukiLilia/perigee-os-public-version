@@ -667,7 +667,11 @@ const Utils = {
             headers: {
                 'Content-Type': 'application/json',
                 'x-api-key': config.key,
-                'anthropic-version': '2023-06-01'
+                // 鉴权双发：官方 API 认 x-api-key；Claude Code 风格反代常只认 Authorization Bearer，双发兜底（服务器取其一）
+                'Authorization': `Bearer ${config.key}`,
+                'anthropic-version': '2023-06-01',
+                // 浏览器直连 api.anthropic.com 的 CORS 必需头，对反代无害
+                'anthropic-dangerous-direct-browser-access': 'true'
             },
             body: JSON.stringify(requestBody)
         });

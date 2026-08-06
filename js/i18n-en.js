@@ -875,6 +875,7 @@ I18n.translations.en = {
             't.set_conn_failed': '✗ Connection failed: ',
             't.set_fill_groupid_key': 'Please enter the GroupId and API Key first',
             't.set_conn_ok_models': '✓ Connected, models updated',
+            't.set_fetch_claude_hint': '• If your URL is a Claude (Anthropic) proxy/relay, switch the API mode to Claude',
             't.ghb_config_save_failed': 'Failed to save config: ',
             't.ghb_fill_fields': 'Please fill in the username, repository name and PAT',
             't.ghb_config_saved': '✓ Cloud backup config saved',

@@ -68,18 +68,20 @@ const APISettings = {
                 break;
 
             case 'claude':
+                // Claude (Anthropic) 官方 API 或反代/中转：URL 可见+预填，可微调（同 openrouter/pioneer 先例）；鉴权双发 x-api-key + Authorization Bearer
                 urlRow.style.display = '';
-                urlInput.style.display = 'none';
-                urlInput.value = 'https://api.anthropic.com';
+                urlInput.style.display = '';
+                if (forceUrlReset || !urlInput.value) urlInput.value = 'https://api.anthropic.com';
                 fetchBtn.style.display = '';
                 fetchBtn.textContent = '加载模型';
                 keyInput.placeholder = '输入 Anthropic API Key';
-                modelInput.placeholder = 'claude-3-5-sonnet-20241022';
+                modelInput.placeholder = 'claude-sonnet-5';
 
+                // 提示文案：同 google/deepseek/openrouter/pioneer 现状一样是硬编码，未走 i18n，此处保持一致不单独重构
                 const claudeHint = document.createElement('p');
                 claudeHint.className = 'api-hint';
                 claudeHint.style.cssText = 'font-size:10px; color:#999; margin-top:4px; margin-bottom:0;';
-                claudeHint.textContent = '* 使用Claude官方API，点击"加载模型"查看预设模型列表';
+                claudeHint.textContent = '* 默认官方地址；使用反代/中转时填写其完整 base 地址，点击"加载模型"从该地址拉取模型列表';
                 urlRow.appendChild(claudeHint);
                 break;
 
@@ -197,20 +199,35 @@ const APISettings = {
                     lastError = `HTTP ${res.status}`;
                 }
             } else if (mode === 'claude') {
-                // Claude API - 手动提供模型列表（Claude API不提供模型列表接口）
-                console.log('[API Test] Using Claude predefined models');
-                models = [
-                    'claude-opus-4-5-20251101',
-                    'claude-sonnet-4-5-20250929',
-                    'claude-sonnet-3-5-20241022',
-                    'claude-3-5-sonnet-20240620',
-                    'claude-3-opus-20240229',
-                    'claude-3-sonnet-20240229',
-                    'claude-3-haiku-20240307'
-                ];
-                success = true;
-                correctBaseUrl = url || 'https://api.anthropic.com';
-                console.log('[API Test] ✓ Loaded Claude model list');
+                // Claude API（官方地址或 Anthropic 协议反代皆可）- GET /v1/models
+                // 响应格式 {data:[{id:"claude-...",...}]} 与 OpenAI 同构，下方解析逻辑可复用
+                const claudeBaseUrl = url || 'https://api.anthropic.com';
+                console.log('[API Test] Trying Claude API:', `${claudeBaseUrl}/v1/models`);
+                const res = await fetch(`${claudeBaseUrl}/v1/models`, {
+                    method: 'GET',
+                    headers: {
+                        'x-api-key': key,
+                        // 鉴权双发：官方 API 认 x-api-key；Claude Code 风格反代常只认 Authorization Bearer，双发兜底（服务器取其一）
+                        'Authorization': `Bearer ${key}`,
+                        'anthropic-version': '2023-06-01',
+                        // 浏览器直连 api.anthropic.com 的 CORS 必需头，对反代无害
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    }
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('[API Test] Claude Response:', data);
+
+                    if (data.data && Array.isArray(data.data)) {
+                        models = data.data.map(m => typeof m === 'string' ? m : m.id).filter(Boolean);
+                        success = true;
+                        correctBaseUrl = claudeBaseUrl;
+                        console.log(`[API Test] ✓ Found ${models.length} Claude models`);
+                    }
+                } else {
+                    lastError = `HTTP ${res.status}`;
+                }
             } else {
                 // OpenAI 兼容 API（包括 DeepSeek）
                 if (!url) return alert('请先输入 API 地址');
@@ -318,6 +335,12 @@ const APISettings = {
                 errorMsg += `错误信息: ${lastError}\n\n`;
             }
             errorMsg += `可能的原因：\n1. API Key 错误或已过期\n2. API 地址格式不正确（${mode === 'google' || mode === 'claude' ? '此模式可能不需要URL' : '需要完整URL'}）\n3. 网络连接问题\n4. API 服务暂时不可用\n\n建议：\n• 检查 API Key 是否正确\n• ${mode === 'google' ? 'Google AI Studio 会自动使用官方地址' : mode === 'claude' ? 'Claude API 会使用官方地址，可手动输入模型ID' : '确保 URL 格式为: https://api.xxx.com'}\n• 查看浏览器控制台获取详细错误信息\n• 或直接手动输入模型 ID`;
+
+            // 协议不匹配是常见误配置根因（Anthropic 反代被当成 OpenAI 兼容填）；仅在非 claude 模式下提示切换有意义。
+            // 本段弹窗文案整体硬编码中文未走 i18n，这一行按项目铁律单独过 I18n.t，不顺带重构整段
+            if (mode !== 'claude') {
+                errorMsg += `\n${I18n.t('t.set_fetch_claude_hint', '• 如果你的地址是 Claude (Anthropic) 反代/中转，请把 API 模式切换成 Claude')}`;
+            }
 
             alert(errorMsg);
         }
@@ -1615,7 +1638,7 @@ const VideoAPISettings = {
 
 // ===== TTS 语音朗读设置 =====
 const TTSSettings = {
-    // MiniMax 区域 → API endpoint 映射（两个站账号不互通；参考 既有方案 2026.1 版）
+    // MiniMax 区域 → API endpoint 映射（两个站账号不互通；参考 Kitty 机 2026.1 版）
     MINIMAX_ENDPOINTS: {
         global: 'https://api.minimax.io',
         china:  'https://api.minimaxi.com'
@@ -1864,7 +1887,7 @@ const TTSSettings = {
     },
 
     // 获取/同步 MiniMax 语音模型：测试连接 + 刷新预设列表
-    // MiniMax TTS 没有标准列模型 API，沿用 既有方案做法 —— 预设 + 测试
+    // MiniMax TTS 没有标准列模型 API，沿用 Kitty 机做法 —— 预设 + 测试
     async fetchSpeechModels() {
         const region = document.getElementById('ttsMinimaxRegion')?.value || 'global';
         const customBase = (document.getElementById('ttsMinimaxCustomBase')?.value || '').trim();

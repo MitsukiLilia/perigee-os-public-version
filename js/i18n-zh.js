@@ -875,6 +875,7 @@ I18n.translations.zh = {
             't.set_conn_failed': '✗ 连接失败：',
             't.set_fill_groupid_key': '请先填写 GroupId 和 API Key',
             't.set_conn_ok_models': '✓ 连接成功，模型已更新',
+            't.set_fetch_claude_hint': '• 如果你的地址是 Claude (Anthropic) 反代/中转，请把 API 模式切换成 Claude',
             't.ghb_config_save_failed': '配置保存失败：',
             't.ghb_fill_fields': '请填写用户名、仓库名和 PAT',
             't.ghb_config_saved': '✓ 云备份配置已保存',

@@ -875,6 +875,7 @@ I18n.translations.ja = {
             't.set_conn_failed': '✗ 接続に失敗しました：',
             't.set_fill_groupid_key': '先に GroupId と API Key を入力してください',
             't.set_conn_ok_models': '✓ 接続成功、モデルを更新しました',
+            't.set_fetch_claude_hint': '• お使いのアドレスが Claude (Anthropic) の反代/中継サーバーの場合、API モードを Claude に切り替えてください',
             't.ghb_config_save_failed': '設定の保存に失敗しました：',
             't.ghb_fill_fields': 'ユーザー名、リポジトリ名、PAT を入力してください',
             't.ghb_config_saved': '✓ クラウドバックアップ設定を保存しました',

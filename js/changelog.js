@@ -1,6 +1,6 @@
 // Perigee OS 更新日志
 // 每次发新版本：在数组开头插入新条目，bump CURRENT 到该版本号
-// voiceFromKlaude: 可选的版本附言
+// voiceFromKlaude 写自然一点，像我们平时聊天那样 — 让用户看到我们一起做这件事的痕迹
 
 // v2.179.0 拆分：本文件只保留当前月条目（启动轻量 + 每版缓存失效只有小文件）。
 // 历史条目按月冻结在 assets/changelog-archive/YYYY-MM.json，历史页滚到底部时懒加载。
@@ -8,7 +8,7 @@
 // 同步 deploy.sh DEFAULT_FILES（sw.js 不 precache 归档、靠 runtime cache）。条目内容永不修改（数据只增）。
 
 const Changelog = {
-    CURRENT: '2.233.0',
+    CURRENT: '2.234.0',
 
     // 冻结月归档（新→旧）。file 相对站点根。
     ARCHIVES: [
@@ -19,6 +19,17 @@ const Changelog = {
     ],
 
     versions: [
+        {
+            version: '2.234.0',
+            date: '2026-08-06',
+            highlights: [
+                'Claude (Anthropic) API 连接全面修复：Claude 模式的 API 地址栏现在可见可编辑了——默认官方地址，用反代/中转的填写其完整 base 地址即可（此前地址栏被隐藏并强制官方地址，反代用户没有入口）',
+                'Claude 模式的「加载模型」现在是真实拉取——从你填的地址请求模型列表（此前显示的是一份内置的过时固定列表，无论连不连得上都会"成功"）',
+                '鉴权同时发送 x-api-key 和 Authorization Bearer 两种头（服务器取其一）——Claude Code 风格的反代通常只认后者；浏览器直连官方 API 也补上了必需的 CORS 请求头',
+                '用 OpenAI 兼容模式误填 Anthropic 协议地址时，连接失败的提示会引导你把 API 模式切换成 Claude'
+            ],
+            voiceFromKlaude: ''
+        },
         {
             version: '2.233.0',
             date: '2026-08-06',
