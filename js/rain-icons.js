@@ -52,7 +52,7 @@ const RainIcons = {
       } else if (c.dataset.iconDefault) {
         // 离开夏雨主题：恢复原始 SVG；但若目标是另六个图标主题之一，交给它们接管（七方守卫对称）
         const t = document.documentElement.dataset.theme;
-        if (t !== 'night-sky' && t !== 'journal' && t !== 'strawberry' && t !== 'snow-country' && t !== 'sakura' && t !== 'animal') {
+        if (t !== 'night-sky' && t !== 'journal' && t !== 'strawberry' && t !== 'snow-country' && t !== 'sakura' && t !== 'animal' && t !== 'taro-choco' && t !== 'mint-choco') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

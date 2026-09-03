@@ -91,7 +91,9 @@ const PixivIllust = {
 
         this._switchMode('manual');
 
-        const isNovelAI = AppState.data.imageApiConfig?.provider === 'novelai';
+        // D4（2026-08-07 阶段3）：弹窗形态按 pixiv 板块绑定的生效 provider 走，不再只看全局——
+        // pixiv 绑了 NAI 预设时也要按 NAI 形态显示（隐藏尺寸/数量行）；未绑定时与全局逐字节一致。
+        const isNovelAI = this.resolveModuleConfig('pixiv').provider === 'novelai';
         const negRow = document.getElementById('pixivIllustNegativeRow');
         const sizeRow = document.getElementById('pixivIllustSizeRow');
         const countRow = document.getElementById('pixivIllustCountRow');
@@ -222,110 +224,92 @@ Generate image tags:`;
 
     async generateImage() {
         const config = AppState.data.imageApiConfig;
-        if (!config || !config.key) {
+        // 大review A2/C1 修（2026-08-07）：闸门按板块生效配置判断——纯预设用户（全局不填 key、只给 pixiv
+        // 绑预设）不再被拦；未绑定时解析结果就是全局 config，行为与改前一致
+        const gateCfg = this.resolveModuleConfig('pixiv').config;
+        if (!gateCfg || !gateCfg.key) {
             Utils.showToast(I18n.t('t.pi_no_api', '⚠️ 请先在设置中配置图片生成API'));
             return;
         }
 
-        // AI辅助モード
-        if (this._illustMode === 'ai') {
-            const aiDesc = document.getElementById('pixivIllustAIDesc')?.value?.trim();
-            if (!aiDesc) {
-                Utils.showToast(I18n.t('t.pi_need_desc', '⚠️ 请输入描述内容'));
+        // D4（2026-08-07 阶段3）：pixiv 板块绑定的预设生效 provider/nai——未绑定时与上面的全局 config 逐字节一致。
+        // 尺寸计算 + 手动模式的「正向提示词是否必填」判断都要跟着这个生效 provider 走，而不是全局 config.provider，
+        // 否则 pixiv 绑了 NAI 预设时，弹窗（showGenerateModal 已按此 provider 显示 NAI 形态）跟实际生成判断会对不上。
+        const { provider: pixivProvider, nai: pixivNai } = this.resolveModuleConfig('pixiv');
+
+        // D5（2026-08-07 阶段4）：并发防呆（CLAUDE.md 铁律）——同一时间只允许一次插画生成在途，
+        // 锁被占时不排队、直接 toast 提示（onBusy），finally 自动放锁。
+        await Utils.withLock('pixiv_illust_gen', async () => {
+            // AI辅助モード
+            if (this._illustMode === 'ai') {
+                const aiDesc = document.getElementById('pixivIllustAIDesc')?.value?.trim();
+                if (!aiDesc) {
+                    Utils.showToast(I18n.t('t.pi_need_desc', '⚠️ 请输入描述内容'));
+                    return;
+                }
+                document.getElementById('pixivIllustGenerateModal').classList.remove('active');
+                Utils.showToast(I18n.t('t.pi_translating', '🎨 AI翻译提示词中...'));
+
+                try {
+                    const prompt = await this._buildAIPrompt(aiDesc);
+                    if (!prompt) { Utils.showToast(I18n.t('t.pi_prompt_failed', '❌ 提示词生成失败')); return; }
+
+                    Utils.showToast(I18n.t('t.pi_img_generating', '🎨 正在生成图片...'));
+                    // 大review C2 修（2026-08-07）：_buildAIPrompt 的等待窗口里板块绑定可能被改——尺寸计算
+                    // 重新解析一次，与 dispatchGenerate 内部的解析时点对齐（手动模式无 await 窗口，不需要）
+                    const { provider: liveProvider, nai: liveNai } = this.resolveModuleConfig('pixiv');
+                    const imgSize = liveProvider === 'novelai' ? (liveNai.resolution || '1024x1024') : '1024x1024';
+
+                    const blobs = await this.dispatchGenerate({
+                        positivePrompt: prompt.positive, negativePrompt: prompt.negative,
+                        size: imgSize, count: 1, config, charCaptions: prompt.charCaptions, moduleKey: 'pixiv'
+                    });
+                    await this._saveAndRenderBlobs(blobs, prompt.positive, '', imgSize, pixivProvider);
+                } catch (error) {
+                    console.error('AI Image generation error:', error);
+                    Utils.showToast(I18n.t('t.pi_gen_failed', '❌ 生成失败: ') + error.message);
+                }
                 return;
             }
+
+            // 手動モード
+            const positivePrompt = document.getElementById('pixivIllustPositivePrompt').value.trim();
+            if (!positivePrompt && pixivProvider !== 'novelai') {
+                Utils.showToast(I18n.t('t.pi_need_positive', '⚠️ 请输入正向提示词'));
+                return;
+            }
+
+            const negativePrompt = document.getElementById('pixivIllustNegativePrompt').value.trim();
+            // D5（2026-08-07 阶段4）：provider=novelai 时手动模式 UI 隐藏了尺寸选择行（showGenerateModal 已隐藏），
+            // DOM 里的值是残留值——改成与 AI 辅助模式同款三元，让设置里的 NAI 分辨率继续说了算。
+            const rawImageSize = document.getElementById('pixivIllustImageSize').value;
+            const imageSize = pixivProvider === 'novelai' ? (pixivNai.resolution || '1024x1024') : rawImageSize;
+            const imageCount = parseInt(document.getElementById('pixivIllustImageCount').value) || 1;
+
             document.getElementById('pixivIllustGenerateModal').classList.remove('active');
-            Utils.showToast(I18n.t('t.pi_translating', '🎨 AI翻译提示词中...'));
+            Utils.showToast(I18n.t('t.pi_img_generating', '🎨 正在生成图片...'));
 
             try {
-                const prompt = await this._buildAIPrompt(aiDesc);
-                if (!prompt) { Utils.showToast(I18n.t('t.pi_prompt_failed', '❌ 提示词生成失败')); return; }
+                const blobs = await this.dispatchGenerate({
+                    positivePrompt, negativePrompt, size: imageSize, count: imageCount,
+                    config, strictProvider: true, moduleKey: 'pixiv'
+                });
 
-                Utils.showToast(I18n.t('t.pi_img_generating', '🎨 正在生成图片...'));
-                const naiSettings = AppState.data.novelaiSettings || {};
-                const imgSize = config.provider === 'novelai' ? (naiSettings.resolution || '1024x1024') : '1024x1024';
-
-                let blobs = [];
-                switch (config.provider) {
-                    case 'openai':
-                        blobs = await this.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'gpt-image':
-                        blobs = await this._gptImage(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'openrouter':
-                        blobs = await this.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'stabilityai':
-                        blobs = await this.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'novelai':
-                        blobs = await this.generateWithNovelAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'midjourney':
-                    case 'custom':
-                        blobs = await this.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                }
-                await this._saveAndRenderBlobs(blobs, prompt.positive, '', imgSize);
+                await this._saveAndRenderBlobs(blobs, positivePrompt, negativePrompt, imageSize, pixivProvider);
             } catch (error) {
-                console.error('AI Image generation error:', error);
+                console.error('Image generation error:', error);
                 Utils.showToast(I18n.t('t.pi_gen_failed', '❌ 生成失败: ') + error.message);
             }
-            return;
-        }
-
-        // 手動モード
-        const positivePrompt = document.getElementById('pixivIllustPositivePrompt').value.trim();
-        if (!positivePrompt && config.provider !== 'novelai') {
-            Utils.showToast(I18n.t('t.pi_need_positive', '⚠️ 请输入正向提示词'));
-            return;
-        }
-
-        const negativePrompt = document.getElementById('pixivIllustNegativePrompt').value.trim();
-        const imageSize = document.getElementById('pixivIllustImageSize').value;
-        const imageCount = parseInt(document.getElementById('pixivIllustImageCount').value) || 1;
-
-        document.getElementById('pixivIllustGenerateModal').classList.remove('active');
-        Utils.showToast(I18n.t('t.pi_img_generating', '🎨 正在生成图片...'));
-
-        try {
-            let blobs = [];
-
-            switch (config.provider) {
-                case 'openai':
-                    blobs = await this.generateWithOpenAI(positivePrompt, negativePrompt, imageSize, imageCount, config);
-                    break;
-                case 'gpt-image':
-                    blobs = await this._gptImage(positivePrompt, negativePrompt, imageSize, imageCount, config);
-                    break;
-                case 'openrouter':
-                    blobs = await this.generateWithOpenRouter(positivePrompt, negativePrompt, imageSize, imageCount, config);
-                    break;
-                case 'stabilityai':
-                    blobs = await this.generateWithStabilityAI(positivePrompt, negativePrompt, imageSize, imageCount, config);
-                    break;
-                case 'novelai':
-                    blobs = await this.generateWithNovelAI(positivePrompt, negativePrompt, imageSize, imageCount, config);
-                    break;
-                case 'midjourney':
-                case 'custom':
-                    blobs = await this.generateWithCustomAPI(positivePrompt, negativePrompt, imageSize, imageCount, config);
-                    break;
-                default:
-                    throw new Error('Unsupported API provider');
-            }
-
-            await this._saveAndRenderBlobs(blobs, positivePrompt, negativePrompt, imageSize);
-        } catch (error) {
-            console.error('Image generation error:', error);
-            Utils.showToast(I18n.t('t.pi_gen_failed', '❌ 生成失败: ') + error.message);
-        }
+        }, () => Utils.showToast(I18n.t('t.pi_gen_busy', '⏳ 已有图片正在生成，请稍候…')));
     },
 
-    async _saveAndRenderBlobs(blobs, prompt, negPrompt, size) {
+    // provider（可选，D5 2026-08-07 阶段4）：调用方已解析好的生效 provider（resolveModuleConfig('pixiv').provider）；
+    // 未传时回落全局 AppState.data.imageApiConfig.provider——pixiv 绑了预设时插画元数据记录的 provider 要跟着
+    // 生效配置走，不能一律记全局（否则绑了 NAI 预设时元数据显示会错）。
+    async _saveAndRenderBlobs(blobs, prompt, negPrompt, size, provider) {
         if (!blobs || blobs.length === 0) return;
         const config = AppState.data.imageApiConfig;
+        const effProvider = provider || config.provider;
         if (!AppState.data.pixivData.illustrations) AppState.data.pixivData.illustrations = [];
 
         const newIllustrations = [];
@@ -334,7 +318,7 @@ Generate image tags:`;
             await IllustGallery.save(id, blobs[i]);
             newIllustrations.push({
                 id, prompt, negativePrompt: negPrompt || '', size: size || '',
-                provider: config.provider, createdAt: new Date().toISOString(), isFavorite: false
+                provider: effProvider, createdAt: new Date().toISOString(), isFavorite: false
             });
         }
         AppState.data.pixivData.illustrations.unshift(...newIllustrations);
@@ -354,6 +338,119 @@ Generate image tags:`;
         Utils.showToast(I18n.t('t.pi_gen_success', {n: blobs.length}));
     },
 
+    // ===== D4 分板块指定 API 预设（2026-08-07 阶段3）=====
+
+    /**
+     * 按 moduleKey 解析生效的生图配置：查 AppState.data.imageModulePresets 绑定 → 命中且预设仍存在 →
+     * 从预设组出 config（provider=novelai 时额外给出 preset.novelai 快照作为 nai）；否则（未绑定 /
+     * moduleKey 未传 / 绑定的预设已被删除）一律回落全局 imageApiConfig + novelaiSettings —— 这条 fallback
+     * 分支必须与分板块绑定功能上线前（v2.236）逐字节一致，是本功能的回归基线。放在 PixivIllust 上，
+     * 供 dispatchGenerate 和设置面板 UI（ImageAPISettings）共用。
+     *
+     * @param {string} [moduleKey] - 'pixiv' | 'twitter' | 'melonbooks' | 'goods'（ワンドロ 复用 'twitter'，
+     *   与其现状共用开关一致，不另立键）；未知/未传 → 视同未绑定，走 fallback
+     * @returns {{config: Object, nai: Object, provider: string, fromPreset: boolean}}
+     */
+    resolveModuleConfig(moduleKey) {
+        const presetId = moduleKey ? (AppState.data.imageModulePresets || {})[moduleKey] : '';
+        const preset = presetId ? (AppState.data.imageApiPresets || []).find(p => p.id === presetId) : null;
+
+        if (preset) {
+            const config = {
+                provider: preset.provider,
+                url: preset.url || '',
+                key: preset.key || '',
+                model: preset.model || '',
+                defaultPositive: preset.defaultPositive || '',
+                defaultNegative: preset.defaultNegative || ''
+            };
+            // NAI 快照隔离：provider=novelai 的预设里，顶层 url/model 是 NAI 面板隐藏标准 URL/Model 行时的
+            // 陈旧残留值（面板切到 NAI 分支后这两行不显示也不再被同步），不能拿来当 nai.proxyUrl/nai.model 的
+            // 兜底——只认 preset.novelai 这份专属快照；快照理论上不该缺失（savePreset 保存 NAI 预设时必带），
+            // 缺失时防御性回落全局 novelaiSettings。
+            const nai = (preset.provider === 'novelai')
+                ? (preset.novelai || AppState.data.novelaiSettings || {})
+                : (AppState.data.novelaiSettings || {});
+            return { config, nai, provider: preset.provider, fromPreset: true };
+        }
+
+        // 未绑定 / moduleKey 未传 / 绑定的预设 id 已失效 —— 回落全局，与分板块绑定上线前行为逐字节一致
+        const config = AppState.data.imageApiConfig;
+        const nai = AppState.data.novelaiSettings || {};
+        return { config, nai, provider: config?.provider, fromPreset: false };
+    },
+
+    // ===== 共享 provider 分发（全站 6 处生图入口共用，2026-08-07 阶段0 收敛） =====
+
+    /**
+     * 生图 provider 分发：按 opts.config.provider 路由到对应 generateWithXxx()，统一返回 Blob[]。
+     * 全站 6 处生图入口（pixiv 插画手动/AI辅助、周边商品图、melon 封面、推特配图、ワンドロ）共用此方法，
+     * 取代此前逐处复制的 switch。零行为变更收敛——不改任何 provider 分支的请求参数或返回值处理。
+     *
+     * @param {Object} opts
+     * @param {string} opts.positivePrompt
+     * @param {string} opts.negativePrompt
+     * @param {string} opts.size - 像素尺寸串 'WxH'；由调用方按自己的业务规则算好传入（如是否 NovelAI/画幅类型），dispatch 不做尺寸推导
+     * @param {number} opts.count - 生成张数
+     * @param {Object} opts.config - AppState.data.imageApiConfig，调用方已读好传入；provider 从 opts.config.provider 取，dispatch 不自行读取全局状态。opts.moduleKey 存在时本字段会被 resolveModuleConfig 的结果覆盖
+     * @param {string[]} [opts.charCaptions] - AI辅助/结构化输出的多角色外观描述，合回 prompt 用
+     * @param {string[]} [opts.refCharNames] - 仅 gpt-image / openrouter / openai-compat 分支消费（按角色名过滤 CP 参考立绘）；其余 provider 分支的 generateWithXxx 本就没有这个形参，传了也不会被读取
+     * @param {boolean} [opts.strictProvider] - true 时对未匹配任何 case 的 provider 抛出 Error('Unsupported API provider')（仅 pixiv 手动模式原有行为）；默认/未传 = 静默返回 []（其余 5 处原有行为，不视为错误）
+     * @param {string} [opts.moduleKey] - D4（2026-08-07 阶段3）：板块标识（'pixiv'/'twitter'/'melonbooks'/'goods'）。存在时用 resolveModuleConfig(moduleKey) 的结果覆盖 opts.config，并把解析出的 nai 透传给 novelai 分支；未传 = 阶段0 行为（直接用 opts.config，novelai 分支自读全局）
+     * @returns {Promise<Blob[]>}
+     */
+    async dispatchGenerate(opts) {
+        let { positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames, strictProvider, moduleKey } = opts;
+
+        // D4 分板块绑定（2026-08-07 阶段3）：moduleKey 存在时用解析结果覆盖调用方传入的全局 config——
+        // 调用方传的 opts.config 作废。未绑定/预设已删时 resolveModuleConfig 本就回落全局 imageApiConfig，
+        // 覆盖后与不传 moduleKey 时等价，不影响任何现有调用点在「未绑定」状态下的行为。
+        let nai;
+        if (moduleKey) {
+            const resolved = this.resolveModuleConfig(moduleKey);
+            config = resolved.config;
+            nai = resolved.nai;
+        }
+
+        // D2 常驻附加提示词（2026-08-07）：非 NovelAI provider 才注入——NAI 走自己的 novelaiSettings.defaultPositive/
+        // defaultNegative（generateWithNovelAI 内部已拼过一次），这里若也注入会双重追加。字段为空时 filter(Boolean)
+        // 会把它剔除，join 结果与注入前完全一致——不影响任何已有行为。
+        if (config.provider !== 'novelai') {
+            positivePrompt = [positivePrompt, config.defaultPositive].filter(Boolean).join(', ');
+            negativePrompt = [negativePrompt, config.defaultNegative].filter(Boolean).join(', ');
+        }
+
+        let blobs = [];
+        switch (config.provider) {
+            case 'openai':
+                blobs = await this.generateWithOpenAI(positivePrompt, negativePrompt, size, count, config, charCaptions);
+                break;
+            case 'gpt-image':
+                blobs = await this._gptImage(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames);
+                break;
+            case 'openrouter':
+                blobs = await this.generateWithOpenRouter(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames);
+                break;
+            case 'openai-compat':
+                blobs = await this._openaiCompat(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames);
+                break;
+            case 'stabilityai':
+                blobs = await this.generateWithStabilityAI(positivePrompt, negativePrompt, size, count, config, charCaptions);
+                break;
+            case 'novelai':
+                blobs = await this.generateWithNovelAI(positivePrompt, negativePrompt, size, count, config, charCaptions, nai);
+                break;
+            case 'midjourney':
+            case 'custom':
+                blobs = await this.generateWithCustomAPI(positivePrompt, negativePrompt, size, count, config, charCaptions);
+                break;
+            default:
+                if (strictProvider) throw new Error('Unsupported API provider');
+                break;
+        }
+        return blobs;
+    },
+
     // ===== 各提供商：统一返回 Blob[] =====
 
     // charCaptions 合回 positive（OpenAI/gpt-image/StabilityAI/Custom 无原生 char caption 通道，格式同 generateWithOpenRouter 的 charSection）
@@ -368,21 +465,24 @@ Generate image tags:`;
         const finalPrompt = negativePrompt ?
             `${scenePrompt} (avoid: ${negativePrompt})` :
             scenePrompt;
+        // D5（2026-08-07 阶段4）：尺寸按 provider 合法枚举收口——dall-e-2 固定方图，dall-e-3 按比例就近三档
+        const effModel = config.model || 'dall-e-3';
+        const size = this._snapSizeForProvider(imageSize, 'openai', effModel);
 
-        const response = await fetch(`${config.url}/v1/images/generations`, {
+        const response = await Utils._fetchWithTimeout(`${config.url}/v1/images/generations`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${config.key}`
             },
             body: JSON.stringify({
-                model: config.model || 'dall-e-3',
+                model: effModel,
                 prompt: finalPrompt,
                 n: imageCount,
-                size: imageSize,
+                size,
                 quality: 'standard'
             })
-        });
+        }, 600000);
 
         if (!response.ok) {
             // 反代/网关超时可能返回非 JSON 错误页（HTML 502 等），裸 .json() 会把真实错误吞成 SyntaxError
@@ -404,8 +504,10 @@ Generate image tags:`;
         const finalPrompt = negativePrompt ?
             `${scenePrompt} (avoid: ${negativePrompt})` :
             scenePrompt;
+        // D5（2026-08-07 阶段4）：尺寸按 provider 合法枚举收口（gpt-image 三档，同 openai-compat 现有 snap）
+        const size = this._snapSizeForProvider(imageSize, 'gpt-image', config.model);
 
-        const response = await fetch(`${config.url}/v1/images/generations`, {
+        const response = await Utils._fetchWithTimeout(`${config.url}/v1/images/generations`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -415,9 +517,9 @@ Generate image tags:`;
                 model: config.model || 'gpt-image-2',
                 prompt: finalPrompt,
                 n: imageCount,
-                size: imageSize
+                size
             })
-        });
+        }, 600000);
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
@@ -439,29 +541,30 @@ Generate image tags:`;
     // GPT Image edits（gpt-image-2 参考图 → 人物一致性）：传入参考立绘 Blob[]，走 /v1/images/edits（multipart）。
     // 仅当 CP 设置了参考立绘且 provider=gpt-image 时走这里；NAI / DALL-E / 纯文生图路径一律不碰。
     // 关键差异：① multipart/form-data，参考图字段名 image[]（可多张）；② 不要手设 Content-Type，让浏览器自动带 boundary
-    //          ③ 不发 input_fidelity（gpt-image-2 对输入图自动高保真，发了会报错）④ size 沿用各入口原值（gpt-image-2 接受任意满足约束的尺寸）
-    //          ⑤ 返回同 generations：data[].b64_json → Blob（复用 base64ToBlob），下游零改
+    //          ③ 不发 input_fidelity（gpt-image-2 对输入图自动高保真，发了会报错）④ size 按 gpt-image 三档 snap（阶段4 D5，
+    //          与 generations 端点同枚举，收敛非法尺寸风险）⑤ 返回同 generations：data[].b64_json → Blob（复用 base64ToBlob），下游零改
     async generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs, charCaptions) {
         const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
         const finalPrompt = negativePrompt ?
             `${scenePrompt} (avoid: ${negativePrompt})` :
             scenePrompt;
+        const size = this._snapSizeForProvider(imageSize, 'gpt-image', config.model);
 
         const fd = new FormData();
         fd.append('model', config.model || 'gpt-image-2');
         fd.append('prompt', finalPrompt);
         fd.append('n', String(imageCount));
-        fd.append('size', imageSize);
+        fd.append('size', size);
         refBlobs.forEach((blob, i) => {
             const ext = (blob.type && blob.type.indexOf('jpeg') !== -1) ? 'jpg' : 'png';
             fd.append('image[]', blob, `ref${i}.${ext}`);
         });
 
-        const response = await fetch(`${config.url}/v1/images/edits`, {
+        const response = await Utils._fetchWithTimeout(`${config.url}/v1/images/edits`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${config.key}` },  // 不设 Content-Type：multipart boundary 交给浏览器
             body: fd
-        });
+        }, 600000);
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
@@ -495,6 +598,189 @@ Generate image tags:`;
         return (refBlobs && refBlobs.length > 0)
             ? this.generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs, charCaptions)
             : this.generateWithGptImage(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions);
+    },
+
+    // ===== OpenAI 兼容 / 聚合站（provider='openai-compat'，D1 2026-08-07）=====
+    // 与官方 openai/gpt-image 两个 provider 的关键区别：URL 完全由用户自填（settings.js updateUIForProvider
+    // 对它绝不覆盖 urlInput.value），故生成前必须先把 base 归一化，再拼标准 OpenAI Images API 路径。
+    // 尺寸固定走 gpt-image 三档 snap（聚合站大多只认这三档，不像 NAI/Stability 能吃任意像素）。
+    // 响应双兼容 b64_json / url（各家聚合站落地实现不统一，同 generateWithGptImage 的处理姿势）。
+    // body 只带 model/prompt/n/size，不带 quality/response_format——聚合站兼容性优先，这两个字段各家支持不一。
+
+    // URL 归一化：去尾斜杠 → 去误填的 /images/generations 或 /images/edits 或 /chat/completions 后缀 → 去尾部 /v1。
+    // 与 settings.js:tryFetchImageModels 的清理逻辑同源但独立实现（那边为拉模型列表保留 /v1 好拼 /v1/models；
+    // 这里要的是不含 /v1 的干净 base，好统一拼 /v1/images/generations 或 /v1/images/edits）。
+    _normalizeCompatBase(url) {
+        let u = (url || '').trim();
+        while (u.endsWith('/')) u = u.slice(0, -1);
+        u = u.replace(/\/images\/(generations|edits)$/i, '');
+        u = u.replace(/\/(chat\/)?completions$/i, '');
+        while (u.endsWith('/')) u = u.slice(0, -1);
+        u = u.replace(/\/v1$/i, '');
+        while (u.endsWith('/')) u = u.slice(0, -1);
+        return u;
+    },
+
+    // 共享的「按宽高比就近映射」小工具（阶段4 D5 从 _snapSizeGptImage 抽出，供 _snapSizeForProvider 复用）。
+    // size 解析失败 / 未传 → ratio 兜底 1（方图），与抽出前 _snapSizeGptImage 的行为逐字节一致。
+    // candidates: [{key:'WxH', ratio:Number}, ...]；找不到更近的就停在数组首项（Infinity 起跳）。
+    _snapByRatio(size, candidates) {
+        let ratio = 1;
+        if (size && typeof size === 'string' && size.indexOf('x') !== -1) {
+            const parts = size.split('x').map(Number);
+            if (parts.length === 2 && parts[0] > 0 && parts[1] > 0) ratio = parts[0] / parts[1];
+        }
+        let best = candidates[0].key, bestDiff = Infinity;
+        for (const c of candidates) {
+            const diff = Math.abs(ratio - c.ratio);
+            if (diff < bestDiff) { bestDiff = diff; best = c.key; }
+        }
+        return best;
+    },
+
+    // 像素尺寸串（'WxH'）→ gpt-image 法定三档枚举（方/横/竖），按宽高比就近映射。
+    // openai-compat 现有调用点（generateWithOpenAICompat/Edits）继续直接调用本函数，行为不变；
+    // _snapSizeForProvider 的 gpt-image/openai-compat 分支也委托到这里，两条路径结果始终一致。
+    _snapSizeGptImage(size) {
+        return this._snapByRatio(size, [
+            { key: '1024x1024', ratio: 1 },        // 方
+            { key: '1536x1024', ratio: 1.5 },      // 横
+            { key: '1024x1536', ratio: 1 / 1.5 }   // 竖
+        ]);
+    },
+
+    // 像素尺寸串（'WxH'）→ 各 provider 的合法枚举，按宽高比就近映射（阶段4 D5，2026-08-07）。
+    // 侦察结论：melon 768x1024 / 推特 1024x768 / 周边 768x1024 这类调用方自定尺寸，在 openai/gpt-image/
+    // stability 三路都不是法定枚举，大概率一直静默 400；NAI 也有自己的固定面板枚举。这里统一收口。
+    //   openai：dall-e-2 固定方图；dall-e-3 按比例就近三档（方/横/竖）
+    //   gpt-image / openai-compat：复用 _snapSizeGptImage 现有三档，行为不变
+    //   stabilityai：SDXL 九档枚举就近
+    //   novelai：NAI 设置面板八档枚举就近（与 index.html #naiResolution 的 <option> 完全对应）
+    //   openrouter（自有 aspect_ratio 映射）/ midjourney / custom（协议未知）：原样返回，不 snap
+    _snapSizeForProvider(size, provider, model) {
+        if (provider === 'openai') {
+            if (model && /dall-e-2/i.test(model)) return '1024x1024';
+            return this._snapByRatio(size, [
+                { key: '1024x1024', ratio: 1 },
+                { key: '1792x1024', ratio: 1792 / 1024 },
+                { key: '1024x1792', ratio: 1024 / 1792 }
+            ]);
+        }
+        if (provider === 'gpt-image' || provider === 'openai-compat') {
+            return this._snapSizeGptImage(size);
+        }
+        if (provider === 'stabilityai') {
+            return this._snapByRatio(size, [
+                '1024x1024', '1152x896', '896x1152', '1216x832', '832x1216',
+                '1344x768', '768x1344', '1536x640', '640x1536'
+            ].map(k => { const [w, h] = k.split('x').map(Number); return { key: k, ratio: w / h }; }));
+        }
+        if (provider === 'novelai') {
+            return this._snapByRatio(size, [
+                '832x1216', '1216x832', '1024x1024', '512x768', '768x512', '640x640', '1088x1920', '1920x1088'
+            ].map(k => { const [w, h] = k.split('x').map(Number); return { key: k, ratio: w / h }; }));
+        }
+        // openrouter / midjourney / custom：原样返回不 snap
+        return size;
+    },
+
+    // 纯文生图：POST {base}/v1/images/generations。新链路直接用 Utils._fetchWithTimeout（600s），不重蹈
+    // 现有 6 处生图裸 fetch 零超时的债。600s 是实测定的：聚合站 edits 带参考图实测跑过 298s，300s 会误杀。
+    async generateWithOpenAICompat(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
+        const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
+        const finalPrompt = negativePrompt ?
+            `${scenePrompt} (avoid: ${negativePrompt})` :
+            scenePrompt;
+        const base = this._normalizeCompatBase(config.url);
+        const size = this._snapSizeGptImage(imageSize);
+
+        const response = await Utils._fetchWithTimeout(`${base}/v1/images/generations`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${config.key}`
+            },
+            body: JSON.stringify({
+                model: config.model || 'gpt-image-2',
+                prompt: finalPrompt,
+                n: imageCount,
+                size
+            })
+        }, 600000);
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data.data || data.data.length === 0) {
+            throw new Error(I18n.t('t.pi_gen_no_image', '未返回图片，请重试或调整提示词'));
+        }
+        // 响应双兼容：b64_json（多数聚合站的 gpt-image-2 落地）或 url（个别反代走 CDN 直链）
+        return Promise.all(data.data.map(img =>
+            img.b64_json
+                ? this.base64ToBlob(img.b64_json, 'image/png')
+                : fetch(img.url).then(r => r.blob())
+        ));
+    },
+
+    // 参考图编辑：POST {base}/v1/images/edits，multipart。结构照抄 generateWithGptImageEdits，仅 base 换成归一化后的。
+    async generateWithOpenAICompatEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs, charCaptions) {
+        const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
+        const finalPrompt = negativePrompt ?
+            `${scenePrompt} (avoid: ${negativePrompt})` :
+            scenePrompt;
+        const base = this._normalizeCompatBase(config.url);
+        const size = this._snapSizeGptImage(imageSize);
+
+        const fd = new FormData();
+        fd.append('model', config.model || 'gpt-image-2');
+        fd.append('prompt', finalPrompt);
+        fd.append('n', String(imageCount));
+        fd.append('size', size);
+        refBlobs.forEach((blob, i) => {
+            const ext = (blob.type && blob.type.indexOf('jpeg') !== -1) ? 'jpg' : 'png';
+            fd.append('image[]', blob, `ref${i}.${ext}`);
+        });
+
+        const response = await Utils._fetchWithTimeout(`${base}/v1/images/edits`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${config.key}` },  // 不设 Content-Type：multipart boundary 交给浏览器
+            body: fd
+        }, 600000);
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error?.message || 'OpenAI-compat images edits request failed');
+        }
+
+        const data = await response.json();
+        if (!data.data || data.data.length === 0) {
+            throw new Error(I18n.t('t.pi_gen_no_image', '未返回图片，请重试或调整提示词'));
+        }
+        return Promise.all(data.data.map(img =>
+            img.b64_json
+                ? this.base64ToBlob(img.b64_json, 'image/png')
+                : fetch(img.url).then(r => r.blob())
+        ));
+    },
+
+    // 分流器：CP 设了参考立绘 → edits 端点（保人物一致）；否则 → 纯文生图 generations。同 _gptImage 的姿势，
+    // 复用同一来源 Broadcast.getCPRefImages。
+    // refCharNames（可选）: 周边商品生图按关联角色过滤 CP 立绘；其余入口不传 → 取全部（行为同 gpt-image/openrouter）。
+    async _openaiCompat(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames) {
+        let refBlobs = [];
+        try {
+            if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
+                refBlobs = await Broadcast.getCPRefImages(refCharNames);
+            }
+        } catch (e) {
+            refBlobs = [];
+        }
+        return (refBlobs && refBlobs.length > 0)
+            ? this.generateWithOpenAICompatEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs, charCaptions)
+            : this.generateWithOpenAICompat(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions);
     },
 
     // OpenRouter 生图：与 OpenAI Images API 是两套完全不同的协议，故独立成函数（绝不碰 NAI / DALL-E / gpt-image）。
@@ -586,11 +872,12 @@ Generate image tags:`;
         } catch (e) { /* noop */ }
         headers['X-Title'] = 'Perigee OS';
 
-        const response = await fetch(endpoint, {
+        // D5（2026-08-07 阶段4）：generateWithOpenRouter 的实际请求出口——套 600s 超时天花板
+        const response = await Utils._fetchWithTimeout(endpoint, {
             method: 'POST',
             headers,
             body: JSON.stringify(body)
-        });
+        }, 600000);
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
             throw new Error(error.error?.message || 'OpenRouter image request failed');
@@ -668,11 +955,13 @@ Generate image tags:`;
 
     async generateWithStabilityAI(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
         const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
-        const [width, height] = imageSize.split('x').map(Number);
+        // D5（2026-08-07 阶段4）：尺寸按 provider 合法枚举收口——SDXL 九档就近映射
+        const snappedSize = this._snapSizeForProvider(imageSize, 'stabilityai', config.model);
+        const [width, height] = snappedSize.split('x').map(Number);
 
         const results = [];
         for (let i = 0; i < imageCount; i++) {
-            const response = await fetch(`${config.url}/v1/generation/${config.model}/text-to-image`, {
+            const response = await Utils._fetchWithTimeout(`${config.url}/v1/generation/${config.model}/text-to-image`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -689,7 +978,7 @@ Generate image tags:`;
                     samples: 1,
                     steps: 30
                 })
-            });
+            }, 600000);
 
             if (!response.ok) {
                 // 反代/网关超时可能返回非 JSON 错误页（HTML 502 等），裸 .json() 会把真实错误吞成 SyntaxError
@@ -708,7 +997,7 @@ Generate image tags:`;
 
     async generateWithCustomAPI(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
         const scenePrompt = this._mergeCharCaptions(positivePrompt, charCaptions);
-        const response = await fetch(config.url, {
+        const response = await Utils._fetchWithTimeout(config.url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -721,7 +1010,7 @@ Generate image tags:`;
                 n: imageCount,
                 model: config.model
             })
-        });
+        }, 600000);
 
         if (!response.ok) {
             throw new Error('Custom API request failed');
@@ -742,8 +1031,10 @@ Generate image tags:`;
     },
 
     // ===== NovelAI V4.5 =====
-    async generateWithNovelAI(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions) {
-        const nai = AppState.data.novelaiSettings || {};
+    // naiOverride（D4 2026-08-07 阶段3）：dispatchGenerate 解析出的板块绑定 NAI 快照；未传时退回自读全局
+    // novelaiSettings，与传参化改造前逐字节一致——直接调用本函数（不经 dispatch）的旧路径不受影响。
+    async generateWithNovelAI(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, naiOverride) {
+        const nai = naiOverride || AppState.data.novelaiSettings || {};
         const apiKey = config.key;
 
         if (!apiKey) {
@@ -751,7 +1042,9 @@ Generate image tags:`;
         }
 
         const model = nai.model || 'nai-diffusion-4-5-full';
-        const resolution = nai.resolution || imageSize || '1024x1024';
+        // D5（2026-08-07 阶段4）：NAI 按板块分炉——调用方传了 imageSize（各板块的固定画幅/用户手选尺寸）就 snap 到
+        // NAI 面板法定枚举（不再是 nai.resolution 一分辨率打天下）；未传 imageSize 时才回落 nai.resolution 兜底。
+        const resolution = imageSize ? this._snapSizeForProvider(imageSize, 'novelai') : (nai.resolution || '1024x1024');
         const [width, height] = resolution.split('x').map(Number);
         const steps = nai.steps || 28;
         const cfgScale = nai.cfgScale || 5;
@@ -830,14 +1123,17 @@ Generate image tags:`;
                 requestBody.parameters.seed = Math.floor(Math.random() * 9999999999);
             }
 
-            const response = await fetch(apiUrl, {
+            // D5（2026-08-07 阶段4）：600s 超时天花板——注意这只保证「拿到响应头」不超时，
+            // NAI 走 SSE（text/event-stream）时 headers 到达通常远早于生成完成，真正的 body（下方
+            // response.text()）读取不再受这个 AbortController 保护，详见任务报告的确认结果。
+            const response = await Utils._fetchWithTimeout(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': 'Bearer ' + apiKey
                 },
                 body: JSON.stringify(requestBody)
-            });
+            }, 600000);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -847,8 +1143,19 @@ Generate image tags:`;
             const contentType = response.headers.get('content-type') || '';
             let imageBlob = null;
 
+            // D5 补充（作者 review 2026-08-07）：SSE 的响应头远早于生成完成到达，_fetchWithTimeout 的
+            // 计时器在拿到头时已清除——body 读取（真正的生成等待段）需要自己的超时护栏，否则反代卡流时永久挂起。
+            // Promise.race 超时后 fetch 流会被放弃引用（无显式 abort），UI 侧走 catch 正常恢复。
+            const readBody = (p) => {
+                // 大review C5 修（2026-08-07）：成功路径即时清理计时器（此前会白挂最长 10 分钟才自然过期）
+                let timer;
+                const guard = new Promise((_, reject) => { timer = setTimeout(() =>
+                    reject(new Error(I18n.t('pixiv_illust.err_nai_body_timeout', 'NovelAI 响应读取超时（10 分钟）'))), 600000); });
+                return Promise.race([p, guard]).finally(() => clearTimeout(timer));
+            };
+
             if (contentType.includes('text/event-stream')) {
-                const text = await response.text();
+                const text = await readBody(response.text());
                 const lines = text.trim().split('\n');
                 let base64Data = null;
 
@@ -883,7 +1190,7 @@ Generate image tags:`;
                     imageBlob = await this._extractImageFromZip(zipBlob);
                 }
             } else {
-                const zipBlob = await response.blob();
+                const zipBlob = await readBody(response.blob());
                 imageBlob = await this._extractImageFromZip(zipBlob);
             }
 

@@ -14,11 +14,11 @@
     <link rel="manifest" href="manifest.json">
 
     <!-- 图标配置 -->
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192-v7.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="icon-512-v7.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192-v8.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512-v8.png">
     <!-- v2.210.0 开屏层一：apple-touch-icon 喂 512 高清（iOS 无 startup image 匹配时 fallback=底色+图标，192 放大会糊）-->
-    <link rel="apple-touch-icon" href="icon-512-v7.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icon-512-v7.png">
+    <link rel="apple-touch-icon" href="icon-512-v8.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icon-512-v8.png">
 
     <!-- v2.210.0 开屏静态启动图（作者水彩画·米白底 contain 居中，与应用内入场动画同画无缝衔接）
          iOS 按 device-width/height + dpr 精确匹配；未匹配机型回落 background_color + 图标。
@@ -32,41 +32,20 @@
     <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash-startup/startup-1284x2778.jpg">
     <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="assets/splash-startup/startup-1290x2796.jpg">
 
-    <!-- v2.210.0 开屏入场层 critical CSS（inline：层随首帧渲染，不等外部 css）-->
+    <!-- v2.210.0 开屏入场层 critical CSS（inline：层随首帧渲染，不等外部 css）
+         v2.257.0 换代：静态画 → canvas 文字倾泻成星动画，米白底不变（与 iOS startup image、
+         manifest background_color 同色，冷启动三段无缝）-->
     <style>
         #splashIntro {
             position: fixed;
             inset: 0;
             z-index: 2147483000;   /* 认证锁屏(99999)之上 */
-            background: #fbfbfa;   /* 画框米白（边缘取色）*/
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            background: #fbfbfa;   /* 米白（与 startup image / manifest background_color 同色）*/
         }
-        #splashIntro img {
-            max-width: 100%;
-            max-height: 100%;
-            opacity: 0;
-            transform: scale(1.035);
-            will-change: transform, opacity;
-        }
-        #splashIntro.si-in img {
-            opacity: 1;
-            transform: scale(1);
-            transition: opacity 0.22s ease-out, transform 0.95s cubic-bezier(0.22, 0.61, 0.36, 1);
-        }
-        /* v2.213.0 settle 落定后接呼吸浮动：等桌面就绪期间画不是死帧（transform-only 合成器动画，
-           keyframes 起点 = settle 终点 scale(1)，接管 transition 无跳变）*/
-        #splashIntro.si-breathe img {
-            animation: siBreathe 4.6s ease-in-out infinite;
-        }
-        @keyframes siBreathe {
-            0%, 100% { transform: scale(1) translateY(0); }
-            50% { transform: scale(1.015) translateY(-6px); }
-        }
-        /* v2.213.0 reduced-motion：不播动画，画静态亮起当加载幕布 */
-        #splashIntro.si-hold img {
-            opacity: 1;
+        #splashIntro canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
         }
         #splashIntro.si-out {
             opacity: 0;
@@ -95,18 +74,19 @@
 </head>
 
 <body>
-    <!-- v2.210.0 开屏入场（作者水彩画「月兔与应援棒」·仅页面 load 播=冷启动，后台切回不重播）
-         v2.213.0 退场改「桌面就绪」驱动：app.js 初始化尾部派发 perigee:app-ready，
-         收到且最短展示已过才淡出——慢设备/大存档冷启动不再「画放完了桌面还没来」-->
-    <div id="splashIntro" aria-hidden="true"><img id="splashIntroImg" src="assets/splash-intro.jpg" alt="" fetchpriority="high"></div>
+    <!-- v2.257.0 开屏入场：「Perigee」文字倾泻成星（canvas 粒子，无外部依赖，仅冷启动播）
+         退场沿用 v2.213.0 机制：app.js 初始化尾部派发 perigee:app-ready，
+         收到且最短展示已过才淡出——慢设备/大存档冷启动不会「动画放完了桌面还没来」-->
+    <div id="splashIntro" aria-hidden="true"><canvas id="splashIntroCv"></canvas></div>
     <script>
     (function () {
-        var done = false, noFade = false;
+        var done = false, noFade = false, rafId = 0;
         var el = document.getElementById('splashIntro');
-        var img = document.getElementById('splashIntroImg');
+        var cv = document.getElementById('splashIntroCv');
         function finish() {
             if (done) return;
             done = true;
+            if (rafId) cancelAnimationFrame(rafId);
             var s = document.getElementById('splashIntro');
             if (!s) return;
             if (noFade) { s.remove(); return; }         // reduced-motion：直接切换不淡出
@@ -120,30 +100,130 @@
         document.addEventListener('perigee:app-ready', function () { appReady = true; tryFinish(); });
         setTimeout(function () { appReady = true; minShown = true; finish(); }, 8000);   // 总兜底：初始化异常也不困住用户
         el.addEventListener('click', finish);           // 点一下跳过
-        // reduced-motion：不播动画，画静态亮起当加载幕布，桌面就绪立刻整层撤走
         try {
+            var W = el.clientWidth || window.innerWidth;
+            var H = el.clientHeight || window.innerHeight;
+            var DPR = Math.min(window.devicePixelRatio || 1, 2);
+            cv.width = Math.round(W * DPR);
+            cv.height = Math.round(H * DPR);
+            var ctx = cv.getContext('2d');
+            ctx.scale(DPR, DPR);
+            var NAVY = '#25406e', GOLD = '#e9ba54';
+            var fs = Math.min(Math.round(W * 0.16), 92);
+            var font = '600 ' + fs + 'px Georgia, "Times New Roman", serif';
+            var textY = H * 0.42;   // 文字基准（中线）高度
+
+            // reduced-motion：静态标题当加载幕布，不跑粒子循环
             if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
                 noFade = true;
-                el.classList.add('si-hold');
+                ctx.fillStyle = NAVY;
+                ctx.font = font;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('Perigee', W / 2, textY);
                 minShown = true;
                 tryFinish();
                 return;
             }
-        } catch (e) { /* 老浏览器无 matchMedia 时照常播 */ }
-        var kicked = false;
-        function kick(ok) {
-            if (kicked || done) return;
-            kicked = true;
-            if (!ok) { appReady = true; minShown = true; finish(); return; }   // 图没就绪（首访慢网/加载失败）→ 不白等，直接进 app
-            el.classList.add('si-in');
-            setTimeout(function () { el.classList.add('si-breathe'); }, 1000);  // settle 落定后接呼吸浮动
-            setTimeout(function () { minShown = true; tryFinish(); }, 3200);    // 最短展示：完整看完入场+一小段呼吸
-        }
-        if (img.complete && img.naturalWidth) { kick(true); }
-        else {
-            img.addEventListener('load', function () { kick(true); });
-            img.addEventListener('error', function () { kick(false); });
-            setTimeout(function () { kick(!!(img.complete && img.naturalWidth)); }, 900);
+
+            // 离屏画一次文字 → 取样成粒子目标点
+            var oc = document.createElement('canvas');
+            oc.width = W; oc.height = Math.round(fs * 1.8);
+            var o = oc.getContext('2d');
+            o.fillStyle = '#000';
+            o.font = font;
+            o.textAlign = 'center';
+            o.textBaseline = 'middle';
+            o.fillText('Perigee', W / 2, oc.height / 2);
+            var px = o.getImageData(0, 0, oc.width, oc.height).data;
+            var step = Math.max(2, Math.round(fs / 26));   // 取样密度随字号自适应（手机 ~1000 粒）
+            var top = textY - oc.height / 2;
+            var ps = [];
+            for (var sy = 0; sy < oc.height; sy += step) {
+                for (var sx = 0; sx < oc.width; sx += step) {
+                    if (px[(sy * oc.width + sx) * 4 + 3] > 128) {
+                        ps.push({
+                            x: sx, y: top + sy, vy: 0,
+                            dvx: (Math.random() - 0.5) * 110,                     // 坠落横向散布：锥形展开，不落成字宽的方块
+                            rel: 0.7 + (sx / W) * 1.05 + Math.random() * 0.35,   // 释放时刻：从左到右倾泻
+                            sz: 2.6 + Math.random() * 2.6,                        // 星星最终直径的一半
+                            tw: Math.random() * 6.283,                            // 闪烁相位
+                            land: H * (0.52 + Math.random() * 0.42),              // 落点：中下部散开成星野
+                            keep: Math.random() < 0.3,                            // 三成长驻成星野，其余落地后淡出（防星野过密成块）
+                            fade: 1,
+                            landed: false
+                        });
+                    }
+                }
+            }
+
+            // 预渲染四芒星贴图（每帧 drawImage，比逐粒描 path 便宜一个量级）
+            var SR = 12;
+            var sp = document.createElement('canvas');
+            sp.width = sp.height = SR * 2 * DPR;
+            var sc = sp.getContext('2d');
+            sc.scale(DPR, DPR);
+            sc.translate(SR, SR);
+            sc.fillStyle = GOLD;
+            sc.beginPath();
+            for (var k = 0; k < 8; k++) {
+                var ang = -Math.PI / 2 + k * Math.PI / 4;
+                var r = (k % 2 === 0) ? SR : SR * 0.36;
+                sc[k === 0 ? 'moveTo' : 'lineTo'](Math.cos(ang) * r, Math.sin(ang) * r);
+            }
+            sc.closePath();
+            sc.fill();
+
+            var dot = step * 0.92;   // 组字期的墨点边长
+            var t0 = 0, last = 0;
+            function frame(ts) {
+                if (done) return;
+                if (!t0) { t0 = ts; last = ts; }
+                var t = (ts - t0) / 1000;
+                var dt = Math.min(0.05, (ts - last) / 1000);
+                last = ts;
+                ctx.clearRect(0, 0, W, H);
+                var fade = Math.min(1, t / 0.45);   // 标题浮现
+                for (var i = 0; i < ps.length; i++) {
+                    var p = ps[i];
+                    var age = t - p.rel;
+                    if (age <= 0) {                 // 仍在字里：深蓝墨点
+                        ctx.globalAlpha = fade;
+                        ctx.fillStyle = NAVY;
+                        ctx.fillRect(p.x - dot / 2, p.y - dot / 2, dot, dot);
+                        continue;
+                    }
+                    if (!p.landed) {                // 倾泻中：坠落 + 横向散布 + 轻微摇曳，渐变成星
+                        p.vy += 1500 * dt;
+                        p.y += p.vy * dt;
+                        p.x += (p.dvx + Math.sin(t * 2.2 + p.tw) * 16) * dt;
+                        if (p.y >= p.land) { p.y = p.land; p.landed = true; }
+                    }
+                    if (p.landed && !p.keep) {      // 短驻粒子：落地后淡出离场
+                        p.fade -= dt / 0.7;
+                        if (p.fade <= 0) continue;
+                    }
+                    var m = Math.min(1, age / 0.3); // 墨点→星的变身进度
+                    if (m < 1) {
+                        ctx.globalAlpha = (1 - m) * fade;
+                        ctx.fillStyle = NAVY;
+                        ctx.fillRect(p.x - dot / 2, p.y - dot / 2, dot, dot);
+                    }
+                    // 变身进度 m 始终参与 alpha/尺寸——极短坠程的粒子落地时不会跳变（review 抓的）
+                    var a = p.landed ? m * p.fade * (0.45 + 0.4 * Math.sin(t * 2.6 + p.tw)) : m;
+                    var d = p.sz * (0.7 + 0.3 * m) * 2;
+                    ctx.globalAlpha = Math.max(0, Math.min(1, a));
+                    ctx.drawImage(sp, p.x - d / 2, p.y - d / 2, d, d);
+                }
+                ctx.globalAlpha = 1;
+                rafId = requestAnimationFrame(frame);
+            }
+            rafId = requestAnimationFrame(frame);
+            setTimeout(function () { minShown = true; tryFinish(); }, 3000);   // 最短展示：看完倾泻+一小段星野闪烁
+        } catch (e) {
+            // canvas/matchMedia 异常（极老 WebView 等）→ 不困住用户，直接进 app
+            // （有意的简化：旧版 matchMedia 抛错时照常播图，新版任何异常都跳过开屏）
+            appReady = true; minShown = true; finish();
         }
     })();
     </script>
@@ -1655,6 +1735,24 @@
                         <div class="theme-card-name" data-i18n="appr.theme_snow">雪国 / Snow Country</div>
                         <div class="theme-card-desc" data-i18n="appr.theme_snow_desc">冷蓝白 · 冰磨砂 · 飘雪</div>
                     </button>
+                    <button type="button" class="theme-card" data-theme-id="taro-choco">
+                        <div class="theme-card-swatches">
+                            <span class="theme-card-swatch" style="background:#f4eee1"></span>
+                            <span class="theme-card-swatch" style="background:#8d7ba3"></span>
+                            <span class="theme-card-swatch" style="background:#9c7e66"></span>
+                        </div>
+                        <div class="theme-card-name" data-i18n="appr.theme_taro">香芋巧克力 / Taro Chocolat</div>
+                        <div class="theme-card-desc" data-i18n="appr.theme_taro_desc">奶油古纸 · 藕紫蚀刻 · 法式复古</div>
+                    </button>
+                    <button type="button" class="theme-card" data-theme-id="mint-choco">
+                        <div class="theme-card-swatches">
+                            <span class="theme-card-swatch" style="background:#CBDCC6"></span>
+                            <span class="theme-card-swatch" style="background:#9C7E6E"></span>
+                            <span class="theme-card-swatch" style="background:#FDFAF0"></span>
+                        </div>
+                        <div class="theme-card-name" data-i18n="appr.theme_mint">薄荷巧克力 / Mint Chocolate</div>
+                        <div class="theme-card-desc" data-i18n="appr.theme_mint_desc">奶油平涂 · 薄荷波点 · 日系低饱和</div>
+                    </button>
                 </div>
             </div>
 
@@ -1964,6 +2062,21 @@
             <div class="settings-card">
                 <div class="card-header" data-i18n="api.image_header">Image Generation API</div>
 
+                <!-- 生图 API 预设（D3 2026-08-07）：交互语义与上方聊天 API 预设一致（js/settings.js APISettings.loadPresets/savePreset/deletePreset/applyPreset），
+                     唯一刻意偏差见 ImageAPISettings 里的注释——option.value 用 id 不用下标 -->
+                <div class="setting-row">
+                    <label data-i18n="api.image_presets">Presets</label>
+                    <div style="display:flex; gap:5px;">
+                        <select id="imageApiPresetSelect" style="flex:1;">
+                            <option value="" data-i18n="api.select_image_preset">-- Select Preset --</option>
+                        </select>
+                        <button id="saveImageApiPresetBtn" class="glass-btn small" data-i18n="btn.save"
+                            style="width:auto; margin:0;">Save</button>
+                        <button id="deleteImageApiPresetBtn" class="glass-btn small danger" data-i18n="btn.delete"
+                            style="width:auto; margin:0;">Del</button>
+                    </div>
+                </div>
+
                 <div class="setting-row">
                     <label data-i18n="api.provider">API Provider</label>
                     <select id="imageApiProvider">
@@ -1973,6 +2086,7 @@
                         <option value="midjourney">Midjourney-compatible</option>
                         <option value="novelai">NovelAI</option>
                         <option value="openrouter">OpenRouter</option>
+                        <option value="openai-compat" data-i18n="api.provider_openai_compat">OpenAI 兼容（自定义中转/聚合站）</option>
                         <option value="custom">Custom API</option>
                     </select>
                     <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="api.provider_note">* 选择图片生成API提供商</p>
@@ -2017,19 +2131,69 @@
                         stable-diffusion-xl-1024-v1-0；点右侧 ▼ 可选预置或 Fetch 拉取的模型</p>
                 </div>
 
+                <!-- 常驻附加提示词（D2 2026-08-07）：非 NAI provider 用；NAI 继续用自己面板里那对，不重复注入 -->
+                <div id="imgDefaultPromptRows">
+                    <div class="setting-row">
+                        <label data-i18n="api.default_pos">默认正面提示词</label>
+                        <textarea id="imgDefaultPositive" rows="2"
+                            data-i18n-placeholder="api.default_pos_placeholder"
+                            placeholder="如: masterpiece, best quality"></textarea>
+                    </div>
+                    <div class="setting-row">
+                        <label data-i18n="api.default_neg">默认负面提示词</label>
+                        <textarea id="imgDefaultNegative" rows="2"
+                            data-i18n-placeholder="api.default_neg_placeholder"
+                            placeholder="如: lowres, noisy, watermark"></textarea>
+                        <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="api.default_prompt_note">* 会追加到每次生成提示词的末尾（NovelAI 使用自己面板里的默认提示词，不在此重复设置）</p>
+                    </div>
+                </div>
+
                 <!-- モジュール別画像生成 -->
                 <div style="margin-top:16px;">
                     <div style="font-weight:600;margin-bottom:8px;" data-i18n="api.image_modules">画像生成モジュール</div>
-                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                        <input type="checkbox" id="imageGenTwitter" checked> <span data-i18n="api.imggen_twitter">推特（ツイート挿絵）</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                        <input type="checkbox" id="imageGenMelonbooks" checked> <span data-i18n="api.imggen_melon">メロンブックス（同人誌表紙）</span>
-                    </label>
-                    <label style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-                        <input type="checkbox" id="imageGenGoods"> <span data-i18n="api.imggen_goods">官方周边（商品图）</span>
-                    </label>
-                    <p style="font-size:10px; color:#999; margin:0 0 0 26px;" data-i18n="api.imggen_goods_note">* 周边商品图建议用 gpt-image / OpenRouter，才能用 CP 立绘保人物一致</p>
+
+                    <!-- D4 分板块指定 API 预设（2026-08-07 阶段3）：每行开关下方缩进加预设下拉（「跟随全局」+ 各预设名，
+                         value=预设 id）——select 独占一行而不是挤在开关同一行，避开长 CJK 标签 + 下拉在窄屏 flex 一行
+                         挤压换行的坑。Pixiv 插画没有独立开关（生成入口在 pixiv 模块本体），单独一行只放绑定下拉。
+                         选项由 ImageAPISettings._refreshModulePresetSelects() 在 loadPresets() 之后统一刷新，
+                         这里的 <option> 只是首屏占位。 -->
+                    <div style="margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="flex:1;" data-i18n="api.imggen_pixiv">Pixiv 插画</span>
+                        </div>
+                        <select id="imageModulePreset_pixiv" style="width:100%;margin-top:4px;">
+                            <option value="" data-i18n="api.module_preset_follow_global">跟随全局</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom:8px;">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="imageGenTwitter" checked> <span data-i18n="api.imggen_twitter">推特（ツイート挿絵）</span>
+                        </label>
+                        <select id="imageModulePreset_twitter" style="width:100%;margin-top:4px;">
+                            <option value="" data-i18n="api.module_preset_follow_global">跟随全局</option>
+                        </select>
+                        <p style="font-size:10px; color:#999; margin:2px 0 0;" data-i18n="api.imggen_twitter_wandoro_note">* ワンドロ的插画生成跟随这里的设置</p>
+                    </div>
+
+                    <div style="margin-bottom:8px;">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="imageGenMelonbooks" checked> <span data-i18n="api.imggen_melon">メロンブックス（同人誌表紙）</span>
+                        </label>
+                        <select id="imageModulePreset_melonbooks" style="width:100%;margin-top:4px;">
+                            <option value="" data-i18n="api.module_preset_follow_global">跟随全局</option>
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom:4px;">
+                        <label style="display:flex;align-items:center;gap:8px;">
+                            <input type="checkbox" id="imageGenGoods"> <span data-i18n="api.imggen_goods">官方周边（商品图）</span>
+                        </label>
+                        <select id="imageModulePreset_goods" style="width:100%;margin-top:4px;">
+                            <option value="" data-i18n="api.module_preset_follow_global">跟随全局</option>
+                        </select>
+                    </div>
+                    <p style="font-size:10px; color:#999; margin:0;" data-i18n="api.imggen_goods_note">* 周边商品图建议用 gpt-image / OpenRouter / OpenAI 兼容，才能用 CP 立绘保人物一致</p>
                 </div>
 
                 <!-- NovelAI 专属设置 -->
@@ -2110,14 +2274,38 @@
                 <button id="saveImageApiBtn" class="glass-btn primary" data-i18n="api.save_image">Save Image API Settings</button>
             </div>
 
-            <!-- Video Generation API (Seedance PV) -->
+            <!-- Video Generation API (Seedance / MiniMax H3) -->
             <div class="settings-card" id="videoApiSettingsCard">
                 <div class="card-header" data-i18n="settings.video_api_header">视频生成 API</div>
+
+                <!-- 视频生成 API 预设（2026-08-09）：交互语义与上方生图 API 预设一致（js/settings.js VideoAPISettings.loadPresets/savePreset/deletePreset/applyPreset），
+                     照 ImageAPISettings 的既有姿势——option.value 用 id 不用下标 -->
+                <div class="setting-row">
+                    <label data-i18n="settings.video_api_presets">Presets</label>
+                    <div style="display:flex; gap:5px;">
+                        <select id="videoApiPresetSelect" style="flex:1;">
+                            <option value="" data-i18n="settings.video_api_select_preset">-- 选择预设 --</option>
+                        </select>
+                        <button id="saveVideoApiPresetBtn" class="glass-btn small" data-i18n="btn.save"
+                            style="width:auto; margin:0;">Save</button>
+                        <button id="deleteVideoApiPresetBtn" class="glass-btn small danger" data-i18n="btn.delete"
+                            style="width:auto; margin:0;">Del</button>
+                    </div>
+                </div>
+
+                <div class="setting-row">
+                    <label data-i18n="api.provider">API Provider</label>
+                    <select id="videoApiProvider">
+                        <option value="ark" data-i18n="settings.video_api_provider_ark">火山方舟 Seedance</option>
+                        <option value="minimax" data-i18n="settings.video_api_provider_minimax">MiniMax H3</option>
+                        <option value="minimax_v1" data-i18n="settings.video_api_provider_minimax_v1">MiniMax Hailuo（订阅Plan可用）</option>
+                    </select>
+                </div>
 
                 <div class="setting-row">
                     <label>Worker URL</label>
                     <input type="text" id="videoApiWorkerUrl" placeholder="https://your-worker.workers.dev">
-                    <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="settings.video_api_worker_note">* 部署好的 Cloudflare Worker 地址（转发火山方舟 Seedance API，不含路径）</p>
+                    <p style="font-size:10px; color:#999; margin-top:4px;" id="videoApiWorkerNote" data-i18n="settings.video_api_worker_note">* 部署好的 Cloudflare Worker 地址（转发视频生成 API，不含路径）</p>
                 </div>
 
                 <div class="setting-row">
@@ -2131,7 +2319,7 @@
                         <select id="videoApiModel" style="flex:1;"></select>
                         <button id="videoApiFetchModelsBtn" class="glass-btn small" style="width:auto; margin:0;" data-i18n="settings.video_api_fetch_models">拉取模型列表</button>
                     </div>
-                    <p style="font-size:10px; color:#999; margin-top:4px;" data-i18n="settings.video_api_fetch_note">* 点击拉取会用 Worker + Key 请求模型列表，过滤出 Seedance 系列模型；失败则保留内置列表</p>
+                    <p style="font-size:10px; color:#999; margin-top:4px;" id="videoApiFetchNote" data-i18n="settings.video_api_fetch_note">* 点击拉取会用 Worker + Key 请求模型列表，过滤出 Seedance 系列模型；失败则保留内置列表</p>
                 </div>
 
                 <button id="saveVideoApiBtn" class="glass-btn primary" data-i18n="settings.video_api_save">保存视频生成 API 设置</button>
@@ -2405,6 +2593,16 @@
                     </div>
                     <svg class="settings-entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
                 </div>
+                <div class="settings-entry" onclick="IconHistory.open()">
+                    <div class="settings-entry-icon" style="background:var(--accent-soft);color:var(--accent-color);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </div>
+                    <div class="settings-entry-info">
+                        <div class="settings-entry-title" data-i18n="about.icon_history">历代图标</div>
+                        <div class="settings-entry-desc" data-i18n="about.icon_history_desc">从初代到现役的每一枚 app 图标</div>
+                    </div>
+                    <svg class="settings-entry-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
             </div>
         </div>
     </div>
@@ -2417,6 +2615,17 @@
         </div>
         <div class="settings-scroll" id="changelogHistoryScroll">
             <!-- 内容由 ChangelogHistory.render() 填充 -->
+        </div>
+    </div>
+
+    <!-- ============ 历代图标（icon history） ============ -->
+    <div id="icon-history" class="screen app-screen">
+        <div class="app-header glass">
+            <button class="nav-btn back-btn" data-back="settings-about" data-i18n="btn.back">Back</button>
+            <h1 data-i18n="about.icon_history">历代图标</h1>
+        </div>
+        <div class="settings-scroll" id="iconHistoryScroll">
+            <!-- 内容由 IconHistory.render() 填充 -->
         </div>
     </div>
 
@@ -4819,6 +5028,8 @@
     <script src="js/journal-icons.js"></script>
     <script src="js/strawberry-icons.js"></script>
     <script src="js/snow-icons.js"></script>
+    <script src="js/taro-choco-icons.js"></script>
+    <script src="js/mint-choco-icons.js"></script>
     <script src="js/sakura-icons.js"></script>
     <script src="js/rain-icons.js"></script>
     <script src="js/animal-icons.js"></script>

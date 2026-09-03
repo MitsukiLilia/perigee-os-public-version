@@ -237,6 +237,18 @@
     font-weight: 600;
     color: #e0e0e0;
 }
+/* 公式チャンネルバッジ（v2.245·手動追加チャンネルの印） */
+.nico-channel-badge-official {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #e8530e;
+    border: 1px solid #e8530e;
+    border-radius: 4px;
+    vertical-align: middle;
+}
 .nico-channel-subs {
     font-size: 12px;
     color: #888;
@@ -856,6 +868,36 @@
     width: 100%;
 }
 .nico-pv-select:disabled { opacity: 0.4; }
+/* チャンネル選択行の「+」追加ボタン（v2.245）：select が disabled でも常にクリック可能——無チャンネル行き止まりの出口 */
+.nico-pv-channel-row { display: flex; align-items: center; gap: 8px; }
+.nico-pv-channel-row .nico-pv-select { flex: 1; }
+.nico-pv-channel-add {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #333;
+    border: 1px solid #444;
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.nico-pv-channel-add:hover { background: #444; }
+.nico-pv-channel-add svg { width: 18px; height: 18px; }
+.nico-pv-channel-add-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: #e0e0e0;
+    margin: 4px 0 16px;
+}
+.nico-pv-channel-add-input:focus { outline: none; border-color: #666; }
 .nico-pv-hint {
     font-size: 11px;
     color: #888;
@@ -878,6 +920,42 @@
 .nico-pv-ai-btn:disabled { opacity: 0.5; }
 .nico-pv-btn-icon { display: inline-flex; width: 14px; height: 14px; flex-shrink: 0; }
 .nico-pv-btn-icon svg { width: 100%; height: 100%; }
+
+/* AIにおまかせ 内联浮层（v2.243）：npc-role-dropdown と同じ姿勢——position:relative の wrap + 外部クリックで閉じる */
+.nico-pv-ai-wrap { position: relative; display: inline-block; align-self: flex-start; }
+.nico-pv-ai-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    z-index: 50;
+    min-width: 210px;
+    overflow: hidden;
+    animation: popIn 0.15s ease;
+}
+.nico-pv-ai-menu-opt {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 10px 12px;
+    background: transparent !important;
+    border: none !important;
+    color: #e0e0e0;
+    font-size: 13px;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.nico-pv-ai-menu-opt:hover { background: #3d3d3d !important; }
+.nico-pv-ai-menu-opt:active { background: #444 !important; }
+.nico-pv-ai-menu-opt + .nico-pv-ai-menu-opt { border-top: 1px solid #444 !important; }
+.nico-pv-ai-menu-opt-hint { font-size: 11px; color: #888; }
 
 .nico-pv-ref-row {
     display: flex;
@@ -929,6 +1007,26 @@
 }
 .nico-pv-ref-add svg { width: 20px; height: 20px; }
 .nico-pv-ref-add:disabled { opacity: 0.4; cursor: default; }
+
+/* 出演キャラ chips（v2.244）：参考図の选择を「选图」から「选人」に一段抽象化——立绘があるキャラだけ表示 */
+.nico-pv-cast-wrap.disabled { opacity: 0.4; pointer-events: none; }
+.nico-pv-cast-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.nico-pv-cast-chip {
+    background: #333 !important;
+    color: #ccc !important;
+    border: 1px solid #444 !important;
+    border-radius: 14px !important;
+    padding: 5px 12px !important;
+    font-size: 12px !important;
+    font-family: inherit;
+    cursor: pointer;
+}
+.nico-pv-cast-chip:hover { background: #3d3d3d !important; }
+.nico-pv-cast-chip.selected {
+    background: rgba(232, 83, 14, 0.18) !important;
+    border-color: #e8530e !important;
+    color: #fff !important;
+}
 
 .nico-pv-checkbox-label {
     display: flex;
@@ -992,6 +1090,70 @@
 }
 .nico-pv-gallery-item.selected .nico-pv-gallery-check { display: flex; }
 .nico-pv-gallery-check svg { width: 11px; height: 11px; }
+
+/* アルバムから選択（v2.244）：画廊弾窗底部、決定/閉じるボタン行の上に置く全幅ボタン */
+.nico-pv-gallery-album-btn {
+    align-self: stretch !important;
+    width: 100% !important;
+    justify-content: center !important;
+    margin: 4px 0 14px;
+}
+
+/* 参考図なし软闸确认弾窗（v2.244）：既存 nico-modal 骨架をそのまま流用、文が長めなので行間だけ調整 */
+.nico-pv-confirm-modal { max-width: 320px; }
+.nico-pv-confirm-modal .nico-modal-title { line-height: 1.5; }
+
+/* 参考音声（v2.241）：ファイル選択ボタン + 選択済み情報チップ（ファイル名/試聴/削除） */
+.nico-pv-refaudio-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.nico-pv-refaudio-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 6px 8px;
+    flex: 1;
+    min-width: 0;
+}
+.nico-pv-refaudio-name {
+    font-size: 12px;
+    color: #ccc;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+.nico-pv-icon-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #2a2a2a;
+    border: 1px solid #555;
+    color: #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.nico-pv-icon-btn:hover { background: #3a3a3a; }
+.nico-pv-icon-btn svg { width: 13px; height: 13px; }
+
+/* 選段弾窗（15秒超の参考音声から範囲をトリム） */
+.nico-pv-trim-overlay { z-index: 1001; }
+.nico-pv-trim-modal { max-width: 340px; }
+.nico-pv-trim-range {
+    text-align: center;
+    font-size: 13px;
+    color: #e0e0e0;
+    margin-bottom: 10px;
+    font-variant-numeric: tabular-nums;
+}
+.nico-pv-trim-slider { width: 100%; margin-bottom: 14px; accent-color: #e8530e; }
+.nico-pv-trim-preview { margin: 0 auto 16px; }
 
 /* 2026-07-06 参考图两来源分组：标题横跨整行；立绘卡角色名 badge */
 .nico-pv-gallery-section-title {

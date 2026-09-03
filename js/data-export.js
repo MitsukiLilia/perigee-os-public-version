@@ -24,7 +24,9 @@ const DataExport = {
         { key: 'persona', label: '个人身份资料', i18nKey: 'data_export.persona', fields: ['userProfile', 'myPersonaPresets', 'activePersonaId'] },
         { key: 'wallet', label: '支付 & 钱包', i18nKey: 'data_export.wallet', fields: ['wallet', 'payments'] },
         { key: 'worldbook', label: '世界书', i18nKey: 'data_export.worldbook', fields: ['worldBooks'] },
-        { key: 'system', label: 'API 与系统设置', i18nKey: 'data_export.system', fields: ['apiConfig', 'imageApiConfig', 'novelaiSettings', 'ttsConfig', 'systemConfig', 'apiPresets', 'imageGenModules'] }
+        // videoApiConfig/videoApiPresets 2026-08-09 补入：历史遗漏（生图的 config+presets 一直都在、视频的从没进过清单），
+        // 分板块导出「API 与系统设置」此前不带视频生成配置，换设备导入后要手动重填
+        { key: 'system', label: 'API 与系统设置', i18nKey: 'data_export.system', fields: ['apiConfig', 'imageApiConfig', 'novelaiSettings', 'ttsConfig', 'systemConfig', 'apiPresets', 'imageApiPresets', 'imageGenModules', 'imageModulePresets', 'videoApiConfig', 'videoApiPresets'] }
     ],
 
     // 跨模块共享依赖：key 模块的数据引用了 needs 模块的实体（lofter 文手存微博 NPC 池 / 月读书引用世界书 /

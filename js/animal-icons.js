@@ -49,7 +49,7 @@ const AnimalIcons = {
       } else if (c.dataset.iconDefault) {
         // 离开动森主题：恢复原始 SVG；但若目标是夜空/手帐/草莓/雪国/梦之芭蕾，交给它们接管（六方守卫对称）
         const t = document.documentElement.dataset.theme;
-        if (t !== 'night-sky' && t !== 'journal' && t !== 'strawberry' && t !== 'snow-country' && t !== 'sakura' && t !== 'summer-rain') {
+        if (t !== 'night-sky' && t !== 'journal' && t !== 'strawberry' && t !== 'snow-country' && t !== 'sakura' && t !== 'summer-rain' && t !== 'taro-choco' && t !== 'mint-choco') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }

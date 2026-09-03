@@ -537,11 +537,26 @@ body.dark-mode #desktop::before {
        竖排文本组件的固有宽度会把同行 1fr 图标列挤到 58px（实测）。归零后轨道恒等分，
        组件内容超宽由各自 overflow 规则消化。 */
     min-width: 0;
+    /* v2.249：CSS Grid item 默认 align-items:stretch，本元素会被同行更高的邻居撑到行高——
+       display:flex 让内部真正的卡片（尺寸由 aspect-ratio 从宽度推算）不被拉伸变形（见下方
+       .widget-card 的 height 修复，配套解决「圆形组件在手机上被压成椭圆」的病根：以前
+       height:100% 会把 aspect-ratio 挤掉）。
+       v2.251：align-items 由 center 改 flex-start——行单位制下组件有了真 rowSpan 槽位，
+       iOS 语义是顶对齐（居中是旧椭圆修复年代的权宜，槽位比内容高时会把卡片悬在行中间）。
+       v2.259 起 wide 横条例外走下方 :has 规则改回居中（理由见彼处）。 */
+    display: flex;
+    align-items: flex-start;
 }
+/* wide 横条（aspect-ratio 338:158）视觉高度恒小于它占的 2 行槽位（2×行单位+行距≈196px，
+   360~412px 宽设备下实测 148~172px），flex-start 会把差值全堆在卡片下方，导致横条与下一行
+   图标的间隙比标准行距大一倍。改居中让留白上下均分（iOS 同款观感）——内容高于槽位的 wide
+   （身份卡 9/8 比例、便签自适应）轨道本就被 max-content 撑到内容高，居中零位移不受影响。
+   :has() Chrome 105+/Safari 15.4+，目标设备全覆盖。 */
+.desktop-grid-widget:has(.widget-wide) { align-items: center; }
 .desktop-grid-widget:active { transform: scale(0.97); }
 .desktop-grid-widget .widget-card {
     width: 100%;
-    height: 100%;
+    height: auto;
 }
 
 /* ===== 小组件系统 ===== */
@@ -568,7 +583,14 @@ body.dark-mode #desktop::before {
 }
 .widget-card:active { transform: scale(0.96); }
 
-/* 组件尺寸（与 desktop-edit.js 的 colSpan 映射对应）*/
+/* 组件尺寸（与 desktop-edit.js 的 _widgetSpan colSpan 映射对应）
+   v2.249 对齐 iOS 图标格：全部锁 aspect-ratio，比例跨设备恒定，不再随屏幕/网格列数变形。
+   mini=1×1（相册迷你圆专属）／small=2×2 方／medium=2×2 方（仅便签沿用，note 有 aspect:auto 覆盖）／
+   wide=整行横条（iOS medium 比例）／large=整行大图（iOS large 比例，相册专属）。 */
+.widget-mini {
+    width: 100%;
+    aspect-ratio: 1;
+}
 .widget-small {
     width: 100%;
     aspect-ratio: 1;
@@ -579,7 +601,12 @@ body.dark-mode #desktop::before {
 }
 .widget-wide {
     width: 100%;
+    aspect-ratio: 338 / 158;
     min-height: 80px;
+}
+.widget-large {
+    width: 100%;
+    aspect-ratio: 338 / 354;
 }
 
 /* ===================================================
@@ -666,9 +693,13 @@ body.dark-mode {
     font-style: italic;
 }
 
-/* 三档尺寸 */
-.widget-polaroid-j.widget-small  { padding: 8px 8px 0; }
+/* 尺寸：v2.249 起唯一形态＝small（2 列，竖版 4:5，真拍立得解剖：方形图+底部手写 caption 带）。
+   复合选择器特异性天然压过 .widget-small 的 1:1。 */
+.widget-polaroid-j.widget-small  { aspect-ratio: 4 / 5; padding: 8px 8px 0; }
 .widget-polaroid-j.widget-small  .pj-caption { font-size: 12px; padding: 6px 4px 10px; }
+
+/* ── 已退役 v2.249：medium/wide 尺寸切换按钮已下线，widget-polaroid-j 不再产出这两个 class。
+   规则休眠保留（不删），css/themes.css 里各主题对应的皮肤规则同样休眠，均不必清理。 ── */
 .widget-polaroid-j.widget-medium .pj-caption { font-size: 14px; padding: 10px 8px 14px; }
 .widget-polaroid-j.widget-medium { padding: 12px 12px 0; }
 .widget-polaroid-j.widget-wide   { padding: 12px 16px 0; }
@@ -690,7 +721,11 @@ body.dark-mode {
 }
 
 /* ===================================================
-   🎀 拍立得相册组件（小/中/宽三档 + 蝴蝶结装饰）
+   🎀 相册组件旧结构（休眠 v2.249）── 小/中/宽三档 + 蝴蝶结装饰
+   相册渲染已重做为满版纯图（见下方 .widget-photo-clean），不再产出 .widget-polaroid 类名。
+   这一整段（.widget-polaroid / .polaroid-frame / .polaroid-image / .polaroid-bow-* / .polaroid-tagline 等）
+   规则本身保留不删——css/themes.css 里各主题对应的相框皮肤资产也一并保留，是用户明确要求
+   （素材另作他用），只是眼下没有任何渲染输出会匹配到这些 class 了。
    ─ 装饰 SVG 通过 currentColor 继承主题色，切换主题自动变色
    =================================================== */
 .widget-polaroid {
@@ -872,6 +907,50 @@ body.dark-mode .polaroid-image {
 }
 .polaroid-wide .spark-a { top: 14px; right: 30px; }
 .polaroid-wide .spark-b { bottom: 14px; right: 14px; }
+
+/* ===================================================
+   📸 相册组件（v2.249 重做，仿 iOS 照片小组件）
+   small/wide/large 三档＝满版纯图：整卡就是照片，圆角由 .widget-card 承担（overflow:hidden
+   已在基类上），无蝴蝶结/边框/tagline/spark 装饰。mini（1×1 迷你圆）沿用既有
+   .widget-photoframe-circle（T8 圆相框），不在这里，见下方相应小节。
+   =================================================== */
+.widget-photo-clean {
+    position: relative; /* img 用 position:absolute 铺满，锚点在这里 */
+}
+.widget-photo-clean img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.widget-photo-empty {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary, #999);
+    opacity: 0.8;
+    background: var(--bg-card, #f3f0eb);
+}
+.widget-photo-plus {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1.2px solid currentColor;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 300;
+}
 
 /* 日历组件 */
 .widget-calendar {
@@ -1471,6 +1550,11 @@ body.dark-mode .widget-clock {
     /* minmax(0,1fr)：轨道可压缩到内容 min-content 以下——超宽的组件内容在自己格子里溢出/被裁，
        而不是把整行轨道一起撑宽（与上面 width:100% 配套，双保险） */
     grid-template-columns: repeat(var(--desktop-cols, 3), minmax(0, 1fr));
+    /* v2.251 行单位制：每行最小高度=真实图标项高度（DesktopRenderer 探针量出写入 --desktop-row-unit，
+       量不到退 89px 兜底）；内容更高的行（自适应便签/大组件）用 max-content 自然撑高，不裁不留白。
+       小组件的 rowSpan（_itemRowSpan 推导）靠这个统一行高才能对应真实占几行——cols-4 变体不重复定义，
+       天然共享同一条规则。 */
+    grid-auto-rows: minmax(var(--desktop-row-unit, 89px), max-content);
     gap: 30px 20px;
     align-content: start;
     position: relative; /* 装饰图层用绝对定位需要 */
@@ -5248,7 +5332,100 @@ details.tl>span {
     height: 3px;
     border-radius: 50%;
 }
+/* 6 行月份（周六开局的 31 天月，如 2026-08）：表头 12px + 6×17px 行超出皮肤主题大
+   padding-top（mint 13%/taro 44px）挤出的内容区（360px 宽设备实测仅约 100px），末行
+   （30/31 号）被 overflow:hidden 裁掉——过去只有 5 行月份从没暴露。14px 档实测 360px 宽
+   下薄荷/香芋皮肤都放得下；今日水彩点同步缩到 14px 免得压邻行。class 由
+   _renderCalendarGrid 按 cells.length===42 打，限定 .wcw-grid 祖先不影响 mini 档。 */
+.wcw-grid table.wcw-r6 td { height: 14px; }
+.wcw-grid table.wcw-r6 td.today .wcw-blob { width: 14px; height: 14px; }
 /* ── T3 end ── */
+
+/* ── 日历 small 档 v2（v2.249 重做，iOS 同款整月迷你格）──
+   独立类名 .widget-cal-mini，不复用 .widget-calendar/.wcw-grid（2×2 密度和 wide 档差很多，
+   各自定制字号）。内部表格由 Widgets._renderCalendarGrid 生成，与 wide 档共用同一个函数，
+   今日圈圈（.wcw-blob）/纪念日色点（.wcw-evdot）的 class 名沿用该函数的输出，这里在
+   .wcm-grid 祖先下单独定一份尺寸，互不干扰。 */
+.widget-cal-mini {
+    padding: 9px 9px 7px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.wcm-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-shrink: 0;
+}
+.wcm-month {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--accent-color);
+    text-transform: uppercase;
+}
+.wcm-today {
+    font-size: 9px;
+    color: var(--desktop-text, #333);
+    opacity: 0.6;
+    white-space: nowrap;
+}
+.wcm-grid {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+}
+.wcm-grid table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+.wcm-grid th {
+    font-size: 8px;
+    font-weight: 500;
+    color: var(--desktop-text, #333);
+    opacity: 0.42;
+    padding: 0 0 2px;
+}
+.wcm-grid th.sun { color: #c67878; opacity: 0.8; }
+.wcm-grid th.sat { color: var(--accent-color); opacity: 0.85; }
+.wcm-grid td {
+    font-size: 10.5px;
+    text-align: center;
+    color: var(--desktop-text, #333);
+    opacity: 0.8;
+    height: 15px;
+    position: relative;
+}
+.wcm-grid td.dim { opacity: 0.28; }
+.wcm-grid td.today { color: var(--desktop-text); opacity: 1; font-weight: 700; }
+.wcm-grid td.today .wcw-blob {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 13px;
+    height: 13px;
+    background: var(--accent-color);
+    opacity: 0.45;
+    z-index: -1;
+    border-radius: 46% 54% 51% 49% / 55% 47% 53% 45%;
+    transform: rotate(-6deg);
+}
+.wcm-grid td .wcw-evdots {
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 1.5px;
+}
+.wcm-grid td .wcw-evdot {
+    width: 2.5px;
+    height: 2.5px;
+    border-radius: 50%;
+}
+/* ── 日历 small 档 v2 end ── */
 
 /* ── T4 文本框（agent T4 填充）── */
 /* 三形态：无底横排 / 无底竖排 / 便签底（纸片卡+纸胶带）。字体栈 Klee 优先，不可用退主题手写体/明朝体。
@@ -5267,6 +5444,21 @@ details.tl>span {
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .widget-note:active { transform: scale(0.97); }
+
+/* ⚠️ v2.256 修「无底」形态在九套主题里失效：.widget-note 的 background:none 特异性
+   只有 (0,1,0)，而每套主题的 [data-theme="x"] .widget-card 是 (0,2,0) 又排在 themes.css
+   里（源序更后），于是主题卡底把「无底」盖了个严实——用户选了「无底/無地」却看到
+   一张玻璃卡，三形态实际只剩两种。这里用 (0,3,0) 的 [data-theme] .widget-card.widget-note-plain
+   压回来（不用 !important），只管 plain 档，便签底 .widget-note-paper 的主题皮肤不受影响。
+   十套主题一次修好，night-sky 本来就正常、改后不变。 */
+[data-theme] .widget-card.widget-note-plain {
+    background: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+}
 
 /* 高度自适应：覆盖三档尺寸的 aspect-ratio 锁定，写几行是几行 */
 .widget-note.widget-small,
@@ -5440,15 +5632,16 @@ details.tl>span {
 
 /* ── T9 莫比乌斯双人相册（agent T9 填充）──
    die-cut 贴纸：不套 .widget-card 卡底（无背景/无边框/无阴影/无玻璃），stub 外壳本来就没带
-   widget-card 类，这里保持。sizeClass 走 .widget-medium（2 列），覆盖它默认的 aspect-ratio
-   2/1.1 成贴合 SVG viewBox 240x130 的比例，星轨+双圆不会被宽高比拉伸。 */
+   widget-card 类，这里保持。v2.249：sizeClass 改走 .widget-wide（整行，原 .widget-medium 两列
+   已随桌面网格重构退役），这里显式覆盖它默认的 338/158 iOS 比例，改回贴合 SVG viewBox
+   240x130 的比例，星轨+双圆不会被宽高比拉伸（也保护存量烧图皮肤不因新比例变形）。 */
 .widget-duoframe {
     width: 100%;
     cursor: pointer;
     position: relative;
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.widget-duoframe.widget-medium { aspect-ratio: 240 / 130; }
+.widget-duoframe.widget-wide { aspect-ratio: 240 / 130; }
 .widget-duoframe:active { transform: scale(0.97); }
 .widget-duoframe .df-svg {
     display: block;
@@ -5478,6 +5671,416 @@ details.tl>span {
     color: var(--text-secondary);
 }
 /* ── T9 end ── */
+
+/* ═══════════════════════════════════════════════════════════
+   🪪 Profile Card（v2.250 個人カード：頭像+名前+一言+生活写真）
+   永久豁免生图皮肤产线（2026-08-10 用户拍板）：素白卡设计全靠 --app-icon-bg / --bg-card /
+   --text-* / --accent-color 等主题 token 自适应浅深色，天生百搭到不需要为每套主题单独烧图——
+   本区不套任何 css/themes.css 皮肤覆写，勿加。设计蓝本去掉了参考图里的一切胶带元素和虚线，
+   本区同样不用 dashed 边框/贴纸元素，纯净版。
+   ═══════════════════════════════════════════════════════════ */
+
+/* v2.251：横条四布局（banner/duo/info/overlay 共用 sizeClass=.widget-wide）加高到 9:8——
+   双类特异性压过 .widget-wide 默认的 338:158（同 .widget-duoframe.widget-wide 先例）。
+   4 列手机上约 349×310，正好填满行单位制的 3 行槽位（profile wide 的 rowSpan，见 desktop-edit.js
+   _itemRowSpan）。小方 classic（size=small）不带 .widget-wide，不受影响，1:1 保持不动。 */
+.widget-profile.widget-wide { aspect-ratio: 9 / 8; }
+
+/* small 唯一布局 classic：円頭像+名前+ハート（上段）／署名（上段下部）／横写真（下半分いっぱい） */
+.widget-profile-classic {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    gap: 8px;
+}
+/* banner（wide 経典簡約横版）：与 classic 完全同构，只调比例——横条卡里头像按更小占比、
+   内边距略宽。設計図 01 的头像缘爱心角标与虚线均不采用（2026-08-10 她拍板）。 */
+.widget-profile-banner {
+    padding: 12px 14px;
+}
+.widget-profile-banner .pf-avatar {
+    width: 19%;   /* v2.252 她真机拍板：头像偏小，照参考图占比加大（15%→19%） */
+}
+.widget-profile-banner .pf-name {
+    font-size: 18px;
+}
+.widget-profile-banner .pf-sig {
+    font-size: 12px;
+}
+.pf-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+.pf-avatar {
+    width: 26%;
+    aspect-ratio: 1;
+    flex-shrink: 0;
+    position: relative;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+.pf-top-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 2px;
+}
+.pf-name-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+.pf-name {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--desktop-text, #333);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pf-name-placeholder {
+    font-weight: 400;
+    font-style: italic;
+    color: var(--text-tertiary);
+    opacity: 0.8;
+}
+.pf-heart-icon { width: 10px; height: 10px; flex-shrink: 0; color: var(--accent-color); display: block; }
+.pf-sig {
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.pf-photo {
+    flex: 1;
+    min-height: 0;
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-card);
+}
+
+/* wide duo：写真A/B左右並べ、円頭像が継ぎ目に下寄りで重なる、下部に署名+星 */
+.widget-profile-duo {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    gap: 6px;
+}
+.pf-duo-photos {
+    /* v2.253 她拍板：照片比重太大——收短到 56%，「到头像的中间高度截止」由头像锚定
+       本块底边实现（绝对定位 bottom:0 + translateY(50%)，照片高度怎么调头像都正好骑在
+       交界线上，不再用整卡百分比估算） */
+    flex: 0 0 56%;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    gap: 8px;
+}
+.pf-duo-photo {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-card);
+}
+.pf-duo-avatar {
+    /* v2.253：定位基准从整卡改为 .pf-duo-photos（头像挪进照片块内），bottom:0+translateY(50%)
+       =头像中心恒钉在照片块底边——她的原话「照片到头像的中间高度截止」的字面实现 */
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 62px;   /* v2.252 她真机拍板：骑缝头像照参考图加大（46→62） */
+    height: 62px;
+    transform: translate(-50%, 50%);
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    background: var(--bg-card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+}
+.pf-duo-sig {
+    /* v2.253 她拍板：照片收短后「下面留给长文字」——从单行省略改多行长句（最多 4 行），
+       顶部留白 36px 让出骑缝头像下垂的那半（31px）+呼吸 */
+    flex: 1;
+    min-height: 0;
+    padding: 36px 12px 2px;
+    font-family: var(--font-handwriting);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--desktop-text, #333);
+    text-align: center;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+.pf-duo-star-icon { width: 9px; height: 9px; color: var(--accent-color); display: inline-block; vertical-align: baseline; margin-left: 4px; }
+
+/* wide info：左に縦写真、右に頭像+名前・署名2行・chips最大3枚 */
+.widget-profile-info {
+    display: flex;
+    align-items: stretch;
+    padding: 10px;
+    gap: 10px;
+}
+.pf-info-photo {
+    flex: 0 0 50%;   /* v2.253 她拍板：照片占一半比重（38%→50%） */
+    min-height: 0;
+    position: relative;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-card);
+}
+.pf-info-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    justify-content: center;
+}
+.pf-info-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+.pf-info-avatar {
+    width: 44px;   /* v2.252 她真机拍板：「照片+信息栏」头像特别小，照参考图加大（24→44） */
+    height: 44px;
+    flex-shrink: 0;
+    position: relative;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
+}
+.pf-info-name {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--desktop-text, #333);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.pf-info-sig {
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+/* v2.253 她拍板：sig 与 chips 缩进对齐名字首字（44px 头像 + 6px gap = 50px），
+   不再对准头像左缘；三枚胶囊改竖排 */
+.pf-info-detail {
+    margin-left: 50px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pf-info-chips {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    margin-top: 2px;
+}
+.pf-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--bg-secondary);
+    font-size: 11px;
+    color: var(--text-secondary);
+    max-width: 100%;
+    overflow: hidden;
+}
+.pf-chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pf-chip-icon { width: 10px; height: 10px; flex-shrink: 0; color: var(--accent-color); display: block; }
+
+/* wide overlay：満版写真+左上角頭像+下部署名（名前は出さない、spec 明記） */
+.widget-profile-overlay {
+    position: relative;
+    padding: 0;
+}
+.pf-overlay-photo {
+    position: absolute;
+    inset: 0;
+}
+.pf-overlay-avatar {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 60px;   /* v2.252 与其余布局一致照参考图加大 */
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-card);
+    border: 2.5px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
+    z-index: 2;
+}
+.pf-overlay-sig {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 12px;
+    font-family: var(--font-handwriting);
+    font-size: 13px;
+    color: #fff;
+    /* 满版照片深浅不定：白字+双层 text-shadow（贴身暗晕+外围柔化）保证两种底色都可读 */
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 8px rgba(0, 0, 0, 0.35);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    z-index: 2;
+}
+
+/* 頭像/写真の <img> 共通铺法：img 由水合（blobId）或渲染时同步插入（url）负责生成，
+   wrapper 统一 position:relative 或已是 position:absolute，作为 img 的定位基准 */
+.pf-avatar img,
+.pf-photo img,
+.pf-duo-photo img,
+.pf-duo-avatar img,
+.pf-info-photo img,
+.pf-info-avatar img,
+.pf-overlay-photo img,
+.pf-overlay-avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+/* 頭像空状態シルエット（_pfPersonSvg、charcard の _ccSilhouetteSvg と同絵柄）は単一 helper を
+   classic/duo/info/overlay 全レイアウトで使い回す——円直径がまちまち（26%／46px／24px／52px）
+   なので固定 px を持たせず、ここで「親の45%」に統一する */
+.pf-avatar .pf-empty-icon,
+.pf-duo-avatar .pf-empty-icon,
+.pf-info-avatar .pf-empty-icon,
+.pf-overlay-avatar .pf-empty-icon {
+    width: 45%;
+    height: 45%;
+    opacity: 0.35;
+    color: var(--text-tertiary);
+}
+
+/* v2.251：写真スロット（a/b、avatar 以外）未選択時のデフォルト絵＝月夜。permanent 生图豁免組件
+   なので画像アセットを増やさず inline SVG（_pfPhotoDefaultSvg）で描く。avatar スロットの人形
+   シルエット（.pf-empty-icon、上）とは別ルート。相册（photo）ウィジェット共有の .widget-photo-empty
+   「+」空状態はここでは触らない（あちらは独立クラス、Profile Card 専用でこの新クラスを使う）。 */
+.pf-photo-default {
+    width: 100%;
+    height: 100%;
+    display: block;
+    color: var(--accent-color);
+}
+
+/* v2.252 文字位空态占位：duo/overlay 的签名、info 的名字没填时不再整行消失（她真机反馈
+   「文字部分都没有了」——其实是空值不渲染），改为淡色占位提示，卡面结构始终完整。
+   继承各自上下文的颜色/字体/阴影，只降不透明度。 */
+.pf-sig-ph { opacity: 0.6; }
+
+/* 編集モーダル：横長レイアウト単選（説明つきカードボタン、active 切替は _noteChipPick 流用） */
+.pf-layout-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.pf-layout-opt {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    background: none;
+    cursor: pointer;
+    text-align: left;
+}
+.pf-layout-opt.active {
+    border-color: var(--accent-color);
+    background: var(--bg-secondary);
+}
+.pf-layout-opt-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+.pf-layout-opt.active .pf-layout-opt-title { color: var(--accent-color); }
+.pf-layout-opt-desc {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+/* 編集モーダル：chips のアイコン三択（星/月/心、_noteChipPick 同一パターンの正方形ボタン版） */
+.pf-chip-edit-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.pf-chip-icon-group {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.pf-chip-icon-btn {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    background: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+}
+.pf-chip-icon-btn svg { width: 15px; height: 15px; display: block; }
+.pf-chip-icon-btn.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: #fff;
+}
+/* ── Profile Card end ── */
 
 /* ── T1 图片定位器弹窗（agent T1 填充）── */
 .imgpos-window {
@@ -5561,3 +6164,44 @@ details.tl>span {
     font-weight: 600;
 }
 /* ── T1 end ── */
+
+/* ============ 历代图标馆（设置→关于→历代图标）============ */
+.icon-history-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+}
+.icon-history-img {
+    width: 76px;
+    height: 76px;
+    flex-shrink: 0;
+    border-radius: 18px;   /* 主屏图标同款圆角比例（76×0.237） */
+    border: 1px solid var(--border-light);
+    display: block;
+}
+.icon-history-info {
+    min-width: 0;
+}
+.icon-history-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+.icon-history-period {
+    font-size: 11px;
+    color: var(--text-secondary);
+    letter-spacing: 0.3px;
+    margin-bottom: 6px;
+}
+.icon-history-card.is-current .icon-history-period {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+.icon-history-note {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}

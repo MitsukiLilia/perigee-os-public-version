@@ -507,7 +507,8 @@ ${infoText ? `\n最近の公式情報（ツイート・イベント等）：\n${
 
     // 是否可生成周边商品图：填了图片 API + 显式开启「官方周边」模块（默认关）
     _hasGoodsImageApi() {
-        const config = AppState.data.imageApiConfig;
+        // 大review A2/C1 修（2026-08-07）：按板块生效配置判断（绑定预设→预设的 key；未绑定→全局，行为不变）
+        const config = PixivIllust.resolveModuleConfig('goods').config;
         const modules = AppState.data.imageGenModules || {};
         return !!(config && config.key && config.provider && modules.goods === true);
     },
@@ -614,86 +615,67 @@ Generate the product-photo prompt (use [SCENE]/[CHAR1]/[CHAR2] only if multiple 
         const entry = (AppState.data.broadcast.officialInfo || []).find(e => e.id === entryId);
         if (!entry || entry.category !== 'goods' || !entry.goods) return;
 
-        // 防并发：同一周边正在生成时拦截（仿刷新锁，纯派生标记）
-        if (!this._goodsImgGenerating) this._goodsImgGenerating = {};
-        if (this._goodsImgGenerating[entryId]) return;
-        this._goodsImgGenerating[entryId] = true;
+        // D5（2026-08-07 阶段4）：并发防呆铁律——旧手写 _goodsImgGenerating[entryId] 布尔旗换成 Utils.withLock
+        // （CLAUDE.md「旧旗子 review 时顺手换」）；finally 自动放锁。锁被占时静默跳过，与旧旗子行为一致（原实现
+        // 本就无 onBusy 提示，这里不传 onBusy 保持零行为变更）。
+        await Utils.withLock('goods_img_' + entryId, async () => {
+            const btn = document.querySelector(`.goods-img-btn[data-id="${entryId}"]`);
+            if (btn) { btn.disabled = true; btn.classList.add('generating'); }
+            Utils.showToast(I18n.t('forum.goods_img_generating', '正在生成商品图…'));
 
-        const btn = document.querySelector(`.goods-img-btn[data-id="${entryId}"]`);
-        if (btn) { btn.disabled = true; btn.classList.add('generating'); }
-        Utils.showToast(I18n.t('forum.goods_img_generating', '正在生成商品图…'));
+            try {
+                // D4（2026-08-07 阶段3）：goods 板块绑定的预设生效 config——未绑定时与全局逐字节一致
+                const { config } = PixivIllust.resolveModuleConfig('goods');
+                const prompt = await this._buildGoodsImagePrompt(entry);
+                if (!prompt) throw new Error('prompt build failed');
 
-        try {
-            const config = AppState.data.imageApiConfig;
-            const naiSettings = AppState.data.novelaiSettings || {};
-            const prompt = await this._buildGoodsImagePrompt(entry);
-            if (!prompt) throw new Error('prompt build failed');
+                // 按类型定画幅：徽章 / 玩偶方形，其余竖图（OpenRouter 走 aspect_ratio，gpt-image 走 size）。
+                // D5（2026-08-07 阶段4）：按尺寸分炉——不再按 provider 分叉，NAI 走 dispatchGenerate → generateWithNovelAI
+                // 内部会把这个值 snap 到 NAI 面板法定枚举
+                const type = entry.goods.type;
+                const squareTypes = ['缶バッジ', 'ぬいぐるみ'];
+                const imgSize = squareTypes.includes(type) ? '1024x1024' : '768x1024';
 
-            // 按类型定画幅：徽章 / 玩偶方形，其余竖图（OpenRouter 走 aspect_ratio，gpt-image 走 size）
-            const type = entry.goods.type;
-            const squareTypes = ['缶バッジ', 'ぬいぐるみ'];
-            const imgSize = config.provider === 'novelai'
-                ? (naiSettings.resolution || '1024x1024')
-                : (squareTypes.includes(type) ? '1024x1024' : '768x1024');
+                // 关联角色 → 参考立绘过滤（只取出现在名单里的 CP 主角立绘；空名单 → 不挂立绘，纯文字产品照）
+                const refNames = (entry.goods.charNames || []).filter(Boolean);
 
-            // 关联角色 → 参考立绘过滤（只取出现在名单里的 CP 主角立绘；空名单 → 不挂立绘，纯文字产品照）
-            const refNames = (entry.goods.charNames || []).filter(Boolean);
+                const blobs = await PixivIllust.dispatchGenerate({
+                    positivePrompt: prompt.positive, negativePrompt: prompt.negative,
+                    size: imgSize, count: 1, config, charCaptions: prompt.charCaptions, refCharNames: refNames, moduleKey: 'goods'
+                });
 
-            let blobs = [];
-            switch (config.provider) {
-                case 'openai':
-                    blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                    break;
-                case 'gpt-image':
-                    blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions, refNames);
-                    break;
-                case 'openrouter':
-                    blobs = await PixivIllust.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions, refNames);
-                    break;
-                case 'stabilityai':
-                    blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                    break;
-                case 'novelai':
-                    blobs = await PixivIllust.generateWithNovelAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                    break;
-                case 'midjourney':
-                case 'custom':
-                    blobs = await PixivIllust.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                    break;
-            }
-
-            if (blobs && blobs.length > 0) {
-                // 同源条目（预告/受注中 原条目 + 自动発売副本）共享同一张商品图：写到全部链接条目，
-                // 这样在任一行点生成，放送局两行 + Mercari（只认贩售中副本）都拿到图，不依赖用户点对行。
-                // 生成期间条目可能被删：只保留仍存活在 officialInfo 里的链接条目；整组都没了
-                // （_linkedGoodsEntries 只剩兜底的孤儿引用）就丢弃这次生成结果，不写入 IndexedDB
-                const liveInfo = AppState.data.broadcast.officialInfo || [];
-                const linked = this._linkedGoodsEntries(entry).filter(e => liveInfo.includes(e));
-                if (linked.length === 0) return;
-                const oldIds = [...new Set(linked.map(e => e.goods.generatedImageId).filter(Boolean))];
-                const id = 'goods_img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-                await IllustGallery.save(id, blobs[0]);
-                linked.forEach(e => { e.goods.generatedImageId = id; });
-                Utils.saveData();
-                // 引用计数回收旧图：仅当不再被任何条目引用时才删 blob（防共享图被误删致另一条目裂开）
-                for (const oldId of oldIds) {
-                    if (oldId === id) continue;
-                    const stillUsed = (AppState.data.broadcast.officialInfo || []).some(o => o.goods && o.goods.generatedImageId === oldId);
-                    if (!stillUsed) { try { await IllustGallery.remove(oldId); } catch (e) {} }
+                if (blobs && blobs.length > 0) {
+                    // 同源条目（预告/受注中 原条目 + 自动発売副本）共享同一张商品图：写到全部链接条目，
+                    // 这样在任一行点生成，放送局两行 + Mercari（只认贩售中副本）都拿到图，不依赖用户点对行。
+                    // 生成期间条目可能被删：只保留仍存活在 officialInfo 里的链接条目；整组都没了
+                    // （_linkedGoodsEntries 只剩兜底的孤儿引用）就丢弃这次生成结果，不写入 IndexedDB
+                    const liveInfo = AppState.data.broadcast.officialInfo || [];
+                    const linked = this._linkedGoodsEntries(entry).filter(e => liveInfo.includes(e));
+                    if (linked.length === 0) return;
+                    const oldIds = [...new Set(linked.map(e => e.goods.generatedImageId).filter(Boolean))];
+                    const id = 'goods_img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                    await IllustGallery.save(id, blobs[0]);
+                    linked.forEach(e => { e.goods.generatedImageId = id; });
+                    Utils.saveData();
+                    // 引用计数回收旧图：仅当不再被任何条目引用时才删 blob（防共享图被误删致另一条目裂开）
+                    for (const oldId of oldIds) {
+                        if (oldId === id) continue;
+                        const stillUsed = (AppState.data.broadcast.officialInfo || []).some(o => o.goods && o.goods.generatedImageId === oldId);
+                        if (!stillUsed) { try { await IllustGallery.remove(oldId); } catch (e) {} }
+                    }
+                    this.renderOfficialInfoList();
+                    Utils.showToast(I18n.t('forum.goods_img_done', '✓ 商品图已生成'));
+                } else {
+                    throw new Error('no image returned');
                 }
-                this.renderOfficialInfoList();
-                Utils.showToast(I18n.t('forum.goods_img_done', '✓ 商品图已生成'));
-            } else {
-                throw new Error('no image returned');
+            } catch (e) {
+                console.error('[Goods ImageGen]', e);
+                Utils.showToast(I18n.t('forum.goods_img_failed', '商品图生成失败，请重试'));
+            } finally {
+                const btn2 = document.querySelector(`.goods-img-btn[data-id="${entryId}"]`);
+                if (btn2) { btn2.disabled = false; btn2.classList.remove('generating'); }
             }
-        } catch (e) {
-            console.error('[Goods ImageGen]', e);
-            Utils.showToast(I18n.t('forum.goods_img_failed', '商品图生成失败，请重试'));
-        } finally {
-            this._goodsImgGenerating[entryId] = false;
-            const btn2 = document.querySelector(`.goods-img-btn[data-id="${entryId}"]`);
-            if (btn2) { btn2.disabled = false; btn2.classList.remove('generating'); }
-        }
+        });
     },
 
     // 渲染后回填已生成的周边商品图（懒填 src，仿 melonbooks._loadGeneratedCovers）
@@ -1029,8 +1011,11 @@ ${contentHint ? `補足：${contentHint}` : ''}${(document.getElementById('cafeA
         const hasImg = !!(g && g.generatedImageId);
         const _imgSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>';
         const _regenSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>';
+        // 大review C3 修（2026-08-07）：按钮 disabled 视觉态用 Utils.isLocked 投影（CLAUDE.md 铁律）——
+        // 并行生成两个条目时，先完成那个触发的整列重渲染不再把仍在生成中条目的禁用态擦掉
+        const genLocked = Utils.isLocked('goods_img_' + e.id);
         const genBtn = canGen
-            ? `<button class="plot-entry-edit goods-img-btn" data-id="${e.id}" title="${I18n.t(hasImg ? 'forum.goods_img_regen' : 'forum.goods_img_gen', hasImg ? '重新生成商品图' : '生成商品图')}" onclick="event.stopPropagation(); Forum._generateGoodsImage('${e.id}')">${hasImg ? _regenSvg : _imgSvg}</button>`
+            ? `<button class="plot-entry-edit goods-img-btn${genLocked ? ' generating' : ''}"${genLocked ? ' disabled' : ''} data-id="${e.id}" title="${I18n.t(hasImg ? 'forum.goods_img_regen' : 'forum.goods_img_gen', hasImg ? '重新生成商品图' : '生成商品图')}" onclick="event.stopPropagation(); Forum._generateGoodsImage('${e.id}')">${hasImg ? _regenSvg : _imgSvg}</button>`
             : '';
         const thumb = hasImg
             ? `<img class="goods-thumb" data-illust-id="${_esc(g.generatedImageId)}" src="" alt="${displayTitle}" onclick="event.stopPropagation(); Forum._viewFullGoodsImage('${_esc(g.generatedImageId)}')">`

@@ -56,9 +56,11 @@ const AppState = {
         },
 
         // 系统配置
+        // theme 初始值就是新档实际拿到的默认主题——SystemConfig.init 里的 if (!systemConfig)
+        // 分支对新档不可达（此处已建好对象），别指望在那边改默认
         systemConfig: {
             language: 'zh', // zh, en, ja
-            theme: 'winter-night', // winter-night, spring-day, summer-rain
+            theme: 'mint-choco', // 新档默认主题（v2.258 起；主题清单见 SystemConfig.THEMES）
             wallpaper: '' // 自定义壁纸URL
         },
 
@@ -449,6 +451,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof Widgets !== 'undefined') Widgets.init();
         if (typeof Decorations !== 'undefined') Decorations.init();
         if (typeof VideoGen !== 'undefined') VideoGen.init(); // Seedance PV 任务恢复轮询（自管生命周期）
+        // 这次 render 不是冗余：SystemConfig.init→applyTheme 里已有一次首渲，但那次发生在
+        // Widgets.init 抽轮播图之前（新档甚至是它建的 layout）。同一同步任务内浏览器不 paint，
+        // 用户看到的首帧是这里这次——删掉它，新装首屏的轮播图组件就是未抽取状态
         if (typeof DesktopRenderer !== 'undefined') DesktopRenderer.render();
         if (typeof DesktopEdit !== 'undefined') DesktopEdit.init();
         if (typeof LiquidGlass !== 'undefined') LiquidGlass.init(); // 夏雨真折射玻璃（仅 Chromium，自管 CSS 分流）
@@ -473,7 +478,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const newWorker = registration.installing;
                         newWorker.addEventListener('statechange', () => {
                             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                showUpdateNotification();
+                                // showUpdateNotification()（弹条幅方案）已废弃，见下方 line ~486：next reload 时由 ChangelogPrompt 统一展示
+                                console.log('[PWA] new version installed, will surface on next reload');
                             }
                         });
                     });

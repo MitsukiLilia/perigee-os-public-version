@@ -22,3 +22,9 @@ docs/
 temp_scan.js
 test-*
 *.ps1
+
+# local Pages redeploy helper (contains private notification config) — never publish
+retry-pages-deploy.sh
+
+# public-repo local scrub tooling (the neutralization dictionaries themselves) — never publish
+tools/

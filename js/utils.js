@@ -176,6 +176,215 @@ const MIGRATIONS = [
             if (layout.cols === undefined) layout.cols = 3;
         }
     },
+    {
+        v: 5,
+        desc: 'v2.240 视频生成 API 多渠道预设化：videoApiConfig 补 provider 字段（存量=ark）+ 初始化 videoApiPresets（存量单配置自动生成一条 "Seedance" 预设）',
+        run(data) {
+            // 幂等守卫：videoApiPresets 已存在 && videoApiConfig.provider 已存在 → 本迁移已跑过，不重复生成预设
+            // （否则重跑会在用户手动删掉自动生成的 "Seedance" 预设后、下次分板块导入触发全量重跑时把它复活）
+            const presetsExist = Array.isArray(data.videoApiPresets);
+            const cfg = data.videoApiConfig;
+            const providerExists = !!(cfg && typeof cfg === 'object' && cfg.provider);
+            if (presetsExist && providerExists) return;
+
+            if (!presetsExist) data.videoApiPresets = [];
+
+            if (cfg && typeof cfg === 'object' && !cfg.provider) {
+                cfg.provider = 'ark';   // 存量数据迁移前只有火山方舟一家
+            }
+
+            // 旧配置已填好 workerUrl+key 且当前没有任何预设 → 顺手转存一条，免得升级后设置页突然空着
+            if (cfg && cfg.workerUrl && cfg.key && data.videoApiPresets.length === 0) {
+                data.videoApiPresets.push({
+                    id: 'vidp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+                    name: 'Seedance',
+                    provider: cfg.provider || 'ark',
+                    workerUrl: cfg.workerUrl,
+                    key: cfg.key,
+                    model: cfg.model || ''
+                });
+            }
+        }
+    },
+    {
+        v: 6,
+        desc: 'v2.249 小组件尺寸体系对齐 iOS 图标格：拍立得/相册/双人框/便签 size 重映射 + 桌面布局按新 span 归一化（重算 colSpan、钳位、消解重叠）',
+        run(data) {
+            // ── ① size 重映射：逐 widget 幂等守卫（已带 _sizeV3:true 的跳过；处理完打标）──
+            // 只搬 4 类会变的 widget：polaroid(medium/wide→small) / photo(circle→mini, medium→wide) /
+            // duoframe(medium→wide) / note(small→medium)。其余类型（clock/calendar/music/moonphase/
+            // weather/news/charcard/notifhub/mercari）size 语义不变，原样打标即可。
+            const widgets = Array.isArray(data.widgets) ? data.widgets : [];
+            for (const w of widgets) {
+                if (!w || w._sizeV3) continue;
+                if (w.type === 'polaroid') {
+                    if (w.size === 'medium' || w.size === 'wide') w.size = 'small';
+                } else if (w.type === 'photo') {
+                    if (w.shape === 'circle') w.size = 'mini';
+                    else if (w.size === 'medium') w.size = 'wide';
+                } else if (w.type === 'duoframe') {
+                    if (w.size === 'medium') w.size = 'wide';
+                } else if (w.type === 'note') {
+                    if (w.size === 'small') w.size = 'medium';
+                }
+                w._sizeV3 = true;
+            }
+
+            // ── ② 布局归一化：按新 span 映射重算 widget item 的 colSpan，钳位越界 col，消解重叠 ──
+            const layout = data.desktopLayout;
+            if (!layout || !Array.isArray(layout.pages)) return;   // 无桌面档：新档由 _ensureLayout 建，自带正确 span
+            const cols = layout.cols || 3;
+            // 迁移是冻结快照：内联复刻 span 映射字面量，不引用外部 _widgetSpan
+            // （desktop-edit.js 里那个函数未来若再改动，不该悄悄改变这条历史迁移的既定行为）
+            const spanOf = size => {
+                if (size === 'mini') return 1;
+                if (size === 'wide' || size === 'large') return cols;
+                if (size === 'small' || size === 'medium') return Math.min(2, cols);
+                return 1;
+            };
+            const widgetSpan = it => {
+                if (!it || it.type !== 'widget') return 1;
+                const w = widgets.find(x => x.id === it.widgetId);
+                return w ? spanOf(w.size) : Math.max(1, Math.min(it.colSpan || 1, cols));
+            };
+
+            for (const page of layout.pages) {
+                if (!page || !Array.isArray(page.items)) continue;
+
+                // 先重算所有 widget item 的 colSpan 并写回；越界的 col 先钳位（不改行，只收窄列起点）
+                for (const it of page.items) {
+                    if (it.type !== 'widget') continue;
+                    const span = widgetSpan(it);
+                    it.colSpan = span;
+                    if (it.col + span > cols) it.col = Math.max(0, cols - span);
+                }
+
+                // 检测重叠、消解冲突：图标格先占座、图标永不动。
+                // 两遍走：① 图标（不分先后，谁的坑都归谁，互不检测——合法数据里图标之间本就不重叠）
+                // ② widget 按 row,col 序重放，与「已占座的格子（含全部图标 + 更早处理的 widget）」冲突
+                //   就用类似 _findEmptyCell 的逐行扫描找第一个能放下 span 的空位，页内放不下就落到
+                //   maxRow+1 新行。图标必须先于 widget 整体占座——否则同一行里 col 更小的 widget
+                //   会在被处理时抢到本该属于后面某个图标的格子（图标此时还没来得及登记），产生静默重叠。
+                const occupied = new Set();
+                const occupy = (row, col, span) => {
+                    for (let c = col; c < col + span; c++) occupied.add(`${row},${c}`);
+                };
+                const isFree = (row, col, span) => {
+                    for (let c = col; c < col + span; c++) {
+                        if (occupied.has(`${row},${c}`)) return false;
+                    }
+                    return true;
+                };
+                const currentMaxRow = () => {
+                    let m = -1;
+                    occupied.forEach(key => {
+                        const r = parseInt(key.split(',')[0], 10);
+                        if (r > m) m = r;
+                    });
+                    return m;
+                };
+                const findEmptyCell = span => {
+                    const limit = currentMaxRow() + 2;   // 现有最大行 +1 行余量，找不到就说明这页放不下
+                    for (let row = 0; row <= limit; row++) {
+                        for (let col = 0; col + span <= cols; col++) {
+                            if (isFree(row, col, span)) return { row, col };
+                        }
+                    }
+                    return null;
+                };
+
+                for (const it of page.items) {
+                    if (it.type === 'icon') occupy(it.row, it.col, 1);
+                }
+                const widgetItems = page.items.filter(it => it.type === 'widget')
+                    .sort((a, b) => (a.row - b.row) || (a.col - b.col));
+                for (const it of widgetItems) {
+                    const span = widgetSpan(it);
+                    if (isFree(it.row, it.col, span)) {
+                        occupy(it.row, it.col, span);
+                        continue;
+                    }
+                    const cell = findEmptyCell(span) || { row: currentMaxRow() + 1, col: 0 };
+                    it.row = cell.row;
+                    it.col = cell.col;
+                    occupy(cell.row, cell.col, span);
+                }
+            }
+        }
+    },
+    {
+        v: 7,
+        desc: 'v2.251 桌面网格改行单位制：小组件按 rowSpan 占据真实行列区域（2×2 组件旁边能放下 4 个图标）、'
+            + '拖拽落点换算配套修复——存量档全部 items 按新装箱规则重打 col/row',
+        run(data) {
+            const layout = data.desktopLayout;
+            if (!layout || !Array.isArray(layout.pages)) return;   // 无桌面档：新档由 _ensureLayout 建，自带正确装箱
+            const cols = layout.cols || 3;
+            const widgets = Array.isArray(data.widgets) ? data.widgets : [];
+
+            // 迁移是冻结快照：内联复刻 colSpan/rowSpan 映射字面量，不引用 desktop-edit.js 的
+            // _itemSpan/_itemRowSpan（那两个函数未来若再改动，不该悄悄改变这条历史迁移的既定行为，
+            // 同 v6 注释）。mini:1×1／small:2×2／medium:2×(item._noteRowSpan||2)（仅 note 用得到
+            // medium，其余类型走静态表）／wide:整行×2（profile 例外整行×3；duoframe 虽矮条仍整行×2，
+            // 不是例外）／large:整行×4。
+            const colSpanOf = it => {
+                if (it.type !== 'widget') return 1;
+                const w = widgets.find(x => x.id === it.widgetId);
+                if (!w) return Math.max(1, Math.min(it.colSpan || 1, cols));
+                if (w.size === 'mini') return 1;
+                if (w.size === 'wide' || w.size === 'large') return cols;
+                if (w.size === 'small' || w.size === 'medium') return Math.min(2, cols);
+                return 1;
+            };
+            const rowSpanOf = it => {
+                if (it.type !== 'widget') return 1;
+                const w = widgets.find(x => x.id === it.widgetId);
+                if (!w) return Math.max(1, it.rowSpan || 1);
+                if (w.type === 'note') return it._noteRowSpan || 2;
+                if (w.size === 'mini') return 1;
+                if (w.size === 'small') return 2;
+                if (w.size === 'medium') return 2;
+                if (w.size === 'wide') return (w.type === 'profile') ? 3 : 2;
+                if (w.size === 'large') return 4;
+                return 1;
+            };
+
+            // 装箱是「items 数组顺序 + colSpan/rowSpan 映射」的纯函数：同一输入任意次重跑都产出
+            // 同一套 col/row——这就是本迁移的幂等守卫，不需要额外的已处理标志位（同 desc 里
+            // 「重打 col/row」的语义，历史迁移体本身不变，行为天然幂等）。
+            for (const page of layout.pages) {
+                if (!page || !Array.isArray(page.items)) continue;
+                const occupied = new Set();
+                const canPlace = (row, col, colSpan, rowSpan) => {
+                    for (let r = row; r < row + rowSpan; r++) {
+                        for (let c = col; c < col + colSpan; c++) {
+                            if (occupied.has(r + ',' + c)) return false;
+                        }
+                    }
+                    return true;
+                };
+                const markPlaced = (row, col, colSpan, rowSpan) => {
+                    for (let r = row; r < row + rowSpan; r++) {
+                        for (let c = col; c < col + colSpan; c++) occupied.add(r + ',' + c);
+                    }
+                };
+                for (const it of page.items) {
+                    const colSpan = Math.min(colSpanOf(it), cols);
+                    const rowSpan = rowSpanOf(it);
+                    let placed = null;
+                    for (let row = 0; row < 100000 && !placed; row++) {
+                        for (let col = 0; col + colSpan <= cols; col++) {
+                            if (canPlace(row, col, colSpan, rowSpan)) { placed = { row, col }; break; }
+                        }
+                    }
+                    if (!placed) placed = { row: 0, col: 0 };   // 防御性兜底，colSpan 已钳位理论不可达
+                    it.col = placed.col;
+                    it.row = placed.row;
+                    markPlaced(placed.row, placed.col, colSpan, rowSpan);
+                }
+            }
+        }
+    },
     // ↑ 新迁移只在这里 append（v 递增），并遵守顶部铁律 ①②③
 ];
 
@@ -374,6 +583,54 @@ const Utils = {
         return `${url}/v1/chat/completions`;
     },
 
+    // SSE 流式响应兜底解析（v2.245·真机实锤 bug）：OpenAI 兼容两条路径（callChatAPI override / callOpenAICompatibleAPI）
+    // 请求体已带 stream:false，但部分 API 服务对长生成仍会无视此项、强制按 `data: {...}\n\n` 分块吐 SSE，直接 res.json() 会
+    // SyntaxError 崩溃。这里先按普通 JSON 解析；失败且文本形如 SSE 时逐行拼 delta，拼出与非流式响应同形状的
+    // { choices: [{ message: { content } }] }，下游既有的 data.error / data.choices[0] 校验原样工作、不用改调用侧
+    _parseChatCompletionResponse(text) {
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            if (!/^\s*data:/m.test(text || '')) {
+                const err = new Error(`API 返回格式错误：${(text || '').slice(0, 120)}`);
+                err.code = 'parse';
+                throw err;
+            }
+            let content = '';
+            const lines = (text || '').split('\n');
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith('data:')) continue;
+                const payload = trimmed.slice(5).trim();
+                if (!payload || payload === '[DONE]') continue;
+                let chunk;
+                try {
+                    chunk = JSON.parse(payload);
+                } catch (e2) {
+                    continue; // 单块解析失败跳过，不因个别坏块整体炸掉
+                }
+                if (chunk.error) {
+                    const err = new Error(chunk.error.message || JSON.stringify(chunk.error));
+                    err.code = 'api';
+                    throw err;
+                }
+                const choice = chunk.choices && chunk.choices[0];
+                if (choice) {
+                    content += choice.delta?.content ?? choice.message?.content ?? '';
+                }
+            }
+            // v2.246 review（A4/B1）：全部块都解析失败/都没贡献内容时不许悄悄返回空壳成功——
+            // 与非 SSE 分支同款报错（同一 code:'parse'、同样摘录响应前 120 字符），让上游 !data.choices[0] 校验
+            // 之外多一层兜底，防止调用方把「空字符串」误当成「模型真的什么都没说」而不重试/不提示
+            if (content === '') {
+                const err = new Error(`API 返回格式错误：${(text || '').slice(0, 120)}`);
+                err.code = 'parse';
+                throw err;
+            }
+            return { choices: [{ message: { content } }] };
+        }
+    },
+
     // 调用不同模式的 Chat API
     // overrideConfig: { enabled, baseUrl, apiKey, model } — Pixiv 等模块的独立 API 配置
     // options（v2.73.7 新增、可选）：{ temperature, maxTokens } — caller 想要覆盖默认值时传入
@@ -394,7 +651,8 @@ const Utils = {
                         ? [{ role: 'system', content: systemPrompt }, ...messages]
                         : messages,
                     temperature: options?.temperature ?? 0.7,
-                    max_tokens: options?.maxTokens ?? 50000
+                    max_tokens: options?.maxTokens ?? 50000,
+                    stream: false   // v2.245：部分 API 服务对长生成会无视此项仍强制走 SSE，_parseChatCompletionResponse 兜底解析
                 })
             });
             if (!res.ok) {
@@ -404,7 +662,7 @@ const Utils = {
                 err.status = res.status;
                 throw err;
             }
-            const data = await res.json();
+            const data = this._parseChatCompletionResponse(await res.text());
             if (data.error) { const err = new Error(data.error.message || JSON.stringify(data.error)); err.code = 'api'; throw err; }
             if (!data.choices || !data.choices[0]) { const err = new Error('API 返回格式错误'); err.code = 'parse'; throw err; }
             return data.choices[0].message.content;
@@ -468,7 +726,8 @@ const Utils = {
             messages: systemPrompt
                 ? [{ role: 'system', content: systemPrompt }, ...transformed]
                 : transformed,
-            max_tokens: options?.maxTokens ?? 50000
+            max_tokens: options?.maxTokens ?? 50000,
+            stream: false   // v2.245：部分 API 服务对长生成会无视此项仍强制走 SSE，_parseChatCompletionResponse 兜底解析
         };
         // Pioneer 中转对部分上游模型（尤其 Claude）不接受采样参数，带 temperature 会报 upstream provider error
         // → Pioneer 模式省略 temperature（用模型默认采样）；其它 provider 照旧发
@@ -498,7 +757,7 @@ const Utils = {
             throw err;
         }
 
-        const data = await res.json();
+        const data = this._parseChatCompletionResponse(await res.text());
         console.log('[API Call] Response:', data);
 
         if (data.error) { const err = new Error(data.error.message || JSON.stringify(data.error)); err.code = 'api'; throw err; }
@@ -907,7 +1166,11 @@ ${intro}以下の情報階層を厳守すること。
     // ═══════════════════════════════════════════════════════
 
     // 重置时**保留**的字段（API/系统配置/世界书/桌面布局/外部API/TTS）
-    _PRESERVED_KEYS: ['apiConfig', 'systemConfig', 'worldBooks', 'desktopLayout', 'widgets', 'imageApiConfig', 'ttsConfig', '_clockWidgetMigrated', 'videoApiConfig'],
+    _PRESERVED_KEYS: ['apiConfig', 'apiPresets', 'systemConfig', 'worldBooks', 'desktopLayout', 'widgets', 'imageApiConfig', 'imageApiPresets', 'imageModulePresets', 'novelaiSettings', 'ttsConfig', '_clockWidgetMigrated', 'videoApiConfig', 'videoApiPresets'],
+    // ↑ 2026-08-07 大review B1 修：确认框承诺「API設定以外すべて」清除——聊天/生图预设、分板块绑定、
+    //   NAI 面板参数都属于 API 设定，此前不在清单里会被静默清掉（承诺与行为的缝隙）。
+    // ↑ 2026-08-09 videoApiPresets 补入：videoApiConfig 出现的清单都要跟着带上它的预设数组，否则清空全部数据时
+    //   视频生成的多渠道预设会被静默清掉，而同源的 imageApiPresets 却被保留——不对称。
 
     // 各模块的"出厂默认"。新增模块时在这里补一行就够。
     _DATA_DEFAULTS() {

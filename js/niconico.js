@@ -90,7 +90,11 @@ const Niconico = {
         // 選択済み（チェック）
         check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>',
         // AIおまかせ（きらめき）
-        sparkle: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z"/></svg>'
+        sparkle: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2l1.8 5.2L19 9l-5.2 1.8L12 16l-1.8-5.2L5 9l5.2-1.8z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z"/></svg>',
+        // 停止（試聴トグルの「再生中」状態・四角）
+        stop: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>',
+        // アルバムから選択（山+太陽の写真アイコン、v2.244）
+        image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>'
     },
     // 排名前三的奖牌色（金/银/铜 — 语义色、非渐变，按 SVG 规范允许的例外）
     _MEDAL_COLORS: ['#ffd700', '#c0c0c0', '#cd7f32'],
@@ -320,7 +324,7 @@ const Niconico = {
             <div class="nico-channel-card" onclick="Niconico.openChannel('${ch.id}')">
                 <div class="nico-channel-avatar" style="background:${ch.avatarColor || '#e8530e'}">${this._escHtml(ch.avatarEmoji || ch.name.charAt(0))}</div>
                 <div class="nico-channel-info">
-                    <div class="nico-channel-name">${isFollowed ? '★ ' : ''}${this._escHtml(ch.name)}</div>
+                    <div class="nico-channel-name">${isFollowed ? '★ ' : ''}${this._escHtml(ch.name)}${ch.official ? `<span class="nico-channel-badge-official">${I18n.t('nico.channel_official_badge', '公式')}</span>` : ''}</div>
                     <div class="nico-channel-meta">${I18n.t('nico.subscribers_short', { n: this._fmtNum(ch.subscriberCount || 0), videos: videoCount })}</div>
                     <div class="nico-channel-desc">${this._escHtml((ch.description || '').substring(0, 60))}</div>
                 </div>
@@ -617,9 +621,22 @@ const Niconico = {
     },
 
     // ===== PV投稿（Seedance動画生成） =====
-    _pvRefImgIds: [],        // 本次投稿表单里已选的参考图 id（会话级、非持久）
+    _pvRefImgIds: [],        // 本次投稿表单里已选的参考图 id（会话级、非持久）——放送局立ち絵/Pixivイラストの id の他、
+                              // pvtemp_ 前缀（v2.244・アルバムから直接選択した一時画像）も同じ配列に混在する
     _pvGallerySelection: [], // 画廊选择器内的临时选择（点「決定」才回写 _pvRefImgIds）
-    _pvSubmitting: false,
+    _pvTempUrlCache: {},     // pvtemp_ id → ObjectURL（表单会话级キャッシュ、showPVModal で毎回リセット）
+    _pvConfirmNoRefResolve: null,   // 软闸确认弹窗（参考図なし/図N不整合共用）の resolve（開いている間だけ非 null）
+    // v2.246 review（C2）：_pvSubmit 正在提交中的 pvtemp_ id 集合。表单关闭清理（_pvCleanupTempRefImgs）/
+    // 缩略图 × 删除（_pvRemoveRefImg）在此期间都要跳过这些 id——防止「请求已经把 blob 读进去了，
+    // 但存储层的 blob 被并发清理删掉」这种竞态（成功后任务对象还引用着这个 id，届时会指向一个空 blob）
+    _pvInFlightTempIds: new Set(),
+
+    // ===== 参考音声（v2.241） =====
+    _pvRefAudio: null,       // 本次投稿表单里已选的参考音频（会话级、非持久）：{blob, name, duration, url?} | null
+    _pvAudioPreviewEl: null, // 表单主区试听用 <audio>（懒建单例、整个会话复用；跟 AudioCoordinator 互斥其它音频）
+    _pvDecodeCtx: null,      // decodeAudioData / トリムプレビュー用の AudioContext（懒建単例、セッション中使い回す）
+    _pvTrimCtx: null,        // 選段弾窗の会话态：{ audioBuffer, duration, fileName, start } | null（開く時に建て、閉じる/決定で clear）
+    _pvTrimPreviewSource: null, // 選段弾窗のプレビュー再生中の AudioBufferSourceNode | null
 
     // 生成メニュー「PV投稿」项：未配置 videoApiConfig 时不开表单、引导去设置
     _pvMenuEntry() {
@@ -637,8 +654,15 @@ const Niconico = {
     },
 
     _pvModelInfo(id) {
-        const models = (typeof VideoGen !== 'undefined' && VideoGen.MODELS) ? VideoGen.MODELS : [];
+        const models = (typeof VideoGen !== 'undefined' && VideoGen.models) ? VideoGen.models() : [];
         return models.find(m => m.id === id) || models[0] || { id: '', ref: false, audio: false };
+    },
+
+    // 台词语言是耐久偏好（照 lastPvChannelId 的姿势存 n 上）——与会话级的演出タイプ/ムード不同，开窗不重置
+    _pvOnDialogueLangChange() {
+        const v = document.getElementById('nicoPvDialogueLang')?.value || 'ja';
+        this._ensureData().pvDialogueLang = v;
+        Utils.saveData();
     },
 
     // min/max/selected 可覆写——1.0 系模型只支持 [4,12]s，其他系列 [4,15]s（_pvOnModelChange 按系列重建时传入）
@@ -650,14 +674,28 @@ const Niconico = {
         return html;
     },
 
+    // 离散档位专用（v1/Hailuo 只有 6/10 两档，不是连续区间——直接传 min=6/max=10 给上面的连续 helper
+    // 会渲染出 7/8/9 三个非法档）。复用同一份 <option> 渲染片段，values 传啥就渲染啥
+    _pvDurationOptionsHtmlDiscrete(values, selected) {
+        return values.map(s => `<option value="${s}" ${s === selected ? 'selected' : ''}>${I18n.t('nico.pv_duration_unit', { n: s })}</option>`).join('');
+    },
+
+    // 参考図の同時選択上限：v1(Hailuo)だけ1枚（語義は"動画の最初のフレーム"）、他は9枚。
+    // 画廊選択器の上限強制 + タイトル/トースト文言（{n} 補間）に使う
+    _pvMaxRefImages() {
+        return (VideoGen.config().provider === 'minimax_v1') ? 1 : 9;
+    },
+
     showPVModal() {
         const n = this._ensureData();
         this._pvRefImgIds = [];
         this._pvGallerySelection = [];
-        this._pvSubmitting = false;
+        this._pvRefAudio = null;   // 重开表单清空（会话级、非持久——照 _pvRefImgIds 的姿势）
+        this._pvTrimCtx = null;
+        this._pvTempUrlCache = {};
 
         const cfg = VideoGen.config();
-        const models = VideoGen.MODELS || [];
+        const models = VideoGen.models();
         const defaultModel = models.some(m => m.id === cfg.model) ? cfg.model : ((models[0] && models[0].id) || '');
 
         const channels = n.channels || [];
@@ -682,6 +720,14 @@ const Niconico = {
 
         const modelOptionsHtml = models.map(m => `<option value="${m.id}" ${m.id === defaultModel ? 'selected' : ''}>${this._escHtml(m.label)}</option>`).join('');
 
+        // 時長初期テンプレート：provider ごとに正しい既定値を選んで selected を打っておかないと、直後に走る
+        // _pvOnModelChange の「範囲内なら現在値を保つ」ロジックがこのテンプレート値をユーザー選択と誤認して
+        // 保持してしまい、minimax/v1 の既定値（6）が落ちない（旧バグ：固定10だった）
+        const durationProvider = cfg.provider || 'ark';
+        const durationOptionsHtml = durationProvider === 'minimax_v1'
+            ? this._pvDurationOptionsHtmlDiscrete([6, 10], 6)
+            : this._pvDurationOptionsHtml(4, 15, durationProvider === 'minimax' ? 6 : 10);
+
         const html = `
         <div class="nico-modal-overlay" id="nicoPvModal" onclick="if(event.target===this)Niconico._closePVModal()">
             <div class="nico-modal nico-pv-modal">
@@ -690,18 +736,94 @@ const Niconico = {
                     <div class="nico-pv-field">
                         <label class="nico-pv-label">${I18n.t('nico.pv_prompt_label', 'PVスクリプト')}</label>
                         <textarea id="nicoPvPrompt" class="nico-pv-textarea" rows="5" placeholder="${I18n.t('nico.pv_prompt_placeholder', 'カット割り・セリフ・雰囲気を書く（「」内のセリフが読み上げられます）')}"></textarea>
-                        <button class="glass-btn nico-pv-ai-btn" id="nicoPvAiWriteBtn" onclick="Niconico._pvAiWrite()">
-                            <span class="nico-pv-btn-icon">${this._SVG.sparkle}</span><span id="nicoPvAiWriteLabel">${I18n.t('nico.pv_ai_write_btn', 'AIにおまかせ')}</span>
-                        </button>
+
+                        <!-- 演出スタイル二軸（v2.243）：セッション限定・非持久——モーダル再構築のたび自然に「指定なし」に戻る -->
+                        <div class="nico-pv-row">
+                            <div class="nico-pv-field nico-pv-field-half">
+                                <label class="nico-pv-label">${I18n.t('nico.pv_style_type_label', '演出タイプ')}</label>
+                                <select id="nicoPvStyleType" class="nico-pv-select" onchange="Niconico._pvUpdateAudioLyricsVisibility()">
+                                    <option value="">${I18n.t('nico.pv_style_none', '指定なし')}</option>
+                                    <option value="op">${I18n.t('nico.pv_style_type_op', 'OP')}</option>
+                                    <option value="ed">${I18n.t('nico.pv_style_type_ed', 'ED')}</option>
+                                    <option value="insert">${I18n.t('nico.pv_style_type_insert', '挿入歌')}</option>
+                                    <option value="yokoku">${I18n.t('nico.pv_style_type_yokoku', '次回予告')}</option>
+                                    <option value="highlight">${I18n.t('nico.pv_style_type_highlight', '今期ハイライト')}</option>
+                                    <option value="battle">${I18n.t('nico.pv_style_type_battle', 'バトル')}</option>
+                                </select>
+                            </div>
+                            <div class="nico-pv-field nico-pv-field-half">
+                                <label class="nico-pv-label">${I18n.t('nico.pv_style_mood_label', 'ムード')}</label>
+                                <select id="nicoPvStyleMood" class="nico-pv-select">
+                                    <option value="">${I18n.t('nico.pv_style_none', '指定なし')}</option>
+                                    <option value="iyashi">${I18n.t('nico.pv_style_mood_iyashi', '癒し')}</option>
+                                    <option value="setsunai">${I18n.t('nico.pv_style_mood_setsunai', '切ない')}</option>
+                                    <option value="moeru">${I18n.t('nico.pv_style_mood_moeru', '燃え')}</option>
+                                    <option value="kibou">${I18n.t('nico.pv_style_mood_kibou', '希望')}</option>
+                                    <option value="shukufuku">${I18n.t('nico.pv_style_mood_shukufuku', '祝福')}</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 台词·旁白语言（2026-08-23）：耐久偏好，照 lastPvChannelId 的姿势存 n 上，开窗不重置 -->
+                        <div class="nico-pv-field">
+                            <label class="nico-pv-label">${I18n.t('nico.pv_dialogue_lang_label', 'セリフ・ナレーションの言語')}</label>
+                            <select id="nicoPvDialogueLang" class="nico-pv-select" onchange="Niconico._pvOnDialogueLangChange()">
+                                <option value="ja" ${(n.pvDialogueLang || 'ja') === 'ja' ? 'selected' : ''}>日本語</option>
+                                <option value="zh" ${(n.pvDialogueLang || 'ja') === 'zh' ? 'selected' : ''}>中文</option>
+                                <option value="en" ${(n.pvDialogueLang || 'ja') === 'en' ? 'selected' : ''}>English</option>
+                            </select>
+                        </div>
+
+                        <!-- AIにおまかせ：クリックでまず内联浮层（そのまま生成／推敲つき生成）を出す。既存の npc-role-dropdown と同じ
+                             姿勢（position:relative の wrap + 外部クリックで閉じる） -->
+                        <div class="nico-pv-ai-wrap" id="nicoPvAiWrap">
+                            <button class="glass-btn nico-pv-ai-btn" id="nicoPvAiWriteBtn" onclick="Niconico._pvAiWriteToggleMenu(event)">
+                                <span class="nico-pv-btn-icon">${this._SVG.sparkle}</span><span id="nicoPvAiWriteLabel">${I18n.t('nico.pv_ai_write_btn', 'AIにおまかせ')}</span>
+                            </button>
+                            <div class="nico-pv-ai-menu" id="nicoPvAiMenu" style="display:none;">
+                                <button type="button" class="nico-pv-ai-menu-opt" onclick="Niconico._pvAiWriteChoose(false)">${I18n.t('nico.pv_ai_direct', 'そのまま生成')}</button>
+                                <button type="button" class="nico-pv-ai-menu-opt" onclick="Niconico._pvAiWriteChoose(true)">
+                                    <span>${I18n.t('nico.pv_ai_polish', '推敲つき生成')}</span>
+                                    <span class="nico-pv-ai-menu-opt-hint">${I18n.t('nico.pv_ai_polish_hint', 'AIチェックを1回追加')}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 出演キャラ chips（v2.244）：立ち絵があるキャラだけ表示、クリックで _pvRefImgIds に直接足し引きする。
+                         状態のソースは _pvRefImgIds 一本——画廊選択器で同じ立ち絵を選択/解除した時もこのチップは自然に一致する -->
+                    <div class="nico-pv-field nico-pv-cast-wrap" id="nicoPvCastRow" style="display:none;">
+                        <label class="nico-pv-label">${I18n.t('nico.pv_cast_label', '出演キャラ')}</label>
+                        <div class="nico-pv-cast-chips" id="nicoPvCastChips"></div>
                     </div>
 
                     <div class="nico-pv-field">
-                        <label class="nico-pv-label">${I18n.t('nico.pv_ref_label', '参考画像（0〜9枚）')}</label>
+                        <label class="nico-pv-label" id="nicoPvRefLabel">${I18n.t('nico.pv_ref_label', '参考画像（0〜9枚）')}</label>
                         <div class="nico-pv-ref-row" id="nicoPvRefRow">
                             <div class="nico-pv-ref-thumbs" id="nicoPvRefThumbs"></div>
                             <button class="nico-pv-ref-add" id="nicoPvRefAddBtn" onclick="Niconico._pvOpenGalleryPicker()" title="${I18n.t('nico.pv_ref_add_title', '画像を追加')}">${this._SVG.plus}</button>
                         </div>
                         <p class="nico-pv-hint" id="nicoPvRefHint" style="display:none;">${I18n.t('nico.pv_ref_disabled_hint', 'このモデルは参考画像に対応していません')}</p>
+                    </div>
+
+                    <!-- 参考音声（v2.241）：ark/H3 は content 配列に audio_url 要素として乗る。v1(Hailuo) は対応しないので
+                         provider 連動でこの区画ごと隠す（_pvOnModelChange）。model.ref とは無連動——音声は参考図と独立 -->
+                    <div class="nico-pv-field" id="nicoPvRefAudioField">
+                        <label class="nico-pv-label">${I18n.t('nico.pv_ref_audio_label', '参考音声（任意）')}</label>
+                        <input type="file" id="nicoPvRefAudioInput" accept="audio/mpeg,audio/wav,audio/x-wav,.mp3,.wav" style="display:none" onchange="Niconico._pvOnRefAudioFileChange(this.files[0]); this.value='';">
+                        <div class="nico-pv-refaudio-row" id="nicoPvRefAudioRow">
+                            <button class="glass-btn nico-pv-ai-btn" onclick="document.getElementById('nicoPvRefAudioInput').click()">
+                                <span class="nico-pv-btn-icon">${this._SVG.mic}</span>${I18n.t('nico.pv_ref_audio_select_btn', '音声ファイルを選択')}
+                            </button>
+                            <div class="nico-pv-refaudio-info" id="nicoPvRefAudioInfo" style="display:none;"></div>
+                        </div>
+                    </div>
+
+                    <!-- 歌詞（v2.242）：参考音声の有無に関わらず全渠道で表示（歌詞だけあれば文生視頻でも同期の手がかりになる）。
+                         セッション限定・非持久——_pvRefImgIds と同じ姿勢で、モーダル再構築のたび自然に空になる -->
+                    <div class="nico-pv-field" id="nicoPvLyricsField">
+                        <label class="nico-pv-label">${I18n.t('nico.pv_lyrics_label', '歌詞（任意）')}</label>
+                        <textarea id="nicoPvLyrics" class="nico-pv-textarea" rows="4" placeholder="${I18n.t('nico.pv_lyrics_ph', '参考音声の区間に対応する歌詞を貼り付けると、カット割りが歌詞に同期します')}"></textarea>
                     </div>
 
                     <div class="nico-pv-row">
@@ -718,7 +840,9 @@ const Niconico = {
                     <div class="nico-pv-row">
                         <div class="nico-pv-field nico-pv-field-half">
                             <label class="nico-pv-label">${I18n.t('nico.pv_duration_label', '長さ')}</label>
-                            <select id="nicoPvDuration" class="nico-pv-select">${this._pvDurationOptionsHtml()}</select>
+                            <select id="nicoPvDuration" class="nico-pv-select">${durationOptionsHtml}</select>
+                            <!-- 30秒枠（三期）は Seedance 2.5 系限定——他モデル選択中はここで案内、_pvOnModelChange が表示切替 -->
+                            <p class="nico-pv-hint" id="nicoPvDurationHint" style="display:none;">${I18n.t('nico.pv_duration_seedance25_hint', '30秒までの長尺は現在Seedance 2.5のみ対応')}</p>
                         </div>
                         <div class="nico-pv-field nico-pv-field-half nico-pv-audio-field">
                             <label class="nico-pv-checkbox-label">
@@ -729,10 +853,24 @@ const Niconico = {
                         </div>
                     </div>
 
+                    <!-- 画面比例：只在有参考图的生成里实际生效（文生恒 16:9，createTask 兜底）。v1(Hailuo) 无 ratio 参数，_pvOnModelChange 里整行隐藏 -->
+                    <div class="nico-pv-row" id="nicoPvRatioRow">
+                        <div class="nico-pv-field nico-pv-field-half">
+                            <label class="nico-pv-label">${I18n.t('nico.pv_ratio_label', '画面比率（参考画像あり時）')}</label>
+                            <select id="nicoPvRatio" class="nico-pv-select">
+                                <option value="16:9" selected>16:9</option>
+                                <option value="adaptive">${I18n.t('nico.pv_ratio_adaptive', '参考画像に合わせる')}</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="nico-pv-field">
                         <label class="nico-pv-label">${I18n.t('nico.pv_channel_label', '投稿チャンネル')}</label>
-                        <select id="nicoPvChannel" class="nico-pv-select" ${!hasChannels ? 'disabled' : ''}>${channelOptionsHtml}</select>
-                        ${!hasChannels ? `<p class="nico-pv-hint">${I18n.t('nico.pv_channel_empty_hint', 'まずチャンネルを生成してください')}</p>` : ''}
+                        <div class="nico-pv-channel-row">
+                            <select id="nicoPvChannel" class="nico-pv-select" ${!hasChannels ? 'disabled' : ''}>${channelOptionsHtml}</select>
+                            <button type="button" class="nico-pv-channel-add" id="nicoPvChannelAddBtn" onclick="Niconico._pvOpenChannelAddModal()" title="${I18n.t('nico.pv_channel_add_title', '公式チャンネルを追加')}">${this._SVG.plus}</button>
+                        </div>
+                        <p class="nico-pv-hint" id="nicoPvChannelHint" ${hasChannels ? 'style="display:none;"' : ''}>${I18n.t('nico.pv_channel_empty_hint', 'チャンネルを生成するか、「＋」で公式チャンネルを追加してください')}</p>
                     </div>
 
                     <div class="nico-pv-field">
@@ -749,53 +887,163 @@ const Niconico = {
         document.body.insertAdjacentHTML('beforeend', html);
         this._pvOnModelChange();
         this._pvRenderRefThumbs();
+        this._pvRenderRefAudio();
+        this._pvRenderCastChips();
     },
 
     _closePVModal() {
+        this._pvStopAllAudioPreviews();
+        Utils.revokeBlobScope('nico-pv-refaudio');
+        Utils.revokeBlobScope('nico-pv-temp');
+        this._pvCleanupTempRefImgs();   // 未提交时清理相册临时图（v2.244）——提交成功路径在关闭前已把 _pvRefImgIds 清空，不会误删任务仍需要的 blob
         document.getElementById('nicoPvModal')?.remove();
     },
 
-    // モデル切替：分辨率(4k限定2.0旗舰)/参考図可否/有声可否の三点連動
+    // モデル切替：分辨率/時長/参考図可否/有声可否の四点連動。provider ごとに三様——ark は既存ロジックそのまま、
+    // minimax(H3) は別枠（768P/2K・4-15s・音声は常時オン&固定）、minimax_v1(Hailuo) はさらに別枠
+    // （512P/768P/1080P・6/10sの二択のみ・参考図1枚・音声は既存の audio:false 分岐にそのまま乗る）——
+    // provider は現在の設定から読む（PVモーダル内で渠道が変わることはない）
     _pvOnModelChange() {
         const modelSel = document.getElementById('nicoPvModel');
         if (!modelSel) return;
         const model = this._pvModelInfo(modelSel.value);
+        const provider = (VideoGen.config().provider) || 'ark';
 
         const resSel = document.getElementById('nicoPvResolution');
         if (resSel) {
             const prevRes = resSel.value;
-            const is4kModel = model.id === 'doubao-seedance-2-0-260128';
-            const resOptions = ['480p', '720p', '1080p'].concat(is4kModel ? ['4k'] : []);
+            let resOptions, defaultRes;
+            if (provider === 'minimax') {
+                resOptions = ['768P', '2K'];   // H3 は大文字リテラル固定（API 仕様）
+                defaultRes = '768P';
+            } else if (provider === 'minimax_v1') {
+                resOptions = ['512P', '768P', '1080P'];   // Hailuo も大文字リテラル固定（実測確認）
+                defaultRes = '768P';
+            } else {
+                const is4kModel = model.id === 'doubao-seedance-2-0-260128';
+                // 2.0 Fast / 2.0 Mini 不支持 1080p（火山文档明确）——改动前就漏的既有缺口，v2.240 review 补
+                const no1080p = model.id === 'doubao-seedance-2-0-fast-260128' || model.id === 'doubao-seedance-2-0-mini-260615';
+                resOptions = no1080p ? ['480p', '720p'] : ['480p', '720p', '1080p'].concat(is4kModel ? ['4k'] : []);
+                defaultRes = '720p';
+            }
             resSel.innerHTML = resOptions.map(r => `<option value="${r}">${r}</option>`).join('');
-            resSel.value = resOptions.includes(prevRes) ? prevRes : '720p';
+            resSel.value = resOptions.includes(prevRes) ? prevRes : defaultRes;
         }
 
-        // 時長：1.0 系列モデルは短尺のみ対応（[4,12]s）、それ以外は[4,15]s。現在値が新範囲を超えたら範囲内最大値に落とす
+        // 時長：ark は 1.0 系列モデルのみ短尺（[4,12]s）、2.5 系だけ [4,30]s に拡張（三期・実測確認済み：
+        // doubao-seedance-2-5-260628 は duration=16/30 とも作成成功、31 は InvalidParameter で弾かれる——
+        // 他の ark モデルは未検証のため触らない）、それ以外は[4,15]s。minimax(H3) は常に[4,15]s・既定6s
+        // （実測メモ：MiniMax は純テキスト生成 duration=6 が稀に system error で弾かれる・5s や参考画像付き6sは正常。
+        //  ハード制限はかけず、API のエラーメッセージをそのままユーザーに見せる方針——ここでは既定値のみ6に倣う）。
+        // minimax_v1(Hailuo) は 6/10 の二択のみ（連続区間ではない——_pvDurationOptionsHtmlDiscrete を使う）
+        // 2.5系判定：isSeedance1 と同じ姿勢で id 部分一致にする（「拉取モデル一覧」で内蔵表に無い新しい
+        // 2.5系idが来ても拾えるよう、完全一致の白名单にしない）。provider に関わらず先に出しておき、
+        // 下の durHint（ark限定の案内）でも使い回す
+        const isSeedance25 = /seedance-2-5/.test(model.id);
         const durSel = document.getElementById('nicoPvDuration');
         if (durSel) {
             const prevDur = parseInt(durSel.value, 10);
-            const isV1 = /^doubao-seedance-1-0-/.test(model.id);
-            const minD = 4, maxD = isV1 ? 12 : 15;
-            const fallbackD = (prevDur >= minD && prevDur <= maxD) ? prevDur : maxD;
-            durSel.innerHTML = this._pvDurationOptionsHtml(minD, maxD, fallbackD);
+            if (provider === 'minimax_v1') {
+                const values = [6, 10];
+                const fallbackD = values.includes(prevDur) ? prevDur : 6;
+                durSel.innerHTML = this._pvDurationOptionsHtmlDiscrete(values, fallbackD);
+            } else {
+                let minD, maxD, defaultD;
+                if (provider === 'minimax') {
+                    minD = 4; maxD = 15; defaultD = 6;
+                } else {
+                    const isSeedance1 = /^doubao-seedance-1-0-/.test(model.id);
+                    minD = 4;
+                    maxD = isSeedance1 ? 12 : (isSeedance25 ? 30 : 15);
+                    // 30秒はコストが高い——2.5でもユーザーが明示的に選んだ時だけ使う想定なので、既定値は他モデルと
+                    // 同じ15止まり（maxDには乗せない）
+                    defaultD = isSeedance25 ? 15 : maxD;
+                }
+                const fallbackD = (prevDur >= minD && prevDur <= maxD) ? prevDur : defaultD;
+                durSel.innerHTML = this._pvDurationOptionsHtml(minD, maxD, fallbackD);
+            }
         }
+
+        // 長尺(30秒)対応の案内（三期）：ark渠道かつ2.5系以外の時だけ表示——2.5選択中は30秒が既にドロップダウンに
+        // 出ているので案内不要、minimax/v1は30秒という概念自体が無いので出すと逆に混乱させる
+        const durHint = document.getElementById('nicoPvDurationHint');
+        if (durHint) durHint.style.display = (provider === 'ark' && !isSeedance25) ? '' : 'none';
+
+        // 画面比率行：v1(Hailuo) は API に ratio パラメータ自体が無い（首帧の比率に従う）ので整行隠す；
+        // 参考図非対応モデル（Seedance 1.x）は文生恒 16:9 で選択の意味が無いのでこれも隠す
+        const ratioRow = document.getElementById('nicoPvRatioRow');
+        if (ratioRow) ratioRow.style.display = (provider === 'minimax_v1' || !model.ref) ? 'none' : '';
+
+        // 参考音声区画＋歌詞：v1(Hailuo) と 演出タイプ(yokoku/highlight) の二条件 OR で隠す（v2.244）——
+        // 具体ロジックは _pvUpdateAudioLyricsVisibility に集約（演出タイプ select の onchange からも呼ばれる共有関数）
+        this._pvUpdateAudioLyricsVisibility();
 
         const refRow = document.getElementById('nicoPvRefRow');
         const refAddBtn = document.getElementById('nicoPvRefAddBtn');
         const refHint = document.getElementById('nicoPvRefHint');
+        const castRow = document.getElementById('nicoPvCastRow');
+        // 固定 label 的枚数表記も provider 連動（v1 は上限1枚——下の hint だけ直しても、この見出しが
+        // 「0〜9枚」のままだと矛盾する。v2.240 review 修）
+        const refLabel = document.getElementById('nicoPvRefLabel');
+        if (refLabel) {
+            refLabel.textContent = (provider === 'minimax_v1')
+                ? I18n.t('nico.pv_ref_label_v1', '参考画像（0〜1枚）')
+                : I18n.t('nico.pv_ref_label', '参考画像（0〜9枚）');
+        }
         if (refRow) refRow.classList.toggle('disabled', !model.ref);
         if (refAddBtn) refAddBtn.disabled = !model.ref;
-        if (refHint) refHint.style.display = model.ref ? 'none' : 'block';
+        if (castRow) castRow.classList.toggle('disabled', !model.ref);   // 出演キャラ chips も参考図と同じ可否に従う
+        if (refHint) {
+            if (!model.ref) {
+                refHint.textContent = I18n.t('nico.pv_ref_disabled_hint', 'このモデルは参考画像に対応していません');
+                refHint.style.display = 'block';
+            } else if (provider === 'minimax_v1') {
+                // Hailuo は 1 枚のみ・語義が「風格参考」ではなく「動画の最初のフレーム」——H3/ark と違うので専用文言
+                refHint.textContent = I18n.t('nico.pv_ref_single_frame_hint', 'Hailuo渠道は参考画像1枚のみ対応、動画の最初のフレームとして使われます');
+                refHint.style.display = 'block';
+            } else {
+                refHint.style.display = 'none';
+            }
+        }
 
         const audioCb = document.getElementById('nicoPvAudio');
         const audioHint = document.getElementById('nicoPvAudioHint');
-        if (audioCb) {
-            const wasDisabled = audioCb.disabled;
-            audioCb.disabled = !model.audio;
-            if (!model.audio) audioCb.checked = false;          // 不支持音声的模型强制取消勾选
-            else if (wasDisabled) audioCb.checked = true;       // 从禁用状态恢复 → 回到默认开（两个有声模型间切换保留用户手动勾选）
+        if (provider === 'minimax') {
+            // H3 恒有声：勾选框强制勾选并禁用（不给"不生成音声"这个选项），提示文案换成"常时生成音声"而非"该模型不支持音声"
+            if (audioCb) { audioCb.checked = true; audioCb.disabled = true; }
+            if (audioHint) {
+                audioHint.textContent = I18n.t('nico.pv_audio_always_hint', 'MiniMax-H3 は常に音声付きで生成されます');
+                audioHint.style.display = 'block';
+            }
+        } else {
+            // ark は model.audio で柔軟切替；minimax_v1(Hailuo) は全系 audio:false なので、
+            // このまま「無声モデル」の既存ロジック（禁用+チェック外し+既存ヒント文言）に自然に乗る——新規分岐不要
+            if (audioCb) {
+                const wasDisabled = audioCb.disabled;
+                audioCb.disabled = !model.audio;
+                if (!model.audio) audioCb.checked = false;          // 不支持音声的模型强制取消勾选
+                else if (wasDisabled) audioCb.checked = true;       // 从禁用状态恢复 → 回到默认开（两个有声模型间切换保留用户手动勾选）
+            }
+            if (audioHint) {
+                audioHint.textContent = I18n.t('nico.pv_audio_disabled_hint', 'このモデルは音声に対応していません');
+                audioHint.style.display = model.audio ? 'none' : 'block';
+            }
         }
-        if (audioHint) audioHint.style.display = model.audio ? 'none' : 'block';
+    },
+
+    // 参考音声＋歌詞の表示条件（v2.244）：v1(Hailuo) 渠道 OR 演出タイプが yokoku/highlight のどちらかで参考音声を隠す
+    // （二条件の OR）。歌詞はタイプ条件のみで判定——v1 でも歌詞欄自体は既存どおり出す（2.242「全渠道表示」を保つ）。
+    // 値そのものはここでは触らない（display:none だけ）——タイプを切り戻せば入力済みの内容がそのまま戻る
+    _pvUpdateAudioLyricsVisibility() {
+        const styleType = document.getElementById('nicoPvStyleType')?.value || '';
+        const hideForType = (styleType === 'yokoku' || styleType === 'highlight');
+        const provider = (VideoGen.config().provider) || 'ark';
+
+        const refAudioField = document.getElementById('nicoPvRefAudioField');
+        if (refAudioField) refAudioField.style.display = (provider === 'minimax_v1' || hideForType) ? 'none' : '';
+
+        const lyricsField = document.getElementById('nicoPvLyricsField');
+        if (lyricsField) lyricsField.style.display = hideForType ? 'none' : '';
     },
 
     // 参考図サムネ行の再描画（_pvRefImgIds が真値、選択は禁用時も保持——切回2.0系不丢）
@@ -804,7 +1052,7 @@ const Niconico = {
         if (!wrap) return;
         const ids = this._pvRefImgIds || [];
         if (ids.length === 0) { wrap.innerHTML = ''; return; }
-        const items = await Promise.all(ids.map(async id => ({ id, url: await IllustGallery.getUrl(id) })));
+        const items = await Promise.all(ids.map(async id => ({ id, url: await this._pvResolveRefUrl(id) })));
         const wrap2 = document.getElementById('nicoPvRefThumbs');   // 渲染中弹窗可能已被关闭
         if (!wrap2) return;
         wrap2.innerHTML = items.map(it => `
@@ -813,26 +1061,89 @@ const Niconico = {
             </div>`).join('');
     },
 
+    // v2.246 review（B2 泄漏修复 + C2 skip）：pvtemp_ 项从数组摘除的同时把底层 blob 一并删掉——之前只摘数组、
+    // 从不清 IndexedDB，点 × 删的临时相册图会永久占地方。in-flight（_pvSubmit 正在用这个 id 提交）时只摘数组、
+    // 不动 blob——那是当前请求还在读的存储，删了会让即将创建的任务指向空 blob
     _pvRemoveRefImg(id) {
         this._pvRefImgIds = (this._pvRefImgIds || []).filter(x => x !== id);
+        if (typeof id === 'string' && id.startsWith('pvtemp_') && !this._pvInFlightTempIds.has(id)) {
+            VideoGen.removeBlob(id).catch(e => console.warn('[Niconico] temp blob cleanup failed', e));
+            delete this._pvTempUrlCache[id];
+        }
         this._pvRenderRefThumbs();
+        this._pvRenderCastChips();
     },
 
-    // ===== 参考画像ピッカー（放送局立ち絵 + Pixivイラストギャラリー・最大9枚混選） =====
+    // 参考図 URL 解決の統一入口（v2.244）：pvtemp_ 前缀は本表单自身の一時 store（アルバムから選択・_pvOnAlbumFilesChange
+    // が VideoGen.store() に保存したもの）、それ以外は既存どおり IllustGallery（放送局立ち絵/Pixivイラスト）。
+    // ObjectURL は Utils.trackBlobUrl で scope 登記し、表单セッション内キャッシュ（_pvTempUrlCache）で使い回す——
+    // 閉じる時に revokeBlobScope('nico-pv-temp') で一括回収（工程铁律）
+    async _pvResolveRefUrl(id) {
+        if (typeof id === 'string' && id.startsWith('pvtemp_')) {
+            if (this._pvTempUrlCache[id]) return this._pvTempUrlCache[id];
+            const blob = await VideoGen.getBlob(id);
+            if (!blob) return '';
+            const url = Utils.trackBlobUrl(URL.createObjectURL(blob), 'nico-pv-temp');
+            this._pvTempUrlCache[id] = url;
+            return url;
+        }
+        return await IllustGallery.getUrl(id);
+    },
+
+    // 出演キャラ chips（v2.244）：立ち絵があるキャラだけ表示、クリックで _pvRefImgIds に直接足し引きする——
+    // 画廊選択器の「決定」を経由しない即時確定型。状態のソースは _pvRefImgIds 一本（二重の状態管理はしない）——
+    // 画廊選択器を開く時は毎回 _pvGallerySelection = _pvRefImgIds.slice() で作り直すので、チップでの選択も
+    // 画廊での選択/決定も、双方が同じ配列を経由して自然に一致する
+    async _pvRenderCastChips() {
+        const row = document.getElementById('nicoPvCastRow');
+        const wrap = document.getElementById('nicoPvCastChips');
+        if (!row || !wrap) return;
+        const charRefs = (typeof Broadcast !== 'undefined' && Broadcast.getAllCharRefs) ? Broadcast.getAllCharRefs() : [];
+        if (charRefs.length === 0) { row.style.display = 'none'; return; }
+        // getUrl が空（blob 丢失/未上传）の项目は _pvRenderGalleryGrid と同じ作法で除外
+        const items = (await Promise.all(charRefs.map(async c =>
+            ({ blobId: c.blobId, name: c.name, url: await IllustGallery.getUrl(c.blobId) })))).filter(x => x.url);
+        const row2 = document.getElementById('nicoPvCastRow');   // await 期间弹窗可能已被关闭
+        if (!row2) return;
+        if (items.length === 0) { row2.style.display = 'none'; return; }
+        row2.style.display = '';
+        const wrap2 = document.getElementById('nicoPvCastChips');
+        const ids = this._pvRefImgIds || [];
+        const esc = s => Utils.escapeHtml(s || '');
+        wrap2.innerHTML = items.map(it => `
+            <button type="button" class="nico-pv-cast-chip ${ids.includes(it.blobId) ? 'selected' : ''}" onclick="Niconico._pvToggleCastChip('${esc(it.blobId)}')">${esc(it.name)}</button>`).join('');
+    },
+
+    _pvToggleCastChip(blobId) {
+        const ids = this._pvRefImgIds || (this._pvRefImgIds = []);
+        const idx = ids.indexOf(blobId);
+        if (idx >= 0) {
+            ids.splice(idx, 1);
+        } else {
+            const max = this._pvMaxRefImages();
+            if (ids.length >= max) { Utils.showToast(I18n.t('nico.pv_gallery_max_hint', { n: max })); return; }
+            ids.push(blobId);
+        }
+        this._pvRenderRefThumbs();
+        this._pvRenderCastChips();
+    },
+
+    // ===== 参考画像ピッカー（放送局立ち絵 + Pixivイラストギャラリー・上限は provider 依存：v1(Hailuo)=1枚、他=9枚混選） =====
+    // v2.244: 画廊が空でも「アルバムから選択」だけは使いたいケースがあるので、旧・空ゲート（両方空なら弾いて開かせない）は撤去
     async _pvOpenGalleryPicker() {
         const illusts = (AppState.data.pixivData && AppState.data.pixivData.illustrations) || [];
         const charRefs = (typeof Broadcast !== 'undefined' && Broadcast.getAllCharRefs) ? Broadcast.getAllCharRefs() : [];
-        if (illusts.length === 0 && charRefs.length === 0) {
-            Utils.showToast(I18n.t('nico.pv_gallery_empty_all', '参考にできる画像がありません（放送局の立ち絵か Pixiv イラストが必要です）'));
-            return;
-        }
         this._pvGallerySelection = (this._pvRefImgIds || []).slice();
 
         const html = `
         <div class="nico-modal-overlay nico-pv-gallery-overlay" id="nicoPvGalleryModal" onclick="if(event.target===this)Niconico._closeGalleryPicker()">
             <div class="nico-modal nico-pv-gallery-modal">
-                <div class="nico-modal-title">${I18n.t('nico.pv_gallery_title', '参考画像を選択（最大9枚）')}</div>
+                <div class="nico-modal-title">${I18n.t('nico.pv_gallery_title', { n: this._pvMaxRefImages() })}</div>
                 <div class="nico-pv-gallery-grid" id="nicoPvGalleryGrid"></div>
+                <input type="file" id="nicoPvAlbumInput" accept="image/*" multiple style="display:none" onchange="Niconico._pvOnAlbumFilesChange(this.files); this.value='';">
+                <button class="glass-btn nico-pv-ai-btn nico-pv-gallery-album-btn" onclick="document.getElementById('nicoPvAlbumInput').click()">
+                    <span class="nico-pv-btn-icon">${this._SVG.image}</span>${I18n.t('nico.pv_gallery_album', 'アルバムから選択')}
+                </button>
                 <div class="nico-modal-buttons nico-pv-actions">
                     <button class="glass-btn nico-modal-close" onclick="Niconico._closeGalleryPicker()">${I18n.t('nico.menu_close', '閉じる')}</button>
                     <button class="glass-btn nico-pv-submit-btn" onclick="Niconico._confirmGalleryPicker()">${I18n.t('nico.pv_gallery_confirm', '決定')}</button>
@@ -876,116 +1187,846 @@ const Niconico = {
         if (idx >= 0) {
             sel.splice(idx, 1);
         } else {
-            if (sel.length >= 9) { Utils.showToast(I18n.t('nico.pv_gallery_max_hint', '最大9枚まで選択できます')); return; }
+            const max = this._pvMaxRefImages();
+            if (sel.length >= max) { Utils.showToast(I18n.t('nico.pv_gallery_max_hint', { n: max })); return; }
             sel.push(id);
         }
         const el = document.querySelector(`#nicoPvGalleryGrid [data-illust-id="${CSS.escape(id)}"]`);
         if (el) el.classList.toggle('selected', sel.includes(id));
     },
 
+    // v2.246 review（A2 兜底钳制）：正常操作下 _pvToggleGalleryItem 已经卡着 max 上限，这里只是万一
+    // （比如出演キャラ chips 和相册选择在同一会话里交替把 _pvGallerySelection 推过上限）的兜底裁剪
     _confirmGalleryPicker() {
-        this._pvRefImgIds = (this._pvGallerySelection || []).slice();
+        const max = this._pvMaxRefImages();
+        const sel = this._pvGallerySelection || [];
+        this._pvRefImgIds = sel.slice(0, max);
+        if (sel.length > max) Utils.showToast(I18n.t('nico.pv_gallery_max_hint', { n: max }));
         this._closeGalleryPicker();
         this._pvRenderRefThumbs();
+        this._pvRenderCastChips();
     },
 
     _closeGalleryPicker() {
         document.getElementById('nicoPvGalleryModal')?.remove();
     },
 
-    // ===== AIにおまかせ：世界観からPV脚本を書く（_generateVideos と同じ注入三件套） =====
-    async _pvAiWrite() {
+    // アルバムから選択（v2.244）：選んだ画像を localforage に「一時 blob」として保存し pvtemp_ 前缀の id を発行、
+    // そのまま _pvRefImgIds に混ぜる（画廊の「決定」を待たず即座に確定——放送局立ち絵/Pixivイラストの選択とは別経路。
+    // _pvGallerySelection にも同じ id を足しておく——後で「決定」を押されても上書きで消えないようにするため）。
+    // 保存先は VideoGen.store()（refaud- と同じ localforage インスタンス、並列で新しい store を建てる必要はない）
+    async _pvOnAlbumFilesChange(fileList) {
+        const files = Array.from(fileList || []);
+        if (files.length === 0) return;
+        const max = this._pvMaxRefImages();
+        let added = 0, skipped = 0;
+        for (const file of files) {
+            // v2.246 review（A2）：上限检查同时看 _pvRefImgIds 和 _pvGallerySelection——两者在画廊会话里可能
+            // 暂时不同步（比如出演キャラ chip 直接改了 _pvRefImgIds、画廊还没「決定」回写），单看一个会漏判
+            if (Math.max((this._pvRefImgIds || []).length, (this._pvGallerySelection || []).length) >= max) { skipped++; continue; }
+            const id = 'pvtemp_' + Utils.generateId();
+            try {
+                await VideoGen.saveBlob(id, file);
+            } catch (e) {
+                console.error('[Niconico] album temp blob save failed', e);
+                continue;
+            }
+            // v2.246 review（C4）：saveBlob 这个 await 期间表单可能已被关闭——关窗清理（_pvCleanupTempRefImgs）
+            // 只扫这轮 saveBlob 之前就已经在 _pvRefImgIds 里的项，这里刚存的 blob 还没 push 进数组，不会被它扫到，
+            // 需要自己查一次、发现表单没了就地删掉刚存的 blob 并停止后续文件（不再 push、不再渲染）
+            if (!document.getElementById('nicoPvModal')) {
+                await VideoGen.removeBlob(id).catch(e => console.warn('[Niconico] orphan temp blob cleanup failed', e));
+                break;
+            }
+            this._pvRefImgIds = this._pvRefImgIds || [];
+            this._pvRefImgIds.push(id);
+            this._pvGallerySelection = this._pvGallerySelection || [];
+            if (!this._pvGallerySelection.includes(id)) this._pvGallerySelection.push(id);
+            added++;
+        }
+        if (skipped > 0) Utils.showToast(I18n.t('nico.pv_gallery_max_hint', { n: max }));
+        if (added > 0) {
+            await this._pvRenderRefThumbs();
+            this._pvRenderCastChips();
+        }
+    },
+
+    // 表单关闭且未提交时的临时图清理（v2.244）：只清 _pvRefImgIds 里还挂着的 pvtemp_ 项——已提交成功的路径
+    // 在调用 _closePVModal 前会先把 _pvRefImgIds 清空，不会走到这里误删任务自己还需要留着重试用的 blob。
+    // v2.246 review（C2）：额外跳过 _pvInFlightTempIds——_pvSubmit 的 createTask 请求还在飞（最长 5 分钟窗口，
+    // 见 video-gen.js _providerFetch 注释）期间用户把表单关了，这里不能抢着删掉请求已经读进去、成功后任务
+    // 对象还要引用的 blob；_pvSubmit 自己的 finally 会在请求settle 后按"有没有任务接手"做真正的孤儿清理
+    _pvCleanupTempRefImgs() {
+        const ids = (this._pvRefImgIds || []).filter(id => typeof id === 'string' && id.startsWith('pvtemp_') && !this._pvInFlightTempIds.has(id));
+        ids.forEach(id => VideoGen.removeBlob(id).catch(() => {}));
+    },
+
+    // ═══════════════════════════════════════════════════════════
+    // 参考音声（v2.241）：選択 → decodeAudioData 検査 → 15秒超は選段弾窗でトリム
+    // ═══════════════════════════════════════════════════════════
+
+    // ファイル選択ハンドラ。処理順は仕様通り「①デコードして実時長を取る（失敗→フォーマット非対応）
+    // ②ファイルサイズ>15MB→拒否 ③時長<=15s→原ファイルそのまま採用 ④時長>15s→選段弾窗」
+    async _pvOnRefAudioFileChange(file) {
+        if (!file) return;
+        // サイズ検査はデコードより先（15MB 級ファイルの decodeAudioData は数秒+メモリを食う——拒否確定なら解かない）
+        if (file.size > 15 * 1024 * 1024) {
+            Utils.showToast(I18n.t('nico.pv_ref_audio_err_size', { size: (file.size / 1024 / 1024).toFixed(1) }));
+            return;
+        }
+        const Ctor = window.AudioContext || window.webkitAudioContext;
+        if (!Ctor) {
+            Utils.showToast(I18n.t('nico.pv_ref_audio_err_format', 'この音声フォーマットを読み込めません。mp3かwavをご利用ください'));
+            return;
+        }
+        if (!this._pvDecodeCtx) this._pvDecodeCtx = new Ctor();   // 懒建単例、セッション中使い回す（play() する試聴と共用）
+
+        let audioBuffer;
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            audioBuffer = await this._pvDecodeCtx.decodeAudioData(arrayBuffer);
+        } catch (e) {
+            Utils.showToast(I18n.t('nico.pv_ref_audio_err_format', 'この音声フォーマットを読み込めません。mp3かwavをご利用ください'));
+            return;
+        }
+
+        const duration = audioBuffer.duration;
+        if (duration <= 15) {
+            this._pvRefAudio = { blob: file, name: file.name, duration, url: null };   // 原ファイル Blob 直採用（原エンコード音質を保つ）
+            await this._pvRenderRefAudio();
+        } else {
+            this._pvOpenTrimModal(audioBuffer, duration, file.name);
+        }
+    },
+
+    // 参考音声フィールドの表示更新：未選択時は空、選択済みならファイル名+時長+試聴/削除ボタン
+    async _pvRenderRefAudio() {
+        const info = document.getElementById('nicoPvRefAudioInfo');
+        if (!info) return;
+        const ra = this._pvRefAudio;
+        if (!ra) { info.style.display = 'none'; info.innerHTML = ''; return; }
+        // 試聴用 ObjectURL は初回描画時に一度だけ生成してキャッシュ（Utils.trackBlobUrl 登記、
+        // フォーム閉じる時に revokeBlobScope('nico-pv-refaudio') で一括回収——工程铁律）
+        if (!ra.url) ra.url = Utils.trackBlobUrl(URL.createObjectURL(ra.blob), 'nico-pv-refaudio');
+        const durText = I18n.t('nico.pv_duration_unit', { n: ra.duration.toFixed(1) });
+        info.style.display = 'flex';
+        info.innerHTML = `
+            <span class="nico-pv-refaudio-name">${I18n.t('nico.pv_ref_audio_info_format', { name: this._escHtml(ra.name), duration: durText })}</span>
+            <button class="nico-pv-icon-btn" id="nicoPvRefAudioPreviewBtn" onclick="Niconico._pvToggleRefAudioPreview()" title="${I18n.t('nico.pv_ref_audio_preview_title', '試聴')}">
+                <span id="nicoPvRefAudioPreviewIcon">${this._SVG.play}</span>
+            </button>
+            <button class="nico-pv-icon-btn" onclick="Niconico._pvRemoveRefAudio()" title="${I18n.t('nico.pv_ref_remove_title', '削除')}">${this._SVG.close}</button>
+        `;
+    },
+
+    _pvRemoveRefAudio() {
+        this._pvStopAllAudioPreviews();
+        this._pvRefAudio = null;
+        this._pvRenderRefAudio();
+    },
+
+    // 表単主区の試聴トグル（既に選ばれている _pvRefAudio.blob をそのまま再生。15秒以内保証済みなので
+    // 自動停止タイマーは不要——最後まで鳴らせば ended イベントで自然に止まる）
+    async _pvToggleRefAudioPreview() {
+        const ra = this._pvRefAudio;
+        if (!ra) return;
+        if (this._pvAudioPreviewEl && !this._pvAudioPreviewEl.paused) {
+            this._pvAudioPreviewEl.pause();   // 'pause' リスナーがボタン状態を戻す
+            return;
+        }
+        this._pvStopTrimPreview();   // 互斥防御（通常は選段弾窗と同時に見えないが念のため）
+        if (!ra.url) ra.url = Utils.trackBlobUrl(URL.createObjectURL(ra.blob), 'nico-pv-refaudio');
+        if (!this._pvAudioPreviewEl) {
+            this._pvAudioPreviewEl = new Audio();
+            if (window.AudioCoordinator) AudioCoordinator.register(this._pvAudioPreviewEl);   // widget/TTS/LINE voice と同じ互斥に参加
+            this._pvAudioPreviewEl.addEventListener('play', () => this._pvSetPreviewBtnState('nicoPvRefAudioPreview', true));
+            this._pvAudioPreviewEl.addEventListener('pause', () => this._pvSetPreviewBtnState('nicoPvRefAudioPreview', false));
+            this._pvAudioPreviewEl.addEventListener('ended', () => this._pvSetPreviewBtnState('nicoPvRefAudioPreview', false));
+        }
+        this._pvAudioPreviewEl.src = ra.url;
+        try { await this._pvAudioPreviewEl.play(); } catch (e) { console.warn('[Niconico] ref audio preview failed', e); }
+    },
+
+    _pvStopAudioPreview() {
+        if (this._pvAudioPreviewEl && !this._pvAudioPreviewEl.paused) {
+            try { this._pvAudioPreviewEl.pause(); } catch (e) { }
+        }
+    },
+
+    // 選段弾窗のプレビュー停止：先に参照を null に落としてから stop() する（stop() が非同期に発火させる
+    // onended コールバック内の自己参照チェックと組み合わせて、新しい再生が始まった後に古い onended が
+    // 誤ってボタン状態を「停止」に巻き戻すレースを防ぐ）
+    _pvStopTrimPreview() {
+        const src = this._pvTrimPreviewSource;
+        if (!src) return;
+        this._pvTrimPreviewSource = null;
+        try { src.stop(); } catch (e) { }
+        this._pvSetPreviewBtnState('nicoPvTrimPreview', false);
+    },
+
+    _pvStopAllAudioPreviews() {
+        this._pvStopAudioPreview();
+        this._pvStopTrimPreview();
+    },
+
+    // 試聴ボタンの見た目（アイコン + title、選段弾窗のボタンはラベルテキストも）を再生/停止で切替
+    // idPrefix: 'nicoPvRefAudioPreview'（表単主区・アイコンのみ） | 'nicoPvTrimPreview'（選段弾窗・アイコン+ラベル）
+    _pvSetPreviewBtnState(idPrefix, playing) {
+        const btn = document.getElementById(idPrefix + 'Btn');
+        const icon = document.getElementById(idPrefix + 'Icon');
+        const label = document.getElementById(idPrefix + 'Label');
+        const title = playing ? I18n.t('nico.pv_ref_audio_stop_title', '停止') : I18n.t('nico.pv_ref_audio_preview_title', '試聴');
+        if (btn) btn.title = title;
+        if (icon) icon.innerHTML = playing ? this._SVG.stop : this._SVG.play;
+        if (label) label.textContent = title;
+    },
+
+    // ===== 選段弾窗（15秒超の音声から範囲選択・OfflineAudioContext でトリム→WAV 再エンコード） =====
+
+    _pvOpenTrimModal(audioBuffer, duration, fileName) {
+        this._pvTrimCtx = { audioBuffer, duration, fileName, start: 0 };
+        const maxStart = Math.max(0, duration - 15);
+        const html = `
+        <div class="nico-modal-overlay nico-pv-trim-overlay" id="nicoPvTrimModal" onclick="if(event.target===this)Niconico._closeTrimModal()">
+            <div class="nico-modal nico-pv-trim-modal">
+                <div class="nico-modal-title">${I18n.t('nico.pv_trim_title', '音声区間を選択（最大15秒）')}</div>
+                <div class="nico-pv-trim-range" id="nicoPvTrimRange">${this._pvTrimRangeText()}</div>
+                <input type="range" id="nicoPvTrimSlider" class="nico-pv-trim-slider"
+                    min="0" max="${maxStart}" step="0.5" value="0"
+                    oninput="Niconico._pvOnTrimSliderInput(this.value)">
+                <button class="glass-btn nico-pv-ai-btn nico-pv-trim-preview" id="nicoPvTrimPreviewBtn" onclick="Niconico._pvToggleTrimPreview()" title="${I18n.t('nico.pv_ref_audio_preview_title', '試聴')}">
+                    <span class="nico-pv-btn-icon" id="nicoPvTrimPreviewIcon">${this._SVG.play}</span><span id="nicoPvTrimPreviewLabel">${I18n.t('nico.pv_ref_audio_preview_title', '試聴')}</span>
+                </button>
+                <div class="nico-modal-buttons nico-pv-actions">
+                    <button class="glass-btn nico-modal-close" onclick="Niconico._closeTrimModal()">${I18n.t('nico.pv_btn_cancel', 'キャンセル')}</button>
+                    <button class="glass-btn nico-pv-submit-btn" onclick="Niconico._pvConfirmTrim()">${I18n.t('nico.pv_gallery_confirm', '決定')}</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    },
+
+    _pvTrimRangeText() {
+        const ctx = this._pvTrimCtx;
+        if (!ctx) return '';
+        const start = ctx.start;
+        const end = Math.min(ctx.duration, start + 15);
+        return I18n.t('nico.pv_trim_range_format', { start: start.toFixed(1), end: end.toFixed(1) });
+    },
+
+    _pvOnTrimSliderInput(val) {
+        if (!this._pvTrimCtx) return;
+        this._pvTrimCtx.start = parseFloat(val) || 0;
+        const el = document.getElementById('nicoPvTrimRange');
+        if (el) el.textContent = this._pvTrimRangeText();
+        this._pvStopTrimPreview();   // ドラッグ中に鳴ってた分は捨てる（古い位置のまま鳴り続けると紛らわしい）
+    },
+
+    // 選段弾窗の試聴：Blob化せず AudioBufferSourceNode で直接 [start, start+15) を再生
+    // （デコード済み AudioBuffer がメモリ上にあるのでこれが一番シンプル。start(when, offset, duration)
+    // が自動的に指定秒数で止めてくれるので手動タイマー不要）
+    async _pvToggleTrimPreview() {
+        if (this._pvTrimPreviewSource) {
+            this._pvStopTrimPreview();
+            return;
+        }
+        const ctx = this._pvTrimCtx;
+        const audioCtx = this._pvDecodeCtx;
+        if (!ctx || !audioCtx) return;
+        this._pvStopAudioPreview();   // 互斥防御
+        if (audioCtx.state === 'suspended') { try { await audioCtx.resume(); } catch (e) { } }
+
+        const src = audioCtx.createBufferSource();
+        src.buffer = ctx.audioBuffer;
+        src.connect(audioCtx.destination);
+        const playLen = Math.min(15, ctx.duration - ctx.start);
+        src.onended = () => {
+            // 自己参照チェック：_pvStopTrimPreview が already null 化してから stop() した場合や、
+            // 新しい再生が既に始まっている場合はこの古いコールバックを無視（レース防止、上のコメント参照）
+            if (this._pvTrimPreviewSource === src) {
+                this._pvTrimPreviewSource = null;
+                this._pvSetPreviewBtnState('nicoPvTrimPreview', false);
+            }
+        };
+        src.start(0, ctx.start, playLen);
+        this._pvTrimPreviewSource = src;
+        this._pvSetPreviewBtnState('nicoPvTrimPreview', true);
+    },
+
+    async _pvConfirmTrim() {
+        const ctx = this._pvTrimCtx;
+        if (!ctx) return;
+        this._pvStopAllAudioPreviews();
+        const start = ctx.start;
+        const dur = Math.min(15, ctx.duration - start);
+        try {
+            const blob = await this._pvRenderTrimWav(ctx.audioBuffer, start, dur);
+            this._pvRefAudio = { blob, name: ctx.fileName, duration: dur, url: null };
+            this._closeTrimModal();
+            await this._pvRenderRefAudio();
+        } catch (e) {
+            console.error('[Niconico] trim render failed', e);
+            Utils.showToast(String((e && e.message) || e));
+        }
+    },
+
+    _closeTrimModal() {
+        this._pvStopAllAudioPreviews();
+        this._pvTrimCtx = null;
+        document.getElementById('nicoPvTrimModal')?.remove();
+    },
+
+    // OfflineAudioContext で [startSec, startSec+durSec) を原サンプリングレート/チャンネル数のまま
+    // レンダリング → 16bit PCM WAV にエンコード（再生も投稿もこの WAV を使う——編码后の音質はここで確定）
+    async _pvRenderTrimWav(audioBuffer, startSec, durSec) {
+        const sr = audioBuffer.sampleRate;
+        const channels = audioBuffer.numberOfChannels;
+        const frameCount = Math.max(1, Math.round(durSec * sr));
+        const OfflineCtor = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+        const offlineCtx = new OfflineCtor(channels, frameCount, sr);
+        const src = offlineCtx.createBufferSource();
+        src.buffer = audioBuffer;
+        src.connect(offlineCtx.destination);
+        src.start(0, startSec, durSec);
+        const rendered = await offlineCtx.startRendering();
+        return this._encodeWav(rendered);
+    },
+
+    // 手写 WAV エンコーダ（RIFF ヘッダ + interleaved 16bit PCM）。依存ゼロ、~35行。
+    _encodeWav(audioBuffer) {
+        const numCh = audioBuffer.numberOfChannels;
+        const sr = audioBuffer.sampleRate;
+        const numFrames = audioBuffer.length;
+        const blockAlign = numCh * 2;   // 2 bytes/sample（16bit）
+        const dataSize = numFrames * blockAlign;
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+        const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
+
+        writeStr(0, 'RIFF');
+        view.setUint32(4, 36 + dataSize, true);
+        writeStr(8, 'WAVE');
+        writeStr(12, 'fmt ');
+        view.setUint32(16, 16, true);              // fmt チャンクサイズ（PCM=16）
+        view.setUint16(20, 1, true);                // audioFormat = 1（PCM）
+        view.setUint16(22, numCh, true);
+        view.setUint32(24, sr, true);
+        view.setUint32(28, sr * blockAlign, true);  // byteRate
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, 16, true);               // bitsPerSample
+        writeStr(36, 'data');
+        view.setUint32(40, dataSize, true);
+
+        const channelData = [];
+        for (let c = 0; c < numCh; c++) channelData.push(audioBuffer.getChannelData(c));
+        let offset = 44;
+        for (let i = 0; i < numFrames; i++) {
+            for (let c = 0; c < numCh; c++) {
+                const s = Math.max(-1, Math.min(1, channelData[c][i]));
+                view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+                offset += 2;
+            }
+        }
+        return new Blob([buffer], { type: 'audio/wav' });
+    },
+
+    // ===== AIにおまかせ：演出タイプ×ムード 二軸カード（v2.243） =====
+    // 定番演出語彙は自前で攢めたもの——タイプ選択時は persona も差し替える（音楽PV演出監督／シリーズ構成）、
+    // ムードは色調・運鏡のトーンだけを足す。「指定なし」時は _pvAiWrite 側で一切参照されない
+    _PV_STYLE_CARDS: {
+        op: {
+            persona: '音乐PV演出导演',
+            text: '这是一段动画OP风格的影像。可将OP的惯用演出语汇用于判断：充满疾走感的起跑／角色回眸·望向镜头／主要角色依次登场的介绍镜头／全员集合的拉远画面／副歌前一瞬的静止（蓄势）／最后以一张定格决胜画收尾。注意乐曲的能量曲线（主歌=铺垫、副歌=最高潮），据此分配镜头密度。'
+        },
+        ed: {
+            persona: '音乐PV演出导演',
+            // カット数の具体的な数字は二期で cutRange（duration 連動）に一元化——ここに数字を残すと
+            // cutRange の指示と食い違った時に二重指示の矛盾が生まれるため、方向性の言及だけ残す
+            text: '这是一段动画ED风格的影像。可运用ED的惯用语汇：定机位或缓慢移动的长镜头／背影·远景·剪影／带着日常余韵的小动作／沉稳统一的色调／最后缓缓拉远、或如静静闭眼般收束。镜头数可以偏少。'
+        },
+        insert: {
+            persona: '音乐PV演出导演',
+            text: '这是一段插入歌场景风格的影像。要意识到“乐曲与故事情感最高潮重叠”的演出：插入回忆闪回／现在与过去的对比镜头／向高潮层层推进的蒙太奇／让乐曲的高涨与情感的顶点重合。'
+        },
+        yokoku: {
+            persona: '系列构成（宣传担当）',
+            text: '这是一段下集预告风格的影像。可运用预告的惯用语汇：短促摘要镜头的连续堆叠／一两句引人遐想的台词「」／点到为止、不亮出核心／最后以黑场或定格画制造对下一集的期待。可以基于既有设定·伏笔暗示下一集篇幅的展开，但不得明示重大转折或结局。'
+        },
+        highlight: {
+            persona: '系列构成（宣传担当）',
+            text: '这是一段本季高光（总集篇PV）风格的影像。从已播出的事件中挑选名场面进行蒙太奇：把情感起伏排成波浪／需要时可加入体现关系变化的对比（初遇时→现在）／最后以象征整个故事的一张画收尾。'
+        },
+        // バトル（三期）：B文書（社区参考プロンプト）の骨架を踏襲——空間提示→動作の一方向エスカレーション→
+        // クライマックス直前の静止→最大の一撃→決め画。styleMenuRule が後段に必ず付くので、ここでは
+        // 「〜すること」を連発せず highlight カードと同じ「〜してもよい」緩和句式に寄せる（引き出し口調の護り）
+        battle: {
+            persona: '动作戏演出导演',
+            text: '这是一段战斗场景风格的影像。可运用战斗演出的惯用语汇：先交代作为战场的空间／动作无论徒手·武器·异能，都单向地逐级升温（挑衅→首击→交锋→逼入绝境，等）／高潮前可插入一瞬静止（蓄势·半秒的静默）／随后向最重的一击层层压上／最后以定格决胜画收尾（若能回收开头展示过的武器·架势·背景等要素更佳）。斩击轨迹·冲击波·残影·瓦砾碎片飞散·撞击火花·速度线式的速度感——这些语汇也可作为演出工具选用。时长较短时，不要害怕短镜头的连续堆叠。'
+        }
+    },
+    _PV_MOOD_CARDS: {
+        iyashi: '基调是「治愈」：柔和的光·暖色·舒缓的运镜。镜头偏长，动作是微风、光尘般轻柔的东西。',
+        setsunai: '基调是「揪心」：黄昏·雨·逆光·偏蓝的色调。运用体现错过与距离感的构图，善用舒缓的留白。',
+        moeru: '基调是「燃」：快速的镜头切换·仰角或倾斜的构图·突进疾驰等有气势的单向动作。对比强烈的色彩。',
+        kibou: '基调是「希望」：朝阳·不断上升的运镜·开阔的远景。营造画面从阴影走向光的变化。',
+        shukufuku: '基调是「祝福」：光尘与花瓣·温暖的白·聚拢的人群。用柔和的推近捕捉表情。'
+    },
+
+    // AIにおまかせ・seedText 三態のしきい値（二期）：400字は「この尺（15秒PV基準）では原作全文を
+    // 映像化しきれない」水準の目安（丁寧に描けるのはワンシーン程度）であり、同時に「方向性」用途の
+    // 短文にも十分な余地を残すために選んだ境界値。この値未満は加筆で尺を満たす方向性、以上は選段の対象
+    _PV_EXCERPT_THRESHOLD: 400,
+
+    // 台词·旁白语言（2026-08-23）：分镜描述恒中文（目标视频模型均为中文模型），
+    // 「」内要朗读的文字跟用户选择走。pace 是台词字数/秒的换算（检品⑨同源）
+    _PV_DIALOGUE_LANGS: {
+        ja: { name: '日语', pace: '按日语计每秒6个字左右' },
+        zh: { name: '中文', pace: '按中文计每秒4个字左右' },
+        en: { name: '英语', pace: '按英语计每秒2〜3个单词' }
+    },
+
+    // 内联浮层（そのまま生成／推敲つき生成）：npc-role-dropdown と同じ姿勢——position:relative の wrap + 外部クリックで閉じる
+    _pvAiWriteToggleMenu(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('nicoPvAiMenu');
+        if (!menu) return;
+        const willShow = menu.style.display === 'none' || !menu.style.display;
+        menu.style.display = willShow ? 'block' : 'none';
+        if (willShow && !this._pvAiMenuOutsideBound) {
+            this._pvAiMenuOutsideBound = true;
+            document.addEventListener('click', e => this._pvAiWriteMenuOutsideClick(e));
+        }
+    },
+
+    _pvAiWriteMenuOutsideClick(e) {
+        const menu = document.getElementById('nicoPvAiMenu');
+        if (!menu || menu.style.display === 'none') return;
+        const wrap = menu.closest('.nico-pv-ai-wrap');
+        if (wrap && !wrap.contains(e.target)) menu.style.display = 'none';
+    },
+
+    _pvAiWriteChoose(polish) {
+        const menu = document.getElementById('nicoPvAiMenu');
+        if (menu) menu.style.display = 'none';
+        this._pvAiWrite(polish);
+    },
+
+    // ===== AIにおまかせ：世界観から絵コンテ（複数カットの演出台本）を書く（_generateVideos と同じ注入三件套） =====
+    // 選択済みの参考図/参考音声/歌詞をそのまま演出素材として認識させる——参考図は容姿参照であって構図の指定ではない
+    // （冒頭カットが必ず正面立ち絵になるとは限らない）。並発防呆は Utils.withLock（CLAUDE.md 铁律）
+    // polish（v2.243、任意）：true なら生成後に「制作進行」人格で一回だけ検品パスを追加する
+    async _pvAiWrite(polish) {
         const textarea = document.getElementById('nicoPvPrompt');
         if (!textarea) return;
         const btn = document.getElementById('nicoPvAiWriteBtn');
         const label = document.getElementById('nicoPvAiWriteLabel');
-        if (btn) btn.disabled = true;
-        if (label) label.textContent = I18n.t('nico.pv_ai_writing', '生成中…');
 
-        try {
-            const worldContext = (typeof Forum !== 'undefined' && Forum.getWorldContext) ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
-            const seedText = (textarea.value || '').trim();
+        await Utils.withLock('nicoPvAiWrite', async () => {
+            if (btn) btn.disabled = true;
+            if (label) label.textContent = I18n.t('nico.pv_ai_writing', '生成中…');
 
-            const systemPrompt = `あなたは動画生成AI向けのプロンプトを書く創作アシスタントです。
-以下の作品世界に基づいて、ニコニコ動画に投稿する公式PV（プロモーション映像）用の生成プロンプトを書いてください。
+            try {
+                const worldContext = (typeof Forum !== 'undefined' && Forum.getWorldContext) ? Forum.getWorldContext() : (AppState.data.broadcast.worldSetting || '');
+                const seedText = (textarea.value || '').trim();
 
-## 作品世界の情報
-${worldContext || '（世界観未設定 — キャラクター名・CP・ストーリーイベントなど具体的な作品情報を捏造しないこと。一般的なアニメPVとして生成すること）'}
+                // 台词·旁白语言（2026-08-23）：分镜描述恒中文，「」内跟这个走
+                const dialogueLang = document.getElementById('nicoPvDialogueLang')?.value || this._ensureData().pvDialogueLang || 'ja';
+                const langInfo = this._PV_DIALOGUE_LANGS[dialogueLang] || this._PV_DIALOGUE_LANGS.ja;
+
+                // 演出タイプ×ムード（v2.243）：どちらも「指定なし」なら以下は全部空になり、通用演出監督の prompt と一字一句同じまま
+                const styleType = document.getElementById('nicoPvStyleType')?.value || '';
+                const styleMood = document.getElementById('nicoPvStyleMood')?.value || '';
+                // v2.246 review（A3）：予告/ハイライトはフィールド自体を隠しているだけで this._pvRefAudio や
+                // textarea の値はまだ残っている（_pvUpdateAudioLyricsVisibility は表示切替のみで値は消さない）。
+                // 隠れている間の AI 生成にその残留値を読ませない——底の値そのものは触らない、この回の生成でだけ無視する
+                const hideForType = (styleType === 'yokoku' || styleType === 'highlight');
+                const typeCard = this._PV_STYLE_CARDS[styleType] || null;
+                const moodCardText = this._PV_MOOD_CARDS[styleMood] || '';
+                const directorIdentity = typeCard ? typeCard.persona : '操刀官方PV的演出导演';
+                const duration = parseInt(document.getElementById('nicoPvDuration')?.value, 10) || 10;
+                // カット数は尺（duration）に比例させる（二期）：下限は「4秒に1カットは切れる」目安、
+                // 上限は ED は「少なめ」の演出意図をそのまま反映して下限+1に詰め、それ以外は
+                // 「2.5秒に1カットまで詰めてよい」目安。ED カードが「少なめ」を明言するので出力形式の
+                // 指示もそちらに合わせる（二重指示の矛盾を残さない）
+                const cutMin = Math.max(2, Math.ceil(duration / 4));
+                const cutMax = (styleType === 'ed') ? cutMin + 1 : Math.max(cutMin + 1, Math.floor(duration / 2.5));
+                const cutRange = `${cutMin}〜${cutMax}`;
+                // 字数上限随尺缩放（2026-08-23 中文化重标定）：中文信息密度高于日语假名混写，
+                // 30秒按官方 2.5 指南的长例约 900 字级封顶；「中文500字以内」是 1.x 时代旧文档的警告，不再适用
+                const charBudget = Math.min(900, Math.max(300, duration * 35));
+                const styleCardTexts = [typeCard ? typeCard.text : '', moodCardText].filter(Boolean);
+                // v2.246.1：定番語彙は引き出しでありチェックリストではない——総則を必ず添える。
+                // カードの「〜すること」口調がユーザーの seedText（軟性区画）より強く読まれ、
+                // 「ただ踊るだけの片段」にも対比フラッシュバックが毎回挿入される実測があった
+                const styleMenuRule = '以上惯用语汇是演出的工具抽屉，没有全部塞进片子的义务。用户的方向性足够具体时以它为最优先，不合适的语汇不要用。';
+                const styleSection = styleCardTexts.length ? `\n## 演出风格\n${styleCardTexts.join('\n\n')}\n\n${styleMenuRule}\n` : '';
+                const eventLimit = (styleType === 'highlight') ? 8 : 3;   // ハイライトは名場面の材料を厚めに
+
+                // 撮影の引き出し：既存の「カメラワーク（寄り・引き・パンなど）」一文だけだと
+                // 運鏡の語彙がその数語に寄りがち（2026-08-18 社区プロンプト対比で判明した弱点）——
+                // 景別・運鏡・つなぎの定番術語を常時注入して選択肢を広げる。styleMenuRule と同じ理由で、
+                // 末尾の護りの一文は必須（語彙表を「全部使うべきチェックリスト」と誤読させない）
+                const cinematographySection = `\n## 拍摄手法工具箱\n景别·构图：特写／半身近景／远景（拉开的画面）／俯拍／仰拍／过肩镜头／剪影／主观视角\n运镜：推镜·拉镜／横移（跟踪）／上升·下降（升降镜头）／环绕／手持晃动感／移焦（焦点从前景平滑转到背景）\n镜头衔接：匹配剪辑／闪白转场／淡入淡出／动作衔接\n\n以上术语是演出的工具抽屉，没有全部用上的义务。只挑选符合各镜头演出意图的手法，写成具体的运动。\n`;
+
+                // 素材リスト（図N）：createTask が content 配列に積む順番は refImgIds 配列の順番そのまま
+                // （画廊選択器は url 解決できない項目をすでに選択肢から弾いている——欠番は基本起きない想定）。
+                // modelInfo.ref が false（Seedance 1.x 系）の時は createTask 側も画像を一切送らないので、ここも空扱いにする
+                const modelSel = document.getElementById('nicoPvModel');
+                const modelInfo = this._pvModelInfo(modelSel ? modelSel.value : '');
+                const refImgIds = modelInfo.ref ? (this._pvRefImgIds || []) : [];
+                const charRefs = (typeof Broadcast !== 'undefined' && Broadcast.getAllCharRefs) ? Broadcast.getAllCharRefs() : [];
+                const assetLines = refImgIds.map((id, i) => {
+                    const ref = charRefs.find(c => c.blobId === id);
+                    return (ref && ref.name)
+                        ? `图${i + 1}：${ref.name}的立绘（外貌参照）`
+                        : `图${i + 1}：用户提供的参考插画`;
+                });
+                const hasAssets = assetLines.length > 0;
+                const assetSection = hasAssets ? `\n## 素材列表\n${assetLines.join('\n')}\n` : '';
+
+                // 参考音声＋歌詞：時長は _pvRefAudio.duration（秒）。歌詞は台詞ではないので「」規則の対象外（下のルールで明示禁止）
+                // hideForType 時は null/空扱い（A3）——フィールドが隠れている演出タイプでは音声・歌詞を無視する
+                const refAudio = hideForType ? null : this._pvRefAudio;
+                const lyrics = hideForType ? '' : (document.getElementById('nicoPvLyrics')?.value || '').trim();
+                let audioSection = '';
+                if (refAudio) {
+                    audioSection = `\n参考音声（BGM）：约${Math.round(refAudio.duration)}秒的乐曲区间\n`;
+                    if (lyrics) audioSection += `歌词:\n${lyrics}\n`;
+                }
+                const hasLyrics = !!(refAudio && lyrics);
+
+                const materialBullet = hasAssets ? '- 使用的素材（图N。只引用上方素材列表里存在的素材，不涉及的镜头省略此项）\n' : '';
+                // 参考図なし版は「外見的特徴で示すこと」だけだと多カット間の容姿一貫性を何も
+                // 保証していない——冒頭カットで容姿を確立し全カットで一貫させる要求を同じ文に流し込む
+                // （図N機制がある版は既にそれで一貫性が担保されているため一字も変えない）
+                const characterRefRule = hasAssets
+                    ? '- 影像描述中不要直接写角色名。指代人物时用“图N的人物”或外貌特征来表示\n'
+                    : '- 影像描述中不要直接写角色名。指代人物时用外貌特征表示，并在开头的镜头里确立其外貌（发型·服装的要点），此后所有镜头保持同一外貌\n';
+                const compositionFreedomRule = hasAssets
+                    ? '- 参考图只是外貌的参照，构图可按演出意图自由决定。开头镜头不必是立绘式的正面构图——侧脸·背影·远景·局部特写等，选那一瞬间演出效果最好的构图\n'
+                    : '';
+                // 時間配分は「## 尺」に一元化（参考音声の時長と duration 選択が食い違う場合に矛盾指示を出さない）
+                const lyricsRule = hasLyrics
+                    ? '- 歌词不是台词，绝对不要放进「」。镜头切换尽量对齐歌词行与行的分界，每个镜头的画面呼应对应歌词的意象（具体或隐喻均可）。时间分配遵循上方的时长\n'
+                    : '';
+                // 見せ場の骨架意識：「必ず入れるべきカット」として義務化せず引き出しとして添える——
+                // 演出タイプ卡（OP/ED/挿入歌など）やユーザーの seedText と矛盾する場合はそちらが優先
+                const showcaseRule = '- 注意PV应有的看点（人物面孔清晰可见的镜头、情绪的特写、定格的决胜画）。与演出类型或用户方向性不合时，以后者优先\n';
+                // 音響設計：modelInfo.audio は _pvModelInfo() が具体的な model id で判定済み
+                // （ark は 1.0系のみ無声、H3 は恒有声、minimax_v1 は全系無声）——有声モデルにだけ注入し、
+                // 無声モデルではプロンプトが改修前と一字一句変わらないようにする
+                const soundSection = modelInfo.audio
+                    ? '\n## 声音设计\n- 每个镜头末尾视需要补一句环境音·动作音效\n- 注意音乐性的起伏：高潮镜头做足声势，高潮前的一瞬静默与结尾的余韵也是演出手段\n'
+                    : '';
+
+                // 4刀：seedText の三態（空／短中=方向性のヒント／長文=原作選段モード）。
+                // isExcerptMode は _pvPolishStoryboard 側にも ctx で渡し、検品 checklist の①判定を分岐させる
+                const isExcerptMode = seedText.length >= this._PV_EXCERPT_THRESHOLD;
+                let seedSection = '';
+                if (seedText && isExcerptMode) {
+                    // 長文（原作選段モード）：全文を通読させ、尺に合う一場面だけを選ばせる。
+                    // 選定結果は絵コンテ本文の前に「選定場面：〜」一行だけ許可する（出力形式側にも例外を反映）
+                    seedSection = `\n## 原作文本（从中选取一个场面）\n${seedText}\n把全文在${duration}秒内全部影像化是不够的。请先通读全文，按「有视觉上的动感／有情感的高峰／在单一地点·时间内完结／不需要前后文说明也能看懂」的标准，选出最能出效果的一个场面。在分镜正文之前单独写一行“选定场面：〜”，只把这个场面分镜化。原作中的台词尽量使用原文原句（保持原文的语言，此规则优先于台词语言设定）。\n`;
+                } else if (seedText) {
+                    // 短中文：方向性の意図を核に、設定と矛盾しない範囲でディテールを補って尺を満たす（捏造とは別軸の要求）
+                    seedSection = `\n## 用户已想好的方向性\n${seedText}\n用户的方向性较短时，以其意图为核心，在不与作品世界矛盾的范围内，把场面细节（地点·时间段·光线·小道具·人物举止）具体化以填满时长。不得发明设定中不存在的事件·角色·关系。\n`;
+                }
+                const outputFormatIntro = isExcerptMode
+                    ? '不要添加说明文或标题，只输出分镜正文（第一行“选定场面：〜”、第二行“概述：〜”与结尾的“整体氛围：〜”一行是格式的一部分，必须保留）。'
+                    : '不要添加说明文或标题，只输出分镜正文（开头的“概述：〜”一行与结尾的“整体氛围：〜”一行是格式的一部分，必须保留）。';
+
+                const systemPrompt = `你是这部番剧的${directorIdentity}。你不是撰写提示词的助手，而是基于以下作品世界、实际负责画面判断的主创。请为视频生成AI撰写分镜（多个镜头的演出台本）。分镜的画面·动作·运镜描述一律用中文书写；「」内的台词·旁白一律用${langInfo.name}书写。
+
+## 作品世界信息
+${worldContext || '（世界观未设定——不得捏造角色名·CP·故事事件等具体作品信息。按一般的动画PV来构成）'}
 ${Utils.PROMPTS.infoAccessRule()}
-${typeof Utils !== 'undefined' && Utils.getEventContextPrompt ? Utils.getEventContextPrompt(3) : ''}
-${seedText ? `\n## ユーザーが既に考えている方向性\n${seedText}\n` : ''}
-## 出力形式（厳守）
-説明文やタイトルを付けず、プロンプト本文のみを出力すること。
+${typeof Utils !== 'undefined' && Utils.getEventContextPrompt ? Utils.getEventContextPrompt(eventLimit) : ''}
+${assetSection}${audioSection}${seedSection}
+## 时长
+总计 ${duration} 秒
 
-## ルール
-- 全体で500字以内
-- 時系列に沿ったカットを複数並べ、画づくり・カメラワーク・色調・雰囲気を具体的に描写すること
-- セリフを入れる場合は必ず「」（鉤括弧）で囲むこと — 音声生成モデルはこの記号内のみを読み上げる
-- 作品世界のキャラクター・関係性・出来事を積極的に反映すること
-- 説明的な地の文ではなく、そのまま動画生成モデルに渡せる具体的な描写にすること
-- 🚫 設定にないストーリーを捏造するな`;
+## 输出格式（严格遵守）
+${outputFormatIntro}按「镜头1（0-4秒）」「镜头2（4-8秒）」的格式，起止秒数连续、总和为${duration}秒，分成${cutRange}个镜头。正文第一行写“概述：〜”——用一句话概括整体（主体+地点+事件+风格）；正文最后一行写“整体氛围：〜”——贯穿全片的画风·色调·光线·画质。每个镜头包含：
+${materialBullet}- 画面的构图·画面营造，写明画面主体及其动作（谁/什么在画面里、在做什么）
+- 摄影机运动（推·拉·摇·移·跟等，必须指定明确的运动）
+- 单向推进的动作链（用2〜3个连续动作填满秒数）
+- 只有台词·旁白才放进「」（钩括号）——音声生成模型只朗读「」内的文字，一律用${langInfo.name}书写
+- 台词长度要与该镜头的秒数相称（${langInfo.pace}）
+${cinematographySection}${styleSection}${soundSection}
+## 规则
+- 不要写静止的镜头（“静止”“保持原样”等描述）——所有镜头都要有明确的摄影机运动
+- 动作必须单向推进。不要写“迈出一步又收回”这类往复·回退的动作
+- 情绪要通过身体动作·表情·画面营造来呈现。不要直接写“悲伤”“开心”等抽象情感词
+- 场景中按剧情应有人物时，不得用纯道具·空镜代替人物；群像场面用概括性的群体动作描写（例：一群少女随乐声起舞、衣袖翻飞），不要把有人的场面简化成静物。空镜只在有明确演出意图时使用
+${characterRefRule}${compositionFreedomRule}${lyricsRule}- 全篇以${charBudget}字以内为准
+${showcaseRule}- 🚫 不得捏造设定中不存在的角色·故事`;
 
-            const messages = [{ role: 'user', content: 'PV生成プロンプトを書いてください。' }];
-            const raw = await Utils.callChatAPI(messages, systemPrompt);
-            textarea.value = (raw || '').trim();
-        } catch (e) {
-            console.error('[Niconico] PV AI write error:', e);
-            Utils.showToast(I18n.t('t.nico_gen_error', '⚠️ 生成エラー: ') + e.message, 4000);
-        } finally {
-            if (btn) btn.disabled = false;
-            if (label) label.textContent = I18n.t('nico.pv_ai_write_btn', 'AIにおまかせ');
+                const messages = [{ role: 'user', content: '请写分镜。' }];
+                let raw = (await Utils.callChatAPI(messages, systemPrompt) || '').trim();
+
+                if (polish) {
+                    if (label) label.textContent = I18n.t('nico.pv_ai_polishing', '推敲中…');
+                    raw = await this._pvPolishStoryboard(raw, { duration, hasAssets, assetLines, hasLyrics, lyrics, charBudget, isExcerptMode, seedText, langInfo });
+                }
+
+                textarea.value = raw;
+            } catch (e) {
+                console.error('[Niconico] PV AI write error:', e);
+                Utils.showToast(I18n.t('t.nico_gen_error', '⚠️ 生成エラー: ') + e.message, 4000);
+            } finally {
+                if (btn) btn.disabled = false;
+                if (label) label.textContent = I18n.t('nico.pv_ai_write_btn', 'AIにおまかせ');
+            }
+        }, () => Utils.showToast(I18n.t('nico.pv_ai_writing', '生成中…')));
+    },
+
+    // 推敲：分镜生成后的可选检品通道。用「制作进行」这一干净人格只修正违规之处——不传世界观全文
+    // （检品不需要，节省 token）。ctx 沿用 _pvAiWrite 已经拼好的值。2026-08-23 中文化：产出与检品 prompt
+    // 均改中文书写，新增⑩对照用户方向性抓主体丢失（对症カット2 事故：群像被压缩成静物道具）
+    async _pvPolishStoryboard(storyboard, ctx) {
+        const { duration, hasAssets, assetLines, hasLyrics, lyrics, charBudget, isExcerptMode, seedText, langInfo } = ctx;
+        const assetSection = hasAssets ? `\n## 素材列表\n${assetLines.join('\n')}\n` : '';
+        const lyricsSection = hasLyrics ? `\n歌词:\n${lyrics}\n` : '';
+        const item5 = hasAssets ? '没有直写角色名（只用图N·外貌特征指代）' : '没有直写角色名（用外貌特征指代）';
+        const item7 = hasAssets ? '没有添加素材列表之外的人物·明显突兀的专有名词' : '没有添加对作品而言明显突兀的专有名词';
+        // ⑩（2026-08-23）：只在「方向性」形态且有 seedText 时启用——对照用户构想抓主体丢失
+        //（群像被简化成静物一类）。选段模式不传全文（token 考量），⑩不出现
+        const hasSeedCheck = !!(seedText && !isExcerptMode);
+        const item10 = hasSeedCheck ? ' ⑩对照下方用户的方向性，关键的画面主体·事件没有丢失、没有被道具或空镜替代' : '';
+        const seedSectionForPolish = hasSeedCheck ? `\n## 用户的方向性（⑩的对照基准）\n${seedText}\n` : '';
+        const excerptNote = isExcerptMode
+            ? '※第一行“选定场面：〜”也是格式的一部分，不得删除，①的秒数检查同样不包含该行。'
+            : '';
+
+        const systemPrompt = `你是这部番剧的制作进行。请对照检查清单检验以下分镜，只对违规之处做最小限度的修正，输出修正后的完成稿。没有问题就原样输出。只输出分镜正文。
+
+## 检查清单
+①秒数连续且总和与时长一致 ②每个镜头都有明确的摄影机运动 ③动作单向推进 ④没有直写抽象情感词 ⑤${item5} ⑥歌词没有被放进「」 ⑦${item7} ⑧全篇${charBudget}字以内 ⑨台词长度与镜头秒数相称（${langInfo.pace}）${item10}
+※开头的“概述：〜”一行与结尾的“整体氛围：〜”一行是格式的一部分，不得删除；①的秒数检查不包含这些行。${excerptNote}
+
+## 时长
+总计 ${duration} 秒
+${assetSection}${lyricsSection}${seedSectionForPolish}
+## 待检分镜
+${storyboard}`;
+
+        const messages = [{ role: 'user', content: '请检品。' }];
+        const raw = await Utils.callChatAPI(messages, systemPrompt);
+        return (raw || '').trim() || storyboard;   // 空应答保底不变
+    },
+
+    // 软闸确认弹窗の共通骨架（v2.244 参考図なし確認から抽出、v2.246 図N不整合確認と共用）：window.confirm ではなく
+    // 既存 nico-modal の骨架を流用（選段弾窗/画廊決定と同じ姿勢）。Promise 化して _pvSubmit から await するだけの
+    // 薄いラッパー。2つの软闸は _pvSubmit 内で順番に（同時ではなく）呼ばれるので、同じ resolve 変数/モーダル id を
+    // 使い回して問題ない
+    _pvOpenConfirm(messageHtml) {
+        return new Promise(resolve => {
+            this._pvConfirmNoRefResolve = resolve;
+            const html = `
+            <div class="nico-modal-overlay nico-pv-confirm-overlay" id="nicoPvNoRefConfirmModal" onclick="if(event.target===this)Niconico._pvNoRefConfirmChoose(false)">
+                <div class="nico-modal nico-pv-confirm-modal">
+                    <div class="nico-modal-title">${messageHtml}</div>
+                    <div class="nico-modal-buttons nico-pv-actions">
+                        <button class="glass-btn nico-modal-close" onclick="Niconico._pvNoRefConfirmChoose(false)">${I18n.t('nico.pv_btn_cancel', 'キャンセル')}</button>
+                        <button class="glass-btn nico-pv-submit-btn" onclick="Niconico._pvNoRefConfirmChoose(true)">${I18n.t('nico.pv_gallery_confirm', '決定')}</button>
+                    </div>
+                </div>
+            </div>`;
+            document.body.insertAdjacentHTML('beforeend', html);
+        });
+    },
+
+    // 参考図なし软闸确认弹窗（v2.244）
+    _pvOpenNoRefConfirm() {
+        return this._pvOpenConfirm(I18n.t('nico.pv_no_ref_confirm', '参考図がありません。人物の一致性が保てませんが、このまま投稿しますか？'));
+    },
+
+    // 絵コンテが図N（参考画像）まで参照しているのに、選択済みの参考図がそれより少ない時の软闸（v2.246 review A1）
+    _pvOpenFigMismatchConfirm(n, m) {
+        return this._pvOpenConfirm(I18n.t('nico.pv_fig_mismatch_confirm', { n, m }));
+    },
+
+    _pvNoRefConfirmChoose(ok) {
+        document.getElementById('nicoPvNoRefConfirmModal')?.remove();
+        const resolve = this._pvConfirmNoRefResolve;
+        this._pvConfirmNoRefResolve = null;
+        if (resolve) resolve(ok);
+    },
+
+    // 公式チャンネル手動追加（v2.245）：AI生成チャンネルは全部ファン系統になりがち、かつ無チャンネル時は
+    // フォームが行き止まりになる問題への出口。既存 nico-modal 骨架を流用（_pvOpenNoRefConfirm と同じ姿勢）
+    _pvOpenChannelAddModal() {
+        const html = `
+        <div class="nico-modal-overlay nico-pv-confirm-overlay" id="nicoPvChannelAddModal" onclick="if(event.target===this)Niconico._pvCloseChannelAddModal()">
+            <div class="nico-modal nico-pv-confirm-modal">
+                <div class="nico-modal-title">${I18n.t('nico.pv_channel_add_title', '公式チャンネルを追加')}</div>
+                <input type="text" id="nicoPvChannelAddInput" class="nico-pv-channel-add-input" maxlength="40" placeholder="${I18n.t('nico.pv_channel_add_ph', '例：〇〇公式チャンネル')}">
+                <div class="nico-modal-buttons nico-pv-actions">
+                    <button class="glass-btn nico-modal-close" onclick="Niconico._pvCloseChannelAddModal()">${I18n.t('nico.pv_btn_cancel', 'キャンセル')}</button>
+                    <button class="glass-btn nico-pv-submit-btn" onclick="Niconico._pvConfirmChannelAdd()">${I18n.t('nico.pv_gallery_confirm', '決定')}</button>
+                </div>
+            </div>
+        </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        document.getElementById('nicoPvChannelAddInput')?.focus();
+    },
+
+    _pvCloseChannelAddModal() {
+        document.getElementById('nicoPvChannelAddModal')?.remove();
+    },
+
+    _pvConfirmChannelAdd() {
+        const input = document.getElementById('nicoPvChannelAddInput');
+        const name = (input && input.value || '').trim();
+        if (!name) {
+            Utils.showToast(I18n.t('nico.pv_channel_add_empty', 'チャンネル名を入力してください'));
+            return; // 空なら窓は閉じない（入力を促す）
         }
+        const n = this._ensureData();
+        if ((n.channels || []).some(c => c.name === name)) {
+            Utils.showToast(I18n.t('nico.pv_channel_add_dup', '同じ名前のチャンネルが既にあります'));
+            return;
+        }
+        // フィールドは _generateChannels の AI生成チャンネルと同じ schema（avatarEmoji/avatarColor/subscriberCount/videoCount/createdAt）
+        // に合わせる——チャンネルカード/PV選択肢のレンダリングが両者を区別せず扱えるように。official:true だけが手動追加の印
+        const newChannel = {
+            id: Utils.generateId(),
+            name,
+            description: '公式チャンネル',   // AI生成チャンネルの description と同じく常に日本語（コンテンツ、UIチロムではない）
+            avatarEmoji: '📺',
+            avatarColor: this._AVATAR_COLORS[Math.floor(Math.random() * this._AVATAR_COLORS.length)],
+            subscriberCount: 8000 + Math.floor(Math.random() * (60000 - 8000 + 1)),
+            videoCount: 0,
+            createdAt: Date.now(),
+            official: true
+        };
+        n.channels.push(newChannel);
+        Utils.saveData();
+        this._pvCloseChannelAddModal();
+        this._pvRefreshChannelRow(newChannel.id);
+        Utils.showToast(I18n.t('nico.pv_channel_add_success', '✓ 公式チャンネルを追加しました'));
+    },
+
+    // PVフォームのチャンネル行を再描画（select 有効化+選択肢再生成+新チャンネル選択、hint 除去、投稿ボタン有効化）
+    // ——チャンネル0件からの「無チャンネル行き止まり」を「+」経由で抜け出す唯一の出口
+    _pvRefreshChannelRow(selectChannelId) {
+        const n = this._ensureData();
+        const channels = n.channels || [];
+        const sel = document.getElementById('nicoPvChannel');
+        if (sel) {
+            sel.innerHTML = channels.map(c => `<option value="${c.id}" ${c.id === selectChannelId ? 'selected' : ''}>${this._escHtml(c.name)}</option>`).join('');
+            sel.disabled = false;
+        }
+        const hint = document.getElementById('nicoPvChannelHint');
+        if (hint) hint.style.display = 'none';
+        const submitBtn = document.getElementById('nicoPvSubmitBtn');
+        if (submitBtn) submitBtn.disabled = false;
     },
 
     // ===== 投稿提出 =====
+    // v2.246 review（D1 铁律 + C3）：整体改用 Utils.withLock 包裹，旧 _pvSubmitting 布尔旗撤销（CLAUDE.md「生成类
+    // 按钮并发防呆」铁律）。旧旗子是表单会话级字段，showPVModal 每次重开表单都会把它复位成 false——用户提交后、
+    // createTask 请求还在飞的时候把表单关了再重开，旗子被静默复位，「投稿する」又能点了，绕开并发上限的判断
+    // （C3）。Utils 级锁按固定 key 走、不挂在表单 DOM/session 状态上，跨表单关闭重开依然认得「上一次还没提交完」
     async _pvSubmit() {
-        if (this._pvSubmitting) return;
-        const n = this._ensureData();
+        await Utils.withLock('nicoPvSubmit', async () => {
+            const n = this._ensureData();
 
-        const promptEl = document.getElementById('nicoPvPrompt');
-        const prompt = (promptEl && promptEl.value || '').trim();
-        if (!prompt) {
-            Utils.showToast(I18n.t('nico.pv_prompt_required', 'PVスクリプトを入力してください'));
-            return;
-        }
+            const promptEl = document.getElementById('nicoPvPrompt');
+            const prompt = (promptEl && promptEl.value || '').trim();
+            if (!prompt) {
+                Utils.showToast(I18n.t('nico.pv_prompt_required', 'PVスクリプトを入力してください'));
+                return;
+            }
 
-        const channelSel = document.getElementById('nicoPvChannel');
-        const channelId = channelSel ? channelSel.value : '';
-        if (!channelId) {
-            Utils.showToast(I18n.t('nico.pv_channel_empty_hint', 'まずチャンネルを生成してください'));
-            return;
-        }
+            const channelSel = document.getElementById('nicoPvChannel');
+            const channelId = channelSel ? channelSel.value : '';
+            if (!channelId) {
+                // v2.246 review（B3）：兜底文案对齐 v2.245.0「+」手动加频道入口上线后的三语新文案
+                Utils.showToast(I18n.t('nico.pv_channel_empty_hint', 'チャンネルを生成するか、「＋」で公式チャンネルを追加してください'));
+                return;
+            }
 
-        const modelSel = document.getElementById('nicoPvModel');
-        const model = modelSel ? modelSel.value : ((VideoGen.MODELS[0] && VideoGen.MODELS[0].id) || '');
-        const modelInfo = this._pvModelInfo(model);
-        const resolution = (document.getElementById('nicoPvResolution') && document.getElementById('nicoPvResolution').value) || '720p';
-        const duration = parseInt(document.getElementById('nicoPvDuration')?.value, 10) || 10;
-        const generateAudio = modelInfo.audio ? !!(document.getElementById('nicoPvAudio') && document.getElementById('nicoPvAudio').checked) : false;
-        const refImgIds = modelInfo.ref ? (this._pvRefImgIds || []) : [];   // ref:false 模型不带参考图，但不清空已选（切回2.0还在）
-        const tweetSel = document.getElementById('nicoPvTweetAccount');
-        const tweetAccountId = (tweetSel && tweetSel.value) ? tweetSel.value : null;
+            const provider = (VideoGen.config().provider) || 'ark';
+            const modelSel = document.getElementById('nicoPvModel');
+            const model = modelSel ? modelSel.value : ((VideoGen.models()[0] && VideoGen.models()[0].id) || '');
+            const modelInfo = this._pvModelInfo(model);
+            // 优先读 select 的实时值（_pvOnModelChange 已按 provider 灌好选项+默认值）；DOM 异常拿不到值时才落到按 provider 兜底，
+            // 不写死单一 '720p'（minimax/minimax_v1 的合法档位是大写 '768P'，各 provider 的字面量各管各的，不在这里"猜"）
+            const resSel = document.getElementById('nicoPvResolution');
+            const resolution = (resSel && resSel.value)
+                || (provider === 'minimax' ? '768P' : provider === 'minimax_v1' ? '768P' : '720p');
+            const duration = parseInt(document.getElementById('nicoPvDuration')?.value, 10) || 10;
+            const generateAudio = modelInfo.audio ? !!(document.getElementById('nicoPvAudio') && document.getElementById('nicoPvAudio').checked) : false;
+            // v2.246 review（C1 critical）：快照拷贝——不 slice() 的话，下面两道软闸弹窗等待用户点击的这段时间里，
+            // 用户对同一个 _pvRefImgIds 数组做的任何原地修改（出演キャラ chips 增删/画廊「決定」回写/继续从相册加图）
+            // 都会原地穿透进后面 refImgIds.includes(id) 的过滤判断和即将发给 createTask 的请求内容——快照后这些
+            // 判断/请求只认「点下投稿する那一刻」的状态，跟弹窗期间用户还在动的表单互不干扰
+            const refImgIds = (modelInfo.ref ? (this._pvRefImgIds || []) : []).slice();   // ref:false 模型不带参考图，但不清空已选（切回2.0还在）
+            // 画面比率（v2.240）：既定 16:9——PV は基本この尺寸。行が非表示（v1/参考図非対応）でも読んで問題ない：
+            // createTask 側で参考図なし＝恒 16:9、v1 分岐＝ratio 不使用なので、この値は実際に効く場面でだけ効く
+            const ratio = document.getElementById('nicoPvRatio')?.value || '16:9';
+            const tweetSel = document.getElementById('nicoPvTweetAccount');
+            const tweetAccountId = (tweetSel && tweetSel.value) ? tweetSel.value : null;
 
-        const btn = document.getElementById('nicoPvSubmitBtn');
-        this._pvSubmitting = true;
-        if (btn) btn.disabled = true;
-        try {
-            await VideoGen.createTask({
-                prompt, refImgIds, model, resolution, duration,
-                generateAudio, channelId, tweetAccountId
-            });
-            n.lastPvChannelId = channelId;
-            Utils.saveData();
-            this._closePVModal();
-            Utils.showToast(I18n.t('nico.pv_toast_started', '生成開始！'));
-            this.refreshGenCard();   // 占位卡即时出现（不等第一次轮询）
-        } catch (e) {
-            console.error('[Niconico] PV submit error:', e);
-            Utils.showToast(I18n.t('t.nico_gen_error', '⚠️ 生成エラー: ') + e.message, 4000);
-        } finally {
-            this._pvSubmitting = false;
-            if (btn) btn.disabled = false;
-        }
+            const btn = document.getElementById('nicoPvSubmitBtn');
+            if (btn) btn.disabled = true;
+            try {
+                // 软闸①（v2.244）：模型支持参考图但一张都没选——人物一致性没法保证，弹一次确认，不阻断（可能就是要纯文生）
+                if (modelInfo.ref && refImgIds.length === 0) {
+                    const ok = await this._pvOpenNoRefConfirm();
+                    if (!ok) return;
+                }
+
+                // 软闸②（v2.246 review A4）：絵コンテ本文引用到図N，但快照里的参考图不够 N 张——多半是「AIにおまかせ」
+                // 生成后又手改了参考图选择、或者手写脚本时写了図N却忘了配图。两道软闸各判各的，顺序都触发时按序各弹一次
+                const figMatches = prompt.match(/図(\d+)/g) || [];
+                const maxFigN = figMatches.reduce((max, m) => Math.max(max, parseInt(m.slice(1), 10) || 0), 0);
+                if (maxFigN > refImgIds.length) {
+                    const ok2 = await this._pvOpenFigMismatchConfirm(maxFigN, refImgIds.length);
+                    if (!ok2) return;
+                }
+
+                // v2.246 review（C2 critical）：createTask 前把这次要用的 pvtemp_ id 标记为 in-flight——创建任务请求
+                // 窗口最长 5 分钟（_providerFetch 的 base64 大载荷超时），这段时间里表单关闭清理 / 缩略图 × 删除都要
+                // 跳过它们（_pvCleanupTempRefImgs / _pvRemoveRefImg 已按此 Set 判断），不能让并发清理抢先删掉请求已经
+                // 读入、即将被新任务持有的 blob
+                const tempIds = refImgIds.filter(id => typeof id === 'string' && id.startsWith('pvtemp_'));
+                tempIds.forEach(id => this._pvInFlightTempIds.add(id));
+                try {
+                    await VideoGen.createTask({
+                        prompt, refImgIds, model, resolution, duration, ratio,
+                        generateAudio, channelId, tweetAccountId,
+                        refAudio: this._pvRefAudio || null   // v1(Hailuo) 时 UI 已隐藏该区域、恒为 null；createTask 内部按渠道分支处理
+                    });
+                    n.lastPvChannelId = channelId;
+                    Utils.saveData();
+                    // 提交成功：把「这次真的发出去了」的 id 从会话态里摘掉，防 _closePVModal 的临时图清理误删任务刚接手、
+                    // 还要留着重试用的 pvtemp blob。只摘发出去的那部分——如果切到不支持参考图的模型导致 refImgIds 没带上
+                    // 之前相册选的临时图，它们会留在 _pvRefImgIds 里，随表单关闭被正常当作「未使用的临时图」清理掉
+                    this._pvRefImgIds = (this._pvRefImgIds || []).filter(id => !refImgIds.includes(id));
+                    this._closePVModal();
+                    Utils.showToast(I18n.t('nico.pv_toast_started', '生成開始！'));
+                    this.refreshGenCard();   // 占位卡即时出现（不等第一次轮询）
+                } catch (e) {
+                    console.error('[Niconico] PV submit error:', e);
+                    Utils.showToast(I18n.t('t.nico_gen_error', '⚠️ 生成エラー: ') + e.message, 4000);
+                } finally {
+                    tempIds.forEach(id => this._pvInFlightTempIds.delete(id));
+                    // v2.246 review（C2 变体）：settle 后（in-flight 标记摘掉之后）再查一次表单还在不在——createTask
+                    // 这几分钟窗口期间表单被关掉了的话，按「有没有任务接手」做一次真正的孤儿清理：成功路径新任务的
+                    // refImgIds 里带着这些 id（stillUsed=true，保留）；失败路径没有任何任务引用（stillUsed=false，删）
+                    if (tempIds.length > 0 && !document.getElementById('nicoPvModal')) {
+                        for (const id of tempIds) {
+                            const stillUsed = VideoGen.tasks().some(t => (t.refImgIds || []).includes(id));
+                            if (!stillUsed) await VideoGen.removeBlob(id).catch(e => console.warn('[Niconico] orphan temp blob cleanup failed', e));
+                        }
+                    }
+                }
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }, () => Utils.showToast(I18n.t('nico.pv_submit_busy', '投稿処理中です。少々お待ちください')));
     },
 
     // ═══════════════════════════════════════════════════════════
@@ -1051,7 +2092,16 @@ ${seedText ? `\n## ユーザーが既に考えている方向性\n${seedText}\n`
         }
     },
 
+    // v2.246 review（C5 critical）：入口挡 VideoGen._retryingIds——retryTask 内部自己会在结尾调 abandonTask 删掉
+    // localId 这个旧任务（先建新任务成功才删旧的，见 video-gen.js retryTask 注释），如果「再試行」按钮本身允许双击，
+    // 或者用户在 retryTask 跑到一半时又点了「削除」，就会跟 retryTask 内部即将发生的 abandonTask 撞车。
+    // 守卫必须放在这两个 UI 入口（而不是 abandonTask 内部）——因为 retryTask 对同一个 localId 的 abandonTask
+    // 调用是合法的、不该被自己的守卫拦下
     async _retryGenTask(taskId) {
+        if (VideoGen._retryingIds.has(taskId)) {
+            Utils.showToast(I18n.t('vg.retry_in_progress', '再試行の処理中です。完了までお待ちください'));
+            return;
+        }
         try {
             await VideoGen.retryTask(taskId);
             Utils.showToast(I18n.t('nico.pv_toast_retrying', '再試行しています…'));
@@ -1062,6 +2112,10 @@ ${seedText ? `\n## ユーザーが既に考えている方向性\n${seedText}\n`
     },
 
     async _abandonGenTask(taskId) {
+        if (VideoGen._retryingIds.has(taskId)) {
+            Utils.showToast(I18n.t('vg.retry_in_progress', '再試行の処理中です。完了までお待ちください'));
+            return;
+        }
         if (!confirm(I18n.t('nico.pv_confirm_discard', 'この生成タスクを削除しますか？'))) return;
         await VideoGen.abandonTask(taskId).catch(() => {});
         this.refreshGenCard({ id: taskId });

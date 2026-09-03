@@ -42,8 +42,8 @@ function _cols() {
 
 // 每页可见行数（放置容量的粗估上限）：优先量真实 DOM——页容器顶到 dock 顶的净高；
 // 量不到（node 测试 / 桌面未挂载）退回 innerHeight 估算，再退 4。
-// 行高 110 只是图标行/组件行的混排均值，精确的「这页还放不放得下」不靠它——
-// 由渲染后 DesktopRenderer._reflowOverflow 按真实像素测量兜底。
+// 行高改用 v2.251 探针值（U + rowGap，量不到退 115）：精确的「这页还放不放得下」仍不靠它——
+// 由渲染后 DesktopRenderer._reflowOverflow 按真实像素测量兜底，这里只是搜索空间的粗估上限。
 function _maxRows() {
     if (typeof document !== 'undefined') {
         const wrap = document.getElementById('desktopPages');
@@ -54,7 +54,14 @@ function _maxRows() {
                 ? dock.getBoundingClientRect().top
                 : wrapRect.bottom;
             const avail = bottom - wrapRect.top - 40;   // app-grid 上 padding + 底部呼吸
-            if (avail > 200) return Math.max(4, Math.floor(avail / 110));
+            if (avail > 200) {
+                const grid = wrap.querySelector('.app-grid');
+                const rowGapRaw = grid ? parseFloat(getComputedStyle(grid).rowGap) : NaN;
+                const rowGap = isNaN(rowGapRaw) ? 0 : rowGapRaw;
+                const U = _probeRowUnit();
+                const rowUnit = U ? (U + rowGap) : 115;
+                return Math.max(4, Math.floor(avail / rowUnit));
+            }
         }
     }
     return (typeof window !== 'undefined' && window.innerHeight)
@@ -62,10 +69,14 @@ function _maxRows() {
         : 4;
 }
 
-// Widget size → grid colSpan 映射（small=正方形 / medium=2格横向（2 列封顶）/ wide=整行，跟随当前列数）
+// Widget size → grid colSpan 映射（v2.249 对齐 iOS 图标格：1 app 图标＝1×1 格）
+// mini=1 列（相册迷你圆专属）／small・medium=2 列封顶（medium 现仅便签沿用）／wide・large=整行，跟随当前列数
 function _widgetSpan(size) {
     const c = _cols();
-    return size === 'wide' ? c : size === 'medium' ? Math.min(2, c) : 1;
+    if (size === 'mini') return 1;
+    if (size === 'wide' || size === 'large') return c;
+    if (size === 'small' || size === 'medium') return Math.min(2, c);
+    return 1;   // 未知档兜底＝1 列
 }
 
 // item 实际占用列数：icon 恒 1；widget 以 widgets 表里记录的 size 为准源（忽略存档里可能过期的 colSpan——
@@ -76,6 +87,57 @@ function _itemSpan(item) {
     const w = widgets.find(x => x.id === item.widgetId);
     if (w) return _widgetSpan(w.size);
     return Math.min(item.colSpan || 1, _cols());
+}
+
+// ── v2.251 行单位制：真实图标项高度探针 ──
+// 桌面网格从「均匀估算行高」改真实测量：临时插入一个标准 .app-item（64 图标+margin+label）量出
+// 净高，写进模块级缓存复用（同一会话只测一次，够用——图标尺寸不随 cols/主题变化）。
+// document 缺失/未挂载时返回 null，各调用点按自己的历史兜底值处理（89/105/115 等，见各处）。
+let _rowUnitCache = null;
+function _probeRowUnit() {
+    if (_rowUnitCache) return _rowUnitCache;
+    if (typeof document === 'undefined' || !document.body) return null;
+    const probe = document.createElement('div');
+    probe.className = 'app-item';
+    probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none;';
+    probe.innerHTML = '<div class="app-icon"></div><div class="app-label">Aa</div>';
+    document.body.appendChild(probe);
+    const h = probe.getBoundingClientRect().height;
+    probe.remove();
+    if (h > 0) _rowUnitCache = h;
+    return _rowUnitCache;
+}
+
+// widget 对象（未必已挂进 layout item）→ rowSpan 静态默认表：mini=1／small・medium=2／
+// wide=2（profile 例外＝3，本次加高；duoframe 虽矮条也仍整行 2，见任务书）／large=4。
+// 只在「还没有 layout item、因而没有 item._noteRowSpan 缓存可读」的场景下用（目前唯一调用点是
+// addWidgetToLayout 给新建组件找初始落点）——note 恰好默认 size='medium'，落进 medium 分支返回 2，
+// 与任务书「note 新建默认 2」的规定一致，只是巧合命中，不是本函数专门识别了 note。
+// 组件一旦挂进 layout、有了自己的 item，rowSpan 权威源就切换成 _itemRowSpan（note 类型在那边
+// 恒读 item._noteRowSpan 动态缓存，不再看这张静态表）。
+function _widgetRowSpan(w) {
+    if (!w) return 1;
+    switch (w.size) {
+        case 'mini': return 1;
+        case 'small': return 2;
+        case 'medium': return 2;
+        case 'wide': return (w.type === 'profile') ? 3 : 2;
+        case 'large': return 4;
+        default: return 1;
+    }
+}
+
+// item 实际占用行数：icon 恒 1；widget 查 widgets 表按 type/size 推导（准源永远是 live 数据，
+// 不信存档缓存，理由同 _itemSpan 注释）。note 类型例外：便签高度自适应内容，恒读渲染期回写的
+// item._noteRowSpan 动态缓存（缺失退 2，静态兜底——真实值由 DesktopRenderer._syncNoteRowSpans
+// 在 render() 后测量回写，见该函数注释）。
+function _itemRowSpan(item) {
+    if (item.type !== 'widget') return 1;
+    const widgets = AppState.data.widgets || [];
+    const w = widgets.find(x => x.id === item.widgetId);
+    if (!w) return Math.max(1, item.rowSpan || 1);
+    if (w.type === 'note') return item._noteRowSpan || 2;
+    return _widgetRowSpan(w);
 }
 
 // ── Desktop Renderer ──
@@ -96,6 +158,8 @@ const DesktopRenderer = {
         if (desktopEl) {
             desktopEl.style.setProperty('--desktop-cols', cols);
             desktopEl.classList.toggle('cols-4', cols === 4);
+            // v2.251 行单位制：CSS grid-auto-rows 读这个变量当行高下限，量不到时 CSS 自己有 89px 兜底
+            desktopEl.style.setProperty('--desktop-row-unit', (_probeRowUnit() || 89) + 'px');
         }
 
         layout.pages.forEach((page, pi) => {
@@ -139,6 +203,8 @@ const DesktopRenderer = {
         if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
         if (typeof AnimalIcons !== 'undefined') AnimalIcons.apply();
         if (typeof RainIcons !== 'undefined') RainIcons.apply();
+        if (typeof TaroChocoIcons !== 'undefined') TaroChocoIcons.apply();
+        if (typeof MintChocoIcons !== 'undefined') MintChocoIcons.apply();
         // Apply custom icons if available
         if (typeof IconCustomizer !== 'undefined') IconCustomizer.applyCustomIcons();
         // Apply i18n
@@ -160,6 +226,14 @@ const DesktopRenderer = {
                     this.render();
                 }
             } finally { this._reflowDepth--; }
+        }
+
+        // v2.251 便签动态 rowSpan：渲染完成、真实像素落定后再量（rAF 让浏览器先走完这轮布局），
+        // 量出的行数与缓存不一致才会触发 reflow+重渲染，见 _syncNoteRowSpans 注释
+        if (typeof requestAnimationFrame === 'function') {
+            requestAnimationFrame(() => this._syncNoteRowSpans());
+        } else {
+            this._syncNoteRowSpans();
         }
     },
 
@@ -212,9 +286,10 @@ const DesktopRenderer = {
             if (idx < 0) continue;
             srcItems.splice(idx, 1);
             const span = _itemSpan(item);
+            const rowSpan = _itemRowSpan(item);
             let placed = false;
             for (let t = pi + 1; t < layout.pages.length; t++) {
-                const cell = this._findEmptyCell(layout.pages[t], span);
+                const cell = this._findEmptyCell(layout.pages[t], span, rowSpan);
                 if (cell) {
                     item.col = cell.col;
                     item.row = cell.row;
@@ -231,6 +306,61 @@ const DesktopRenderer = {
             }
         }
         return true;
+    },
+
+    // ── v2.251 便签动态 rowSpan ──
+    // 便签高度自适应内容（style.css .widget-note.widget-medium/.widget-wide 的 aspect:auto 覆盖
+    // 必须保留，不受行单位制影响）。_itemRowSpan 对 note 类型恒读 item._noteRowSpan（缺省 2）——
+    // 这个值只能渲染后测量：量 .desktop-grid-widget 内真实卡片高度（用其第一个子元素，不用外层
+    // 容器本身——外层是 grid item，被 align-items:flex-start 豁免了行高拉伸，但拿它自己的
+    // getBoundingClientRect 仍会读到 grid 分配的行框高度，不是内容真实高度）。
+    // 算出的行数与缓存不同才写回 + 对该页 reflow + 重渲染；相同则什么都不做——这就是防无限循环的
+    // 相等守卫（内容不变时，测量值收敛到与已写入的 span 一致，第二轮必然相等）。
+    // _noteRowSpanDepth 是双保险（理论不会触发，见上面等守卫），防止未知边界情况下的渲染风暴。
+    _noteRowSpanDepth: 0,
+
+    _syncNoteRowSpans() {
+        const desktopEl = document.getElementById('desktop');
+        if (!desktopEl || desktopEl.classList.contains('edit-mode')) return;   // 别跟拖拽抢
+        const wrap = document.getElementById('desktopPages');
+        if (!wrap || wrap.clientHeight < 100) return;   // 桌面不可见时测量全 0
+        const layout = AppState.data.desktopLayout;
+        if (!layout || !Array.isArray(layout.pages)) return;
+        const U = _probeRowUnit();
+        if (!U) return;   // 探针量不到时跳过本轮动态修正，_noteRowSpan 静态兜底(2) 仍生效
+
+        const widgets = AppState.data.widgets || [];
+        const changedPages = new Set();
+        wrap.querySelectorAll('.app-grid').forEach(grid => {
+            const pi = parseInt(grid.dataset.page, 10);
+            const page = layout.pages[pi];
+            if (!page || !Array.isArray(page.items)) return;
+            const rowGapRaw = parseFloat(getComputedStyle(grid).rowGap);
+            const rowGap = isNaN(rowGapRaw) ? 0 : rowGapRaw;
+            grid.querySelectorAll('.desktop-grid-widget[data-widget-id]').forEach(el => {
+                const item = page.items.find(i => i.id && i.id === el.dataset.layoutId);
+                if (!item) return;
+                const w = widgets.find(x => x.id === item.widgetId);
+                if (!w || w.type !== 'note') return;
+                const cardEl = el.firstElementChild;   // 真实卡片（.widget-card.widget-note...），非 grid item 外壳
+                if (!cardEl) return;
+                const h = cardEl.getBoundingClientRect().height;
+                if (!h) return;
+                const span = Math.max(1, Math.ceil((h + rowGap) / (U + rowGap)));
+                if (span !== (item._noteRowSpan || 2)) {
+                    item._noteRowSpan = span;
+                    changedPages.add(pi);
+                }
+            });
+        });
+
+        if (!changedPages.size) return;
+        changedPages.forEach(pi => this.reflow(pi));
+        Utils.saveData();
+        if (this._noteRowSpanDepth < 6) {
+            this._noteRowSpanDepth++;
+            try { this.render(); } finally { this._noteRowSpanDepth--; }
+        }
     },
 
     _renderIcon(item) {
@@ -292,30 +422,39 @@ const DesktopRenderer = {
         div.dataset.widgetId = item.widgetId;
 
         const span = _itemSpan(item);
+        const rowSpan = _itemRowSpan(item);
         div.style.gridColumn = `${item.col + 1} / span ${span}`;
-        div.style.gridRow = (item.row + 1).toString();
+        div.style.gridRow = `${item.row + 1} / span ${rowSpan}`;
 
         div.innerHTML = Widgets._renderWidget(w);
         return div;
     },
 
-    // 在指定 page 找第一个能容纳 span 列的空 cell，找不到返回 null
-    _findEmptyCell(page, span) {
+    // 在指定 page 找第一个能容纳 colSpan×rowSpan 矩形的空 cell，找不到返回 null。
+    // v2.251：行单位制下组件真占多行，occupied 登记改二维（colSpan×rowSpan 全格），
+    // 扫描判的是矩形而不是单行——否则会把「已被 2×2 组件占住的第二行」误判成空位。
+    _findEmptyCell(page, colSpan, rowSpan) {
         if (!page || !Array.isArray(page.items)) return null;
+        rowSpan = Math.max(1, rowSpan || 1);
         const cols = _cols();
         const occupied = new Set();
         for (const it of page.items) {
             const sp = _itemSpan(it);
-            for (let c = it.col; c < it.col + sp; c++) {
-                occupied.add(`${it.row},${c}`);
+            const rsp = _itemRowSpan(it);
+            for (let r = it.row; r < it.row + rsp; r++) {
+                for (let c = it.col; c < it.col + sp; c++) {
+                    occupied.add(`${r},${c}`);
+                }
             }
         }
         const maxRows = _maxRows();
         for (let row = 0; row < maxRows; row++) {
-            for (let col = 0; col + span <= cols; col++) {
+            for (let col = 0; col + colSpan <= cols; col++) {
                 let allFree = true;
-                for (let c = col; c < col + span; c++) {
-                    if (occupied.has(`${row},${c}`)) { allFree = false; break; }
+                for (let r = row; r < row + rowSpan && allFree; r++) {
+                    for (let c = col; c < col + colSpan; c++) {
+                        if (occupied.has(`${r},${c}`)) { allFree = false; break; }
+                    }
                 }
                 if (allFree) return { col, row };
             }
@@ -541,14 +680,17 @@ const DesktopRenderer = {
         const mkId = () => 'di_' + (idCounter++);
 
         // Page 0: clock(wide) + DEFAULT_PAGE0 icons
+        // 行单位制（v2.251）下 wide 组件真占 2 行，图标必须从组件底边之后开始铺；
+        // rowSpan 也写真实值让存档自洽（渲染器虽以 live 数据为准源，存档不该留过期的 1）
+        const clockRows = _widgetRowSpan(clockWidget);
         pages[0].items.push({
             id: mkId(), type: 'widget', widgetId: clockWidget.id,
-            col: 0, row: 0, colSpan: DEFAULT_COLS_NEW, rowSpan: 1
+            col: 0, row: 0, colSpan: DEFAULT_COLS_NEW, rowSpan: clockRows
         });
         DEFAULT_PAGE0.forEach((appId, i) => {
             pages[0].items.push({
                 id: mkId(), type: 'icon', appId,
-                col: i % DEFAULT_COLS_NEW, row: 1 + Math.floor(i / DEFAULT_COLS_NEW),
+                col: i % DEFAULT_COLS_NEW, row: clockRows + Math.floor(i / DEFAULT_COLS_NEW),
                 colSpan: 1, rowSpan: 1
             });
         });
@@ -557,24 +699,25 @@ const DesktopRenderer = {
         for (const w of widgets) {
             if (w === clockWidget || w === calendarWidget) continue;
             const lastRow = pages[0].items.length > 0
-                ? Math.max(...pages[0].items.map(i => i.row)) + 1
+                ? Math.max(...pages[0].items.map(i => i.row + (i.rowSpan || 1)))
                 : 0;
             const span = _widgetSpan(w.size);
             pages[0].items.push({
                 id: mkId(), type: 'widget', widgetId: w.id,
-                col: 0, row: lastRow, colSpan: span, rowSpan: 1
+                col: 0, row: lastRow, colSpan: span, rowSpan: _widgetRowSpan(w)
             });
         }
 
         // Page 1: calendar(wide) + DEFAULT_PAGE1 icons
+        const calRows = _widgetRowSpan(calendarWidget);
         pages[1].items.push({
             id: mkId(), type: 'widget', widgetId: calendarWidget.id,
-            col: 0, row: 0, colSpan: DEFAULT_COLS_NEW, rowSpan: 1
+            col: 0, row: 0, colSpan: DEFAULT_COLS_NEW, rowSpan: calRows
         });
         DEFAULT_PAGE1.forEach((appId, i) => {
             pages[1].items.push({
                 id: mkId(), type: 'icon', appId,
-                col: i % DEFAULT_COLS_NEW, row: 1 + Math.floor(i / DEFAULT_COLS_NEW),
+                col: i % DEFAULT_COLS_NEW, row: calRows + Math.floor(i / DEFAULT_COLS_NEW),
                 colSpan: 1, rowSpan: 1
             });
         });
@@ -614,32 +757,48 @@ const DesktopRenderer = {
         if (dirty) Utils.saveData();
     },
 
-    // Recalculate positions: pack items sequentially in a _cols() 列网格
+    // Recalculate positions：2D 首适应装箱（v2.251 行单位制根修）。
+    // 旧版是 1D 流式排列（按 items 顺序左→右流动换行推导 col/row），2×2 组件只占「流行」的一格，
+    // 旁边下半的格子在数据上根本不存在——这正是「日历旁边放不下 4 个 app」的病根。
+    // 新版保持「items 数组顺序 = 排列语义」不变，但放置真正二维：维护 occupied(row,col) 全格登记，
+    // 对每个 item 依序取 colSpan/rowSpan，从 row=0 起逐行、行内逐列扫描，找到第一个能容纳整个
+    // colSpan×rowSpan 矩形的空位就落座——2×2 组件后面的图标会自然填满它右侧的两行格子再往下流。
     reflow(pageIndex) {
         const layout = AppState.data.desktopLayout;
         if (!layout || !layout.pages[pageIndex]) return;
 
         const page = layout.pages[pageIndex];
         const cols = _cols();
-        let row = 0, col = 0;
+        const occupied = new Set();
+
+        const canPlace = (row, col, colSpan, rowSpan) => {
+            for (let r = row; r < row + rowSpan; r++) {
+                for (let c = col; c < col + colSpan; c++) {
+                    if (occupied.has(r + ',' + c)) return false;
+                }
+            }
+            return true;
+        };
+        const markPlaced = (row, col, colSpan, rowSpan) => {
+            for (let r = row; r < row + rowSpan; r++) {
+                for (let c = col; c < col + colSpan; c++) occupied.add(r + ',' + c);
+            }
+        };
 
         for (const item of page.items) {
-            const span = _itemSpan(item);
-
-            // Wide widgets must start at col 0
-            if (span > 1 && col > 0) {
-                row++;
-                col = 0;
+            const colSpan = Math.min(_itemSpan(item), cols);
+            const rowSpan = _itemRowSpan(item);
+            let placed = null;
+            for (let row = 0; row < 100000 && !placed; row++) {
+                for (let col = 0; col + colSpan <= cols; col++) {
+                    if (canPlace(row, col, colSpan, rowSpan)) { placed = { row, col }; break; }
+                }
             }
-
-            item.col = col;
-            item.row = row;
-
-            col += span;
-            if (col >= cols) {
-                col = 0;
-                row++;
-            }
+            // 防御性兜底：colSpan 已钳位 ≤ cols，理论上必能在有限行内找到空位，这里只防万一
+            if (!placed) placed = { row: 0, col: 0 };
+            item.col = placed.col;
+            item.row = placed.row;
+            markPlaced(placed.row, placed.col, colSpan, rowSpan);
         }
     },
 
@@ -647,17 +806,21 @@ const DesktopRenderer = {
         this._ensureLayout();
         const layout = AppState.data.desktopLayout;
         const span = _widgetSpan(size);
+        // widget 此时应已存在于 AppState.data.widgets（调用方先 push 再调用本函数，见 widgets.js
+        // addWidget）；兜底只用 size 构造一个临时对象，rowSpan 静态表不看 type 以外的字段就够
+        const w = (AppState.data.widgets || []).find(x => x.id === widgetId) || { size };
+        const rowSpan = _widgetRowSpan(w);
 
         // 找空位：先当前页 → 其它页 → 实在没地儿就 push 到当前页末尾
         const currentPageIdx = (typeof DesktopPager !== 'undefined' && DesktopPager.currentPage != null)
             ? Math.max(0, Math.min(layout.pages.length - 1, DesktopPager.currentPage))
             : 0;
         let targetIdx = currentPageIdx;
-        let spot = this._findEmptyCell(layout.pages[targetIdx], span);
+        let spot = this._findEmptyCell(layout.pages[targetIdx], span, rowSpan);
         if (!spot) {
             for (let i = 0; i < layout.pages.length; i++) {
                 if (i === currentPageIdx) continue;
-                const s = this._findEmptyCell(layout.pages[i], span);
+                const s = this._findEmptyCell(layout.pages[i], span, rowSpan);
                 if (s) { targetIdx = i; spot = s; break; }
             }
         }
@@ -673,7 +836,7 @@ const DesktopRenderer = {
             id: 'di_' + Date.now().toString(36),
             type: 'widget', widgetId,
             col: spot.col, row: spot.row,
-            colSpan: span, rowSpan: 1
+            colSpan: span, rowSpan
         };
 
         layout.pages[targetIdx].items.push(newItem);
@@ -876,16 +1039,24 @@ const DesktopEdit = {
             widgetId: target.dataset.widgetId || null
         };
 
-        // 量一次当前页实际行高（首个图标高度 + row-gap），拖拽吸附用；量不到就用兜底值 105
+        // 量一次当前页实际行高（行单位探针值 U + row-gap），拖拽吸附用；量不到就用兜底值 105。
+        // v2.251：优先用探针缓存（同一行高，不必每次拖拽都摸 DOM）；探针量不到（极端环境）时
+        // 保留旧路径——直接测第一个图标项的实际高度。
         this._cellH = 105;
         const grids = document.querySelectorAll('.app-grid');
         const currentGrid = grids[this.sourcePageIndex];
-        const firstItem = currentGrid && currentGrid.querySelector('.app-item');
-        if (firstItem) {
-            const h = firstItem.getBoundingClientRect().height;
-            if (h) {
-                const rowGap = parseFloat(getComputedStyle(currentGrid).rowGap);
-                this._cellH = h + (isNaN(rowGap) ? 0 : rowGap);
+        if (currentGrid) {
+            const rowGapRaw = parseFloat(getComputedStyle(currentGrid).rowGap);
+            const rowGap = isNaN(rowGapRaw) ? 0 : rowGapRaw;
+            const U = _probeRowUnit();
+            if (U) {
+                this._cellH = U + rowGap;
+            } else {
+                const firstItem = currentGrid.querySelector('.app-item');
+                if (firstItem) {
+                    const h = firstItem.getBoundingClientRect().height;
+                    if (h) this._cellH = h + rowGap;
+                }
             }
         }
 
@@ -964,21 +1135,28 @@ const DesktopEdit = {
         if (!currentGrid) return;
 
         const gridRect = currentGrid.getBoundingClientRect();
+        // v2.251：grid 自身有 padding（app-grid 的上边距），行号必须从内容区顶边算起，
+        // 否则第 0 行的落点判定会往上偏出 padding 那一截——虚线框跟真实第一行对不齐的病根之一
+        const padTop = parseFloat(getComputedStyle(currentGrid).paddingTop) || 0;
         const relX = x - gridRect.left;
         const relY = y - gridRect.top;
 
-        // 吸附到 cell
+        // 吸附到 cell：cellH（行步进）= 探针行单位 U + row-gap，_beginDrag 里已测好存在 this._cellH
+        // （量不到时那边已退回旧路径，这里统一读 this._cellH || 105 兜底）。
+        // U 单独再取一次（缓存，不重复量 DOM）用于画虚线框的净行高——框高不含 gap，
+        // 不然虚线框会比真实图标/组件高出一截 gap，正是「虚线框比 iOS 大一圈」的病根。
         const cols = _cols();
         const cellW = gridRect.width / cols;
         const cellH = this._cellH || 105;
+        const U = _probeRowUnit() || cellH;
         const dropCol = Math.max(0, Math.min(cols - 1, Math.floor(relX / cellW)));
-        const dropRow = Math.max(0, Math.floor(relY / cellH));
+        const dropRow = Math.max(0, Math.floor((relY - padTop) / cellH));
 
         this._dropCol = dropCol;
         this._dropRow = dropRow;
 
         // Highlight drop position
-        this._showDropIndicator(currentGrid, dropCol, dropRow, cellW, cellH, gridRect);
+        this._showDropIndicator(currentGrid, dropCol, dropRow, cellW, U, cellH, gridRect, padTop);
     },
 
     // 按落点 x 算在 dock 数组里的插入位置：落在第一个「水平中心 > x」的 dock-item 之前，否则末尾
@@ -993,7 +1171,9 @@ const DesktopEdit = {
         return items.length;
     },
 
-    _showDropIndicator(grid, col, row, cellW, cellH, gridRect) {
+    // boxH＝虚线框净高（探针行单位 U，不含 gap）；stride＝行步进（U + rowGap，定位第 row 行用）；
+    // padTop 修正 top，让第 0 行的框顶与真实网格内容区顶边重合（对齐 _checkDropTarget 的 dropRow 换算）
+    _showDropIndicator(grid, col, row, cellW, boxH, stride, gridRect, padTop) {
         let indicator = document.getElementById('dropIndicator');
         if (!indicator) {
             indicator = document.createElement('div');
@@ -1002,9 +1182,9 @@ const DesktopEdit = {
             document.body.appendChild(indicator);
         }
         indicator.style.left = (gridRect.left + col * cellW + 4) + 'px';
-        indicator.style.top = (gridRect.top + row * cellH + 4) + 'px';
+        indicator.style.top = (gridRect.top + (padTop || 0) + row * stride + 4) + 'px';
         indicator.style.width = (cellW - 8) + 'px';
-        indicator.style.height = (cellH - 8) + 'px';
+        indicator.style.height = (boxH - 8) + 'px';
         indicator.style.display = 'block';
     },
 
@@ -1059,6 +1239,22 @@ const DesktopEdit = {
         }
     },
 
+    // v2.251：行单位制下「拖到 (targetRow,targetCol)」的插入位置不能再用 flat index
+    // （targetRow*cols+targetCol）换算——那个公式假设了均匀行高，组件跨行后就不成立了
+    // （2×2 组件旁边的格子，flat 序号会算到完全不相关的位置）。改用读序比较：插到第一个
+    // 「读序位置 ≥ 目标格」的 item 之前（跨行/跨列组件以其左上角 col/row 为准，本来就是
+    // item.row/item.col，无需额外换算），找不到就 append。最终落点由随后的 reflow 装箱定形，
+    // 这里只决定「排在谁前面」。_applyMove 与 _applyMoveFromDock 共用（后者同样是 flat index
+    // 插入的老写法，同一个病根一并修）。
+    _insertByReadOrder(items, targetRow, targetCol, item) {
+        let insertAt = items.findIndex(i => {
+            if (i.row !== targetRow) return i.row > targetRow;
+            return i.col >= targetCol;
+        });
+        if (insertAt < 0) insertAt = items.length;
+        items.splice(insertAt, 0, item);
+    },
+
     _applyMove(targetCol, targetRow) {
         const layout = AppState.data.desktopLayout;
         const dropPageIdx = DesktopPager.currentPage;
@@ -1081,13 +1277,12 @@ const DesktopEdit = {
 
         if (itemIdx < 0) return;
 
-        // Remove from source page
+        // Remove from source page（同页拖动时 dropPage === sourcePage，item 已从数组摘除——
+        // 随后的读序比较天然基于「剩余 items 的现有 col/row」，即 reflow 前的旧值，语义正是
+        // 「放到这个格子附近的顺序位」，最终落点由下面的 reflow 装箱定形）
         const item = sourcePage.items.splice(itemIdx, 1)[0];
 
-        // Calculate target index in the flat list (row * cols + col)
-        const targetIndex = targetRow * _cols() + targetCol;
-        const insertAt = Math.min(targetIndex, dropPage.items.length);
-        dropPage.items.splice(insertAt, 0, item);
+        this._insertByReadOrder(dropPage.items, targetRow, targetCol, item);
 
         // Reflow both pages
         DesktopRenderer.reflow(sourcePageIdx);
@@ -1178,9 +1373,8 @@ const DesktopEdit = {
         };
 
         if (this._dropCol !== undefined) {
-            const targetIndex = this._dropRow * _cols() + this._dropCol;
-            const insertAt = Math.min(targetIndex, page.items.length);
-            page.items.splice(insertAt, 0, newItem);
+            // v2.251：同 _applyMove，flat index 插入已失效，改走读序比较（_insertByReadOrder）
+            this._insertByReadOrder(page.items, this._dropRow, this._dropCol, newItem);
             DesktopRenderer.reflow(pageIdx);
         } else {
             // 兜底：落点无效 → 找空位加回当前页（找不到就 0,0），绝不让 app 消失

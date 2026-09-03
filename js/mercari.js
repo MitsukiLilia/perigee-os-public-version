@@ -467,7 +467,7 @@ const Mercari = {
       <div class="mc-grid">${cards || `<div class="mc-placeholder">${I18n.t('mc.home_empty', '在售周边が登録されると、ここに出品が並びます')}</div>`}</div>`;
   },
 
-  // 出品显示标题：盲盒款 = 周边名 + 角色名（真 Mercari「○○ 缶バッジ 沖田総悟」式）；
+  // 出品显示标题：盲盒款 = 周边名 + 角色名（真 Mercari「○○ 缶バッジ キャラ名」式）；
   // まとめ売り款再缀「まとめ売りN点」
   _listingTitle(l, goodsEntry) {
     const g = (goodsEntry && goodsEntry.goods) || {};

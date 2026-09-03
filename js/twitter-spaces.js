@@ -111,7 +111,8 @@ Object.assign(Twitter, {
     // ===== 画像生成API連携 =====
 
     _hasImageApi() {
-        const config = AppState.data.imageApiConfig;
+        // 大review A2/C1 修（2026-08-07）：按板块生效配置判断（绑定预设→预设的 key；未绑定→全局，行为不变）
+        const config = PixivIllust.resolveModuleConfig('twitter').config;
         const modules = AppState.data.imageGenModules || {};
         return !!(config && config.key && config.provider && modules.twitter !== false);
     },
@@ -204,17 +205,21 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
             return;
         }
 
-        const config = AppState.data.imageApiConfig;
-        const naiSettings = AppState.data.novelaiSettings || {};
+        // D4（2026-08-07 阶段3）：twitter 板块绑定的预设生效 config——ワンドロ 复用同一绑定
+        // （PixivIllust.dispatchGenerate 由 wandoro.js._generatePoipikuIllust 单独调用，那边传 moduleKey:'twitter'）；
+        // 未绑定时与全局逐字节一致
+        const { config } = PixivIllust.resolveModuleConfig('twitter');
         this._generatingTweetImages = this._generatingTweetImages || new Set();   // per-tweet 在途标记（in-memory、不入存档），防连续刷新对同一批推重复发起生图
         const artTweets = tweets.filter(tw => tw.image && tw.image.type === 'art' && !tw.image.generatedImageId && !this._generatingTweetImages.has(tw.id));
         console.log(`[Twitter ImageGen] Found ${artTweets.length} art tweets out of ${tweets.length} total (types: ${tweets.map(tw => tw.image?.type || 'none').join(', ')})`);
         if (artTweets.length === 0) return;
 
-        // 画像サイズ（横長、ツイートカード向け）
-        const imgSize = config.provider === 'novelai'
-            ? (naiSettings.resolution || '1024x1024')
-            : '1024x768';
+        // 画像サイズ（横長、ツイートカード向け）。D5（2026-08-07 阶段4）：按尺寸分炉——不再按 provider 分叉，
+        // 一律传本板块固定尺寸；NAI 走 dispatchGenerate → generateWithNovelAI 内部会 snap 到 NAI 面板法定枚举（1216x832 横版）
+        const imgSize = '1024x768';
+
+        // D5（2026-08-07 阶段4）：批量生成失败可见化——统计失败张数，批次结束给一条汇总 toast（不逐张刷屏）
+        let failCount = 0;
 
         for (const tweet of artTweets) {
             this._generatingTweetImages.add(tweet.id);
@@ -222,28 +227,10 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
                 const prompt = await this._buildImagePrompt(tweet.content, tweet.image.description);
                 if (!prompt) continue;
 
-                let blobs = [];
-                switch (config.provider) {
-                    case 'openai':
-                        blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'gpt-image':
-                        blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'openrouter':
-                        blobs = await PixivIllust.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'stabilityai':
-                        blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'novelai':
-                        blobs = await PixivIllust.generateWithNovelAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'midjourney':
-                    case 'custom':
-                        blobs = await PixivIllust.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                }
+                const blobs = await PixivIllust.dispatchGenerate({
+                    positivePrompt: prompt.positive, negativePrompt: prompt.negative,
+                    size: imgSize, count: 1, config, charCaptions: prompt.charCaptions, moduleKey: 'twitter'
+                });
 
                 if (blobs && blobs.length > 0) {
                     const id = 'tw_illust_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -261,12 +248,20 @@ Generate image tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple characters):
                             card.innerHTML = `<img src="${url}" class="tw-generated-img" alt="${this._esc(tweet.image.description || '')}">`;
                         }
                     }
+                } else {
+                    failCount++;
+                    console.error('[Twitter ImageGen] No image returned for tweet:', tweet.id);
                 }
             } catch (e) {
+                failCount++;
                 console.error('[Twitter ImageGen] Failed for tweet:', tweet.id, e);
             } finally {
                 this._generatingTweetImages.delete(tweet.id);
             }
+        }
+
+        if (failCount > 0) {
+            Utils.showToast(I18n.t('t.tw_img_batch_fail', { n: failCount }));
         }
     },
 

@@ -75,7 +75,9 @@ const Widgets = {
             AppState.data._clockWidgetMigrated = true;
         }
 
-        // B2：启动先抽好轮播图，app.js 随后的 DesktopRenderer.render() 首渲直接用
+        // B2：启动先抽好轮播图。注意真实顺序：SystemConfig.init→applyTheme 已在本函数之前
+        // 触发过一次 DesktopRenderer.render()（那次抽不到图），靠 app.js 里 Widgets.init 之后的
+        // 第二次 render() 覆盖成正确首帧——那次调用不可删（app.js 处有对应注释）
         this._rotateAllPicks({ rerender: false });
     },
 
@@ -96,6 +98,11 @@ const Widgets = {
     },
     _heartSvg(cls = 'widget-heart') {
         return `<svg class="${cls}" viewBox="0 0 12 12" aria-hidden="true"><path d="M6 10 Q0 6 2 3 Q4 0 6 3 Q8 0 10 3 Q12 6 6 10 Z" fill="currentColor" opacity="0.7"/></svg>`;
+    },
+    // v2.250：Profile Card の chips アイコン三択（星/月/心）用に追加。三日月＝大円から
+    // 小円をずらして重ねる古典的な作図（Feather Icons moon と同じ式、12x12 に縮尺）。
+    _moonSvg(cls = 'widget-moon-mini') {
+        return `<svg class="${cls}" viewBox="0 0 12 12" aria-hidden="true"><path d="M10.5 6.395A4.5 4.5 0 115.605 1.5a3.5 3.5 0 004.895 4.895z" fill="currentColor"/></svg>`;
     },
 
     // ── 設定画面のウィジェット一覧を描画 ──
@@ -122,12 +129,15 @@ const Widgets = {
             note: I18n.t('widgets.type_note', 'テキスト'),
             moonphase: I18n.t('widgets.type_moonphase', '月相'),
             weather: I18n.t('widgets.type_weather', '天気'),
-            duoframe: I18n.t('widgets.type_duoframe', 'ふたりフレーム')
+            duoframe: I18n.t('widgets.type_duoframe', 'ふたりフレーム'),
+            profile: I18n.t('widgets.type_profile', 'プロフィールカード')
         };
         const sizeLabels = {
             small: I18n.t('widgets.size_small'),
             medium: I18n.t('widgets.size_medium'),
             wide: I18n.t('widgets.size_wide'),
+            large: I18n.t('widgets.size_large', '大'),
+            mini: I18n.t('widgets.size_mini', '迷你圆'),
             circle: I18n.t('widgets.size_circle', '圆形')
         };
 
@@ -164,7 +174,9 @@ const Widgets = {
         let aspect = 1;
         if (w.shape !== 'circle') {
             const cell = document.querySelector(`.desktop-grid-widget[data-widget-id="${id}"]`);
-            const box = cell && cell.querySelector('.polaroid-image-wide, .pj-image, .polaroid-image');
+            // v2.249：相册重做为满版纯图（.widget-photo-clean），卡片本身就是图框，量卡不用再量内层小盒；
+            // .polaroid-image-wide/.polaroid-image 是相册旧结构遗留，拍立得 .pj-image 仍在用，一并保留兜底
+            const box = cell && cell.querySelector('.widget-photo-clean, .polaroid-image-wide, .pj-image, .polaroid-image');
             const r = box && box.getBoundingClientRect();
             if (r && r.width > 4 && r.height > 4) aspect = r.width / r.height;
         }
@@ -208,6 +220,7 @@ const Widgets = {
             case 'moonphase': return this._renderMoonphase(w, sizeClass);
             case 'weather': return this._renderWeatherBadge(w, sizeClass);
             case 'duoframe': return this._renderDuoframe(w, sizeClass);
+            case 'profile': return this._renderProfile(w, sizeClass);
             default: return '';
         }
     },
@@ -308,12 +321,6 @@ const Widgets = {
                         ${Utils.escapeHtml(I18n.t('widgets.imgpos_open_btn', '位置を調整'))}
                     </button>
                 </div>` : ''}
-                <div style="display:flex;gap:8px;margin-top:4px">
-                    <button onclick="Widgets._togglePolaroidJSize('${id}', this.closest('.modal-overlay'))"
-                            style="flex:1;padding:8px;border:1px solid var(--border-light);border-radius:8px;background:none;color:var(--text-secondary);font-size:12px;cursor:pointer">
-                        切换尺寸（当前：${ { small: '小', medium: '中', wide: '宽' }[w.size] || '小' } → 下一档）
-                    </button>
-                </div>
                 <div style="display:flex;align-items:center;gap:10px;margin-top:4px">
                     <span style="font-size:12px;color:var(--text-secondary);white-space:nowrap">${I18n.t('widgets.tilt_label', '倾斜角度')}</span>
                     <input type="range" id="pjTilt" min="-6" max="6" step="0.5" value="${(w.tilt || 0).toFixed(1)}"
@@ -385,19 +392,6 @@ const Widgets = {
             if (w && dataUrl) { w.imageUrl = dataUrl; this._save(); this.render(); }
             if (modal) modal.remove();
         });
-    },
-
-    _togglePolaroidJSize(id, modal) {
-        const w = this._getWidgets().find(x => x.id === id);
-        if (w) {
-            const order = ['small', 'medium', 'wide'];
-            const idx = order.indexOf(w.size);
-            w.size = order[(idx + 1) % order.length];
-            this._save();
-            if (typeof DesktopRenderer !== 'undefined') this._syncLayoutSpan(w.id, w.size);
-            this.render();
-        }
-        if (modal) modal.remove();
     },
 
     // 倾角滑杆（2026-08-03 作者提议：随机换角度 → 用户自己定）。
@@ -563,81 +557,49 @@ const Widgets = {
     },
 
     // ══════════════════════════════════════
-    //  📸 相册组件（小/中/宽三档，蝴蝶结装饰）
+    //  📸 相册组件（v2.249 重做，仿 iOS 照片小组件）
+    //  small/wide/large 三档＝满版纯图（object-fit cover，圆角由 .widget-card 承担，无任何装饰）；
+    //  mini＝1×1 迷你圆贴纸（沿用既有 .widget-photoframe-circle 白边圆框）。
+    //  故意不用 .widget-polaroid 类名——各主题的相框皮肤 background 会叠到满版照片上；
+    //  那些皮肤规则在 css/themes.css 里保留不删，只是不再被这个新结构匹配（休眠）。
     // ══════════════════════════════════════
     _renderPhoto(w, sizeClass) {
         const rotActive = !!(w.rotation && w.rotation.enabled && w._rotPick);
         if (rotActive) this._queueRotationHydration(w.id);
         const hasImage = w.imageUrl && w.imageUrl.trim();
+        const emptyHint = I18n.t('widgets.ph_empty_hint', '更换照片');
         const photoBox = rotActive
             ? `<div style="width:100%;height:100%" data-rot-widget="${w.id}"></div>`
             : hasImage
                 ? `<img src="${this._escAttr(w.imageUrl)}" alt="" style="${ImagePositioner.transformStyle(w.imgPos)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                   <div class="polaroid-empty" style="display:none"><span>更换照片</span><span class="polaroid-plus">+</span></div>`
-                : `<div class="polaroid-empty"><span>更换照片</span><span class="polaroid-plus">+</span></div>`;
+                   <div class="widget-photo-empty" style="display:none"><span class="widget-photo-plus">+</span><span>${this._esc(emptyHint)}</span></div>`
+                : `<div class="widget-photo-empty"><span class="widget-photo-plus">+</span><span>${this._esc(emptyHint)}</span></div>`;
 
         if (w.shape === 'circle') {
-            // 圆相框：贴纸白边加厚（borderWidth/背景由 .widget-photoframe-circle 覆盖 .widget-circle 底座），
+            // 迷你圆（mini，1×1）：贴纸白边圆框（borderWidth/背景由 .widget-photoframe-circle 覆盖 .widget-circle 底座），
             // 内部只铺照片（ランダム表示轮播/空态占位都走既有 photoBox，图片定位走 ImagePositioner，形状无关零改动）
             return `<div class="widget-card ${sizeClass} widget-photoframe-circle"
                          onclick="Widgets.editPhoto('${w.id}')">${photoBox}</div>`;
         }
 
-        if (w.size === 'wide') {
-            // 横向条：左蝴蝶结 + 中央照片按钮 + 右装饰
-            return `<div class="widget-card ${sizeClass} widget-polaroid polaroid-wide"
-                         onclick="Widgets.editPhoto('${w.id}')">
-                ${this._bowSvg('polaroid-bow-deco')}
-                <div class="polaroid-frame-wide">
-                    <div class="polaroid-image polaroid-image-wide">${photoBox}</div>
-                </div>
-                ${this._sparkSvg('polaroid-spark spark-a')}
-                ${this._sparkSvg('polaroid-spark spark-b')}
-            </div>`;
-        }
-
-        if (w.size === 'medium') {
-            // 中尺寸：2 列矩形，左照片右"记录美好 每一天"
-            return `<div class="widget-card ${sizeClass} widget-polaroid polaroid-medium"
-                         onclick="Widgets.editPhoto('${w.id}')">
-                ${this._bowSvg('polaroid-bow-corner')}
-                <div class="polaroid-frame">
-                    <div class="polaroid-image">${photoBox}</div>
-                </div>
-                <div class="polaroid-tagline">
-                    <span>记录美好</span>
-                    <span>每一天</span>
-                    ${this._heartSvg('polaroid-heart')}
-                </div>
-                ${this._sparkSvg('polaroid-spark spark-a')}
-            </div>`;
-        }
-
-        // small：正方形，顶部蝴蝶结，中央照片
-        return `<div class="widget-card ${sizeClass} widget-polaroid polaroid-small"
-                     onclick="Widgets.editPhoto('${w.id}')">
-            ${this._bowSvg('polaroid-bow-top')}
-            <div class="polaroid-frame">
-                <div class="polaroid-image">${photoBox}</div>
-            </div>
-            ${this._sparkSvg('polaroid-spark spark-a')}
-            ${this._sparkSvg('polaroid-spark spark-b')}
-        </div>`;
+        // 矩形三档（small/wide/large）：满版纯图，形状差异全部交给 CSS 的 aspect-ratio 锁定
+        return `<div class="widget-card ${sizeClass} widget-photo-clean"
+                     onclick="Widgets.editPhoto('${w.id}')">${photoBox}</div>`;
     },
 
     editPhoto(id) {
         const w = this._getWidgets().find(x => x.id === id);
         if (!w) return;
 
-        // 尺寸切换按钮文案：small → medium → wide → circle → small 四档循环，显示「当前 → 下一档」
+        // 尺寸切换按钮文案：small → wide → large → mini(迷你圆) → small 四档循环，显示「当前 → 下一档」
         const photoSizeNames = {
             small: I18n.t('widgets.ph_size_small', '小さい四角'),
-            medium: I18n.t('widgets.ph_size_medium', '中くらい'),
             wide: I18n.t('widgets.ph_size_wide', '横長バー'),
-            circle: I18n.t('widgets.ph_size_circle', '丸いフレーム')
+            large: I18n.t('widgets.ph_size_large', '大きい四角'),
+            mini: I18n.t('widgets.ph_size_mini', '丸いミニ')
         };
-        const photoSizeOrder = ['small', 'medium', 'wide', 'circle'];
-        const photoCurSizeKey = w.shape === 'circle' ? 'circle' : (w.size || 'small');
+        const photoSizeOrder = ['small', 'wide', 'large', 'mini'];
+        const photoCurSizeKey = (w.shape === 'circle' && w.size === 'mini') ? 'mini' : (w.size || 'small');
         const photoNextSizeKey = photoSizeOrder[(photoSizeOrder.indexOf(photoCurSizeKey) + 1) % photoSizeOrder.length];
         const photoSizeSwitchLabel = I18n.t('widgets.ph_size_switch_prefix', 'サイズ切替（現在：')
             + photoSizeNames[photoCurSizeKey] + ' → ' + photoSizeNames[photoNextSizeKey] + '）';
@@ -778,21 +740,20 @@ const Widgets = {
     _togglePhotoSize(id, modal) {
         const w = this._getWidgets().find(x => x.id === id);
         if (w) {
-            // 四档循环：small → medium → wide → circle → small
-            // circle 档＝shape:'circle'+size:'small'（圆形组件恒 1 列，见 _renderWidget sizeClass 组装，同 _toggleMusicSize 模式）
-            if (w.shape === 'circle') {
-                delete w.shape;
-                w.size = 'small';
-            } else if (w.size === 'wide') {
-                w.size = 'small';
+            // 四档循环：small → wide → large → mini(迷你圆) → small
+            // mini＝shape:'circle'+size:'mini'（1 列迷你圆，全系统仅相册专属，见 _renderWidget sizeClass 组装）
+            const order = ['small', 'wide', 'large', 'mini'];
+            const curKey = (w.shape === 'circle' && w.size === 'mini') ? 'mini' : (w.size || 'small');
+            const nextKey = order[(order.indexOf(curKey) + 1) % order.length];
+            if (nextKey === 'mini') {
                 w.shape = 'circle';
+                w.size = 'mini';
             } else {
-                const order = ['small', 'medium', 'wide'];
-                const idx = order.indexOf(w.size);
-                w.size = order[(idx + 1) % order.length];
+                delete w.shape;
+                w.size = nextKey;
             }
             this._save();
-            // 布局里的 colSpan 也要同步更新（circle 档下沿也是 'small'，不会把 'circle' 传给尺寸→colSpan 映射）
+            // 布局里的 colSpan 也要同步更新；w.size 此时恒为 small/wide/large/mini 之一
             if (typeof DesktopRenderer !== 'undefined') {
                 this._syncLayoutSpan(w.id, w.size);
             }
@@ -810,7 +771,7 @@ const Widgets = {
         if (!layout) return;
         const span = (typeof _widgetSpan === 'function')
             ? _widgetSpan(size)
-            : (({ small: 1, medium: 2, wide: 3 })[size] || 1);
+            : (({ mini: 1, small: 2, medium: 2, wide: 3, large: 3 })[size] || 1);
         for (const page of layout.pages) {
             for (const item of page.items) {
                 if (item.type === 'widget' && item.widgetId === widgetId) {
@@ -827,30 +788,29 @@ const Widgets = {
     // ══════════════════════════════════════
     _renderCalendar(w, sizeClass) {
         if (w.size === 'wide') return this._renderCalendarWide(w, sizeClass);
+        return this._renderCalendarMini(w, sizeClass);
+    },
+
+    // small 档 v2（v2.249 重做，iOS 同款整月迷你格）：上方月份标签（accent 色）+ 今日「N日(曜)」，
+    // 下方复用 _renderCalendarGrid（今日圈圈/纪念日色点自带）。原「大日期+予定」卡片渲染退役
+    // （旧版 widget-cal-day/widget-cal-events 相关 CSS 未删，small 档不再产出这些 class，休眠即可）。
+    // 独立类名 .widget-cal-mini，不复用 .widget-calendar——2×2 密度和 wide 档差很多，各自定制。
+    // 日期用「N日(曜)」的日式记法（曜=汉字周几），与 _renderCalendarGrid 的曜日表头/_renderCalendarWide
+    // 的 ja-JP 长曜日同一套约定，不接 I18n（本组件的日期记法本就固定，不是翻译缺口）。
+    _renderCalendarMini(w, sizeClass) {
         const now = new Date();
         const month = now.toLocaleDateString('ja-JP', { month: 'short' });
         const day = now.getDate();
         const weekday = now.toLocaleDateString('ja-JP', { weekday: 'short' });
 
-        // 查找角色纪念日
-        const events = this._getUpcomingEvents();
-        const eventHtml = events.length > 0
-            ? events.slice(0, 2).map(ev =>
-                `<div class="widget-cal-event">
-                    <span class="widget-cal-dot" style="background:${ev.color}"></span>
-                    <span>${ev.label}</span>
-                </div>`).join('')
-            : `<div class="widget-cal-event" style="opacity:0.5">予定なし</div>`;
-
-        return `<div class="widget-card ${sizeClass} widget-calendar"
+        return `<div class="widget-card ${sizeClass} widget-cal-mini"
                      onclick="Widgets.editCalendar('${w.id}')"
 >
-            <div class="widget-cal-header">
-                <div class="widget-cal-month">${month}</div>
-                <div class="widget-cal-weekday">${weekday}</div>
+            <div class="wcm-header">
+                <span class="wcm-month">${month}</span>
+                <span class="wcm-today">${day}日(${weekday})</span>
             </div>
-            <div class="widget-cal-day">${day}</div>
-            <div class="widget-cal-events">${eventHtml}</div>
+            <div class="wcm-grid">${this._renderCalendarGrid(now)}</div>
         </div>`;
     },
 
@@ -884,7 +844,9 @@ const Widgets = {
     },
 
     // 当月网格：纯 Date 数学生成（日曜起）。跨月边界＝首尾留空格不显示邻月日期数字；
-    // 闰年靠 new Date(y, m+1, 0).getDate() 原生取当月天数，2 月闰年自动拿到 29，无需特判
+    // 闰年靠 new Date(y, m+1, 0).getDate() 原生取当月天数，2 月闰年自动拿到 29，无需特判。
+    // 周六开局的 31 天月会把表撑到 6 个星期行（如 2026-08）——这种月份 <table> 加 class
+    // wcw-r6，供 style.css 在 wide 档（.wcw-grid 限定）压窄行高；mini 档富余够大不受影响。
     _renderCalendarGrid(now) {
         const year = now.getFullYear();
         const monthIdx = now.getMonth();              // 0-based
@@ -926,7 +888,8 @@ const Widgets = {
             }).join('')}</tr>`;
         }
 
-        return `<table><tr>${headHtml}</tr>${rowsHtml}</table>`;
+        const r6Class = cells.length === 42 ? ' class="wcw-r6"' : '';
+        return `<table${r6Class}><tr>${headHtml}</tr>${rowsHtml}</table>`;
     },
 
     _getUpcomingEvents() {
@@ -1481,7 +1444,7 @@ const Widgets = {
                     </div>`).join('')
             : `<div class="widget-news-empty">${I18n.t('widgets.news_empty', 'まだ情報がありません')}</div>`;
 
-        return `<div class="widget-card widget-medium widget-news"
+        return `<div class="widget-card widget-wide widget-news"
                      onclick="Widgets._openNewsSource('${w.id}','forum')"
 >
             <div class="widget-news-header">
@@ -1845,7 +1808,7 @@ const Widgets = {
 
         const chip = (val, label, active) =>
             `<button type="button" class="widget-note-chip${active ? ' active' : ''}" data-val="${val}" onclick="Widgets._noteChipPick(this)">${label}</button>`;
-        const sizeLabel = ({ small: I18n.t('widgets.size_small'), medium: I18n.t('widgets.size_medium'), wide: I18n.t('widgets.size_wide') })[w.size] || w.size;
+        const sizeLabel = ({ medium: I18n.t('widgets.size_medium'), wide: I18n.t('widgets.size_wide') })[w.size] || w.size;
 
         modal.innerHTML = `
             <div class="modal-window" style="gap:12px">
@@ -1904,11 +1867,11 @@ const Widgets = {
         btn.classList.add('active');
     },
 
-    // 宽度档三档循环（small→medium→wide→small），照 _togglePolaroidJSize 模式
+    // 宽度档两档循环（medium→wide→medium）：v2.249 起 small≡medium 都是 2 列，去重后便签只剩这两档
     _toggleNoteSize(id, modal) {
         const w = this._getWidgets().find(x => x.id === id);
         if (w) {
-            const order = ['small', 'medium', 'wide'];
+            const order = ['medium', 'wide'];
             const idx = order.indexOf(w.size);
             w.size = order[(idx + 1) % order.length];
             this._save();
@@ -2034,7 +1997,9 @@ const Widgets = {
         'journal':      { icon: 'cloud',         kind: 'CLOUDY', temp: 18 }, // 手帐拼贴：柔和阴天
         'minimal':      { icon: 'mist',          kind: 'MIST',   temp: 16 }, // 利休鼠：石庭青苔薄雾
         'animal':       { icon: 'sun',           kind: 'CLEAR',  temp: 24 }, // 动森海岛：晴朗
-        'strawberry':   { icon: 'partly-cloudy', kind: 'FAIR',   temp: 20 }  // 草莓蛋糕：晴时多云
+        'strawberry':   { icon: 'partly-cloudy', kind: 'FAIR',   temp: 20 }, // 草莓蛋糕：晴时多云
+        'taro-choco':   { icon: 'hazy-sun',      kind: 'DOUX',   temp: 17 }, // 香芋巧克力：巴黎午后柔光（doux=法语「温柔」）
+        'mint-choco':   { icon: 'mist',          kind: 'MINT',   temp: 18 }  // 薄荷巧克力：清晨薄荷雾
     },
     _WEATHER_DEFAULT: { icon: 'sun', kind: 'CLEAR', temp: 20 }, // 未知主题兜底＝晴
 
@@ -2219,6 +2184,32 @@ const Widgets = {
         if (theme === 'sakura') {
             return { vw: 240, vh: 160, cxA: 68, cxB: 170.5, cy: 85, r: 34, art: true };
         }
+        if (theme === 'taro-choco') {
+            // 香芋巧克力：cameo 浮雕双椭圆窗生图（assets/widgets/taro-choco/duoframe.webp）
+            // 画布本身已是 240/130 比例（不需要像 sakura 那样另外覆写 aspect-ratio），
+            // 窗位按画中实测（983x533 坐标系 cxA≈302.5 cxB≈680.5 cy≈301.5 rx≈155.5）
+            // ×(240/983) 换算进 viewBox 240x130；r 取窗洞较窄的水平半径（椭圆窗，圆形裁切
+            // 取小值保证圆完全落在窗洞内，不越过金属窗框）。
+            return { vw: 240, vh: 130, cxA: 74, cxB: 166, cy: 73, r: 36, art: true };
+        }
+        // v2.256 老皮肤补漏：五套老主题一次补齐双人相框，窗位均按各自画布实测换算
+        // （vw 固定 240，vh/cx/cy/r 由 tools/skin-audit 的量窗脚本输出；
+        //  对应的 aspect-ratio 覆写在 css/themes.css 各主题块里，两处必须同时改）。
+        const DF_ART = {
+            'summer-rain':  { vw: 240, vh: 97,  cxA: 73, cxB: 166, cy: 49, r: 33, art: true },
+            'strawberry':   { vw: 240, vh: 126, cxA: 68, cxB: 172, cy: 57, r: 42, art: true },
+            'snow-country': { vw: 240, vh: 93,  cxA: 71, cxB: 170, cy: 48, r: 34, art: true },
+            'animal':       { vw: 240, vh: 101, cxA: 69, cxB: 173, cy: 51, r: 33, art: true },
+            'journal':      { vw: 240, vh: 101, cxA: 79, cxB: 162, cy: 51, r: 26, art: true },
+        };
+        if (DF_ART[theme]) return DF_ART[theme];
+        if (theme === 'mint-choco') {
+            // 薄荷巧克力：奶油波点卡挖两个薄荷圆窗生图（assets/widgets/mint-choco/duoframe.webp）
+            // 画布实测 1515x682（2.221:1）≠ 默认 240/130，themes.css 里已把 aspect-ratio
+            // 覆写成 240/108 对齐；窗位按画中实测（1515x682 坐标系 cxA≈456 cxB≈1052.5
+            // cy≈327.5 r≈202.5）×(240/1515) 换算进 viewBox 240x108。
+            return { vw: 240, vh: 108, cxA: 72, cxB: 167, cy: 52, r: 32, art: true };
+        }
         return { vw: 240, vh: 130, cxA: 83, cxB: 157, cy: 65, r: 39, art: false };
     },
 
@@ -2231,7 +2222,7 @@ const Widgets = {
         if (g.art) {
             // 生图框：装饰整层来自 CSS 背景资产，SVG 只保留照片槽（clip 圆按画中窗位）+空槽提示
             return `<div class="${sizeClass} widget-duoframe widget-duoframe-art" onclick="Widgets.editDuoframe('${w.id}')">
-                <svg class="df-svg" viewBox="0 0 ${g.vw} ${g.vh}" style="color:var(--accent-soft)" aria-hidden="true">
+                <svg class="df-svg" viewBox="0 0 ${g.vw} ${g.vh}" style="color:var(--df-slot-hint, var(--accent-soft))" aria-hidden="true">
                     <defs>
                         <clipPath id="${clipA}"><circle cx="${g.cxA}" cy="${g.cy}" r="${g.r}"/></clipPath>
                         <clipPath id="${clipB}"><circle cx="${g.cxB}" cy="${g.cy}" r="${g.r}"/></clipPath>
@@ -2242,7 +2233,7 @@ const Widgets = {
             </div>`;
         }
         return `<div class="${sizeClass} widget-duoframe" onclick="Widgets.editDuoframe('${w.id}')">
-            <svg class="df-svg" viewBox="0 0 240 130" style="color:var(--accent-soft)" aria-hidden="true">
+            <svg class="df-svg" viewBox="0 0 240 130" style="color:var(--df-slot-hint, var(--accent-soft))" aria-hidden="true">
                 <ellipse cx="120" cy="65" rx="106" ry="32" transform="rotate(-7 120 65)"
                          fill="none" stroke="currentColor" stroke-width="3" opacity="0.4"/>
                 <circle cx="83" cy="65" r="44" fill="${edge}"/>
@@ -2435,6 +2426,546 @@ const Widgets = {
     // ── T9 end ──
 
     // ══════════════════════════════════════
+    //  🪪 Profile Card（v2.250 個人カード：頭像+名前+一言+生活写真）
+    //  永久豁免生图皮肤产线（2026-08-10 拍板）：素白卡设计全靠主题 token 自适应浅深色，
+    //  百搭到不需要为每套主题单独烧图——CSS 里不套任何 css/themes.css 皮肤覆写，勿加。
+    //
+    //  size=small → 唯一布局 classic；size=wide → w.data.layoutWide ∈ duo|info|overlay 三选一。
+    //  avatar/photoA/photoB 统一形状 {blobId?, url?, pos?}（blobId＝放送局立絵 or 自前アップロード
+    //  pf_up_<id>_<slot> キー、url＝直接貼り付け——踏襲 charcard の ref 形状，无 kind 字段，
+    //  blobId/url 二択で来源を判定）。photoA/B は「アップロード＋URL」二経路のみ（放送局選択なし）、
+    //  avatar だけ放送局ドロップダウンも足した三経路——スロット HTML は showRefDropdown で分岐。
+    //  blob 水合は charcard 方式を踏襲（_pfUrls 水合キャッシュ・data-pf-widget/data-pf-slot 属性）。
+    // ══════════════════════════════════════
+    _pfUrls: {},   // widgetId → [ObjectURL]
+
+    _pfDefaultData() {
+        return { name: '', sig: '', avatar: null, photoA: null, photoB: null, chips: [], layoutWide: 'banner' };
+    },
+
+    // 頭像空状態の頭+肩シルエット（charcard の _ccSilhouetteSvg と同じ絵柄だが、複数サイズの
+    // 円（classic/duo/info/overlay で直径が違う）に流用するため固定 inline サイズを持たせず、
+    // CSS 側で「親コンテナの45%」に統一する——単一 helper を全レイアウトで共有できる）
+    _pfPersonSvg(cls) {
+        return `<svg class="${cls}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7z"/></svg>`;
+    },
+
+    // アバター/写真スロットの共通ボックス：img（url 来源は同期描画）or 空プレースホルダ
+    // （blobId 来源は水合待ちの間も同じプレースホルダ→_hydrateProfile が非同期で <img> に差し替え）。
+    // data-pf-widget/data-pf-slot は charcard の data-cc-widget/data-cc-slot と同じ役割。
+    // v2.251：photo スロット（isAvatar=false）の空状態を「+」から月夜の絵に差し替え（用户点单：
+    // 「名片卡不该是+空态」）。avatar スロットの人形シルエットは変えない。
+    _pfSlotBox(w, slot, ref, isAvatar, cls) {
+        const inner = (ref && ref.url)
+            ? `<img src="${this._escAttr(ref.url)}" alt="" style="${ImagePositioner.transformStyle(ref.pos)}" onerror="this.style.display='none'">`
+            : (isAvatar ? this._pfPersonSvg('pf-empty-icon')
+                : `<img src="${this._escAttr(this._pfDefaultPhotoSrc(w.id, slot))}" alt="" onerror="Widgets._pfDefaultImgFallback(this)">`);
+        return `<div class="${cls}" data-pf-widget="${w.id}" data-pf-slot="${slot}">${inner}</div>`;
+    },
+
+    // v2.253 预置风景照（她点单「烧几张漂亮风景图，看起来高级点」）：海/云/窗边雏菊/暮月四张
+    // 生图产线（assets/widgets/universal/pf-default-1..4.webp，各 4~19KB）。widgetId+槽位做
+    // 确定性轮换——同一张卡稳定不跳变，duo 的 a/b 两槽错开必然拿到不同的两张。
+    _PF_DEFAULT_COUNT: 4,
+    _pfDefaultPhotoSrc(widgetId, slot) {
+        let h = slot === 'b' ? 1 : 0;   // b 槽错位，保证与 a 槽不同张
+        for (let i = 0; i < widgetId.length; i++) h = (h + widgetId.charCodeAt(i)) % this._PF_DEFAULT_COUNT;
+        return `assets/widgets/universal/pf-default-${h + 1}.webp`;
+    },
+
+    // 预置图加载失败（极端离线首跑等）→ 退回 SVG 月夜占位，卡面不空
+    _pfDefaultImgFallback(img) {
+        const box = img.parentElement;
+        if (box) box.innerHTML = this._pfPhotoDefaultSvg('pf-photo-default');
+    },
+
+    // 写真スロットのデフォルト絵「月夜」：--accent-soft 地に currentColor（=--accent-color）の
+    // 三日月＋小さな星二つ＋柔らかい山丘のシルエット二層。線の言語は _moonSvg/_sparkSvg と同じ
+    // シンプルな作図を流用（新規アセットは増やさない——生图产线はこの組件を永久豁免、2026-08-10 拍板）。
+    // viewBox は横長基準、preserveAspectRatio=slice でどのスロット比率（classic の横帯／duo の
+    // 縦長並び／overlay の満版）でも中央基準にクロップされ、object-fit:cover 相当の見た目になる。
+    _pfPhotoDefaultSvg(cls) {
+        return `<svg class="${cls}" viewBox="0 0 200 140" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <rect width="200" height="140" fill="var(--accent-soft, var(--bg-secondary))"/>
+            <g transform="translate(104,10) scale(3)"><path d="M10.5 6.395A4.5 4.5 0 115.605 1.5a3.5 3.5 0 004.895 4.895z" fill="currentColor" opacity="0.85"/></g>
+            <g transform="translate(64,32) scale(1.3)" opacity="0.5"><path d="M5 0 L6 4 L10 5 L6 6 L5 10 L4 6 L0 5 L4 4 Z" fill="currentColor"/></g>
+            <g transform="translate(150,56) scale(0.85)" opacity="0.35"><path d="M5 0 L6 4 L10 5 L6 6 L5 10 L4 6 L0 5 L4 4 Z" fill="currentColor"/></g>
+            <path d="M0 108 Q50 84 100 102 T200 92 V140 H0 Z" fill="currentColor" opacity="0.16"/>
+            <path d="M0 126 Q60 100 130 120 T200 112 V140 H0 Z" fill="currentColor" opacity="0.26"/>
+        </svg>`;
+    },
+
+    _renderProfile(w, sizeClass) {
+        const d = w.data || (w.data = this._pfDefaultData());
+        this._queueProfileHydration(w.id);
+        const isWide = w.size === 'wide';
+        const layout = isWide ? (['banner', 'duo', 'info', 'overlay'].includes(d.layoutWide) ? d.layoutWide : 'banner') : 'classic';
+        if (layout === 'duo') return this._pfRenderDuo(w, sizeClass, d);
+        if (layout === 'info') return this._pfRenderInfo(w, sizeClass, d);
+        if (layout === 'overlay') return this._pfRenderOverlay(w, sizeClass, d);
+        // classic（small 唯一布局）与 banner（wide 経典簡約横版·2026-08-10 追加）同构：
+        // 頭像+名前+署名の上段 ＋ 下段写真ストリップ。DOM 完全共用、比例差全部交给容器 class 的 CSS
+        return this._pfRenderClassic(w, sizeClass, d, layout === 'banner');
+    },
+
+    // small 唯一布局（+wide banner 同构）：円頭像+名前+ハート（上段）／署名／横写真（下段いっぱい）
+    // 設計図 01 の頭像縁のハートバッジと点線は不採用（她拍板：爱心角标和虚线都去掉）
+    _pfRenderClassic(w, sizeClass, d, isBanner) {
+        const name = (d.name || '').trim();
+        const sig = (d.sig || '').trim();
+        const nameHtml = name
+            ? `<span class="pf-name">${this._esc(name)}</span>`
+            : `<span class="pf-name pf-name-placeholder">${this._esc(I18n.t('widgets.pf_name_placeholder', 'タップして名前を…'))}</span>`;
+        return `<div class="widget-card ${sizeClass} widget-profile widget-profile-classic${isBanner ? ' widget-profile-banner' : ''}" onclick="Widgets.editProfile('${w.id}')">
+            <div class="pf-top">
+                ${this._pfSlotBox(w, 'avatar', d.avatar, true, 'pf-avatar')}
+                <div class="pf-top-text">
+                    <div class="pf-name-row">
+                        ${nameHtml}
+                        ${this._heartSvg('pf-heart-icon')}
+                    </div>
+                    ${sig ? `<div class="pf-sig">${this._esc(sig)}</div>` : ''}
+                </div>
+            </div>
+            ${this._pfSlotBox(w, 'a', d.photoA, false, 'pf-photo')}
+        </div>`;
+    },
+
+    // wide duo：写真A/B左右並べ、円頭像が中線をまたいで下寄りに重なる、下部に署名+星
+    _pfRenderDuo(w, sizeClass, d) {
+        const sig = (d.sig || '').trim();
+        return `<div class="widget-card ${sizeClass} widget-profile widget-profile-duo" onclick="Widgets.editProfile('${w.id}')">
+            <div class="pf-duo-photos">
+                ${this._pfSlotBox(w, 'a', d.photoA, false, 'pf-duo-photo')}
+                ${this._pfSlotBox(w, 'b', d.photoB, false, 'pf-duo-photo')}
+                ${this._pfSlotBox(w, 'avatar', d.avatar, true, 'pf-duo-avatar')}
+            </div>
+            <div class="pf-duo-sig"><span class="pf-duo-sig-text">${sig ? this._esc(sig) : `<span class="pf-sig-ph">${this._esc(I18n.t('widgets.pf_sig_ph', 'タップして一言を…'))}</span>`}</span>${sig ? this._sparkSvg('pf-duo-star-icon') : ''}</div>
+        </div>`;
+    },
+
+    // wide info：左に縦写真、右に頭像+名前・署名2行・chips最大3枚
+    _pfRenderInfo(w, sizeClass, d) {
+        const name = (d.name || '').trim();
+        const sig = (d.sig || '').trim();
+        const chips = (d.chips || []).filter(c => c && c.text).slice(0, 3);
+        const chipIcon = icon => icon === 'moon' ? this._moonSvg('pf-chip-icon') : icon === 'heart' ? this._heartSvg('pf-chip-icon') : this._sparkSvg('pf-chip-icon');
+        const chipsHtml = chips.map(c => `<span class="pf-chip">${chipIcon(c.icon)}<span>${this._esc(c.text)}</span></span>`).join('');
+        return `<div class="widget-card ${sizeClass} widget-profile widget-profile-info" onclick="Widgets.editProfile('${w.id}')">
+            ${this._pfSlotBox(w, 'a', d.photoA, false, 'pf-info-photo')}
+            <div class="pf-info-body">
+                <div class="pf-info-head">
+                    ${this._pfSlotBox(w, 'avatar', d.avatar, true, 'pf-info-avatar')}
+                    ${name ? `<span class="pf-info-name">${this._esc(name)}</span>` : `<span class="pf-info-name pf-sig-ph">${this._esc(I18n.t('widgets.pf_name_placeholder', 'タップして名前を…'))}</span>`}
+                </div>
+                <div class="pf-info-detail">
+                    ${sig ? `<div class="pf-info-sig">${this._esc(sig)}</div>` : ''}
+                    ${chipsHtml ? `<div class="pf-info-chips">${chipsHtml}</div>` : ''}
+                </div>
+            </div>
+        </div>`;
+    },
+
+    // wide overlay：満版写真+左上角頭像+下部署名（名前は出さない、spec 明記）
+    _pfRenderOverlay(w, sizeClass, d) {
+        const sig = (d.sig || '').trim();
+        return `<div class="widget-card ${sizeClass} widget-profile widget-profile-overlay" onclick="Widgets.editProfile('${w.id}')">
+            ${this._pfSlotBox(w, 'a', d.photoA, false, 'pf-overlay-photo')}
+            ${this._pfSlotBox(w, 'avatar', d.avatar, true, 'pf-overlay-avatar')}
+            <div class="pf-overlay-sig">${sig ? this._esc(sig) : `<span class="pf-sig-ph">${this._esc(I18n.t('widgets.pf_sig_ph', 'タップして一言を…'))}</span>`}</div>
+        </div>`;
+    },
+
+    // 渲染返回 HTML 字符串、挂载由 DesktopRenderer 完成 → 水合排到挂载后（照 charcard）
+    _queueProfileHydration(id) {
+        setTimeout(() => this._hydrateProfile(id), 0);
+    },
+
+    async _hydrateProfile(id) {
+        const w = this._getWidgets().find(x => x.id === id);
+        if (!w || w.type !== 'profile') return;
+        (this._pfUrls[id] || []).forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
+        this._pfUrls[id] = [];
+        if (typeof IllustGallery === 'undefined' || !IllustGallery.getBlob) return;
+        const d = w.data || {};
+        const slots = [['avatar', d.avatar], ['a', d.photoA], ['b', d.photoB]];
+        for (const [slot, ref] of slots) {
+            if (!ref || !ref.blobId) continue;   // url 来源已在渲染时同步内联，无需水合
+            const blob = await IllustGallery.getBlob(ref.blobId).catch(() => null);
+            if (!blob) continue;   // blob 丢失（跨设备导入）→ 占位保留
+            if (!this._getWidgets().some(x => x.id === id)) return;   // 等待期间组件已删/翻页
+            const el = document.querySelector(`[data-pf-widget="${id}"][data-pf-slot="${slot}"]`);
+            if (!el) continue;
+            const url = URL.createObjectURL(blob);
+            this._pfUrls[id].push(url);
+            el.innerHTML = `<img src="${url}" alt="" style="${ImagePositioner.transformStyle(ref.pos)}">`;
+        }
+    },
+
+    // 配置弹窗：点卡片本体打开（对齐 editPhoto/editCharCard 交互）
+    editProfile(id) {
+        const w = this._getWidgets().find(x => x.id === id);
+        if (!w) return;
+        const d = w.data || (w.data = this._pfDefaultData());
+        const refs = (typeof Broadcast !== 'undefined' && Broadcast.getAllCharRefs) ? Broadcast.getAllCharRefs() : [];
+        const rowStyle = 'width:100%;padding:10px 12px;border:1px solid var(--border-medium);border-radius:8px;font-size:14px;background:var(--bg-base);color:var(--text-primary)';
+        const isWide = w.size === 'wide';
+        const layoutWide = ['banner', 'duo', 'info', 'overlay'].includes(d.layoutWide) ? d.layoutWide : 'banner';
+
+        const sizeNames = {
+            small: I18n.t('widgets.pf_size_small', '小方・クラシック'),
+            wide: I18n.t('widgets.pf_size_wide', '横長・3レイアウト')
+        };
+        const curKey = isWide ? 'wide' : 'small';
+        const nextKey = isWide ? 'small' : 'wide';
+        const sizeSwitchLabel = I18n.t('widgets.pf_size_switch_prefix', 'サイズ切替（現在：')
+            + sizeNames[curKey] + ' → ' + sizeNames[nextKey] + '）';
+
+        const layoutOpt = (val, title, desc) => `
+            <button type="button" class="pf-layout-opt${layoutWide === val ? ' active' : ''}" data-val="${val}" onclick="Widgets._pfLayoutPick(this)">
+                <span class="pf-layout-opt-title">${Utils.escapeHtml(title)}</span>
+                <span class="pf-layout-opt-desc">${Utils.escapeHtml(desc)}</span>
+            </button>`;
+
+        const chipRow = i => {
+            const c = (d.chips && d.chips[i]) || {};
+            const icon = ['star', 'moon', 'heart'].includes(c.icon) ? c.icon : 'star';
+            const iconBtn = (val, svg) => `<button type="button" class="pf-chip-icon-btn${icon === val ? ' active' : ''}" data-val="${val}" onclick="Widgets._noteChipPick(this)">${svg}</button>`;
+            return `<div class="pf-chip-edit-row">
+                <div class="pf-chip-icon-group">
+                    ${iconBtn('star', this._sparkSvg())}
+                    ${iconBtn('moon', this._moonSvg())}
+                    ${iconBtn('heart', this._heartSvg())}
+                </div>
+                <input type="text" id="pfChipText${i}" maxlength="10" placeholder="${this._escAttr(I18n.t('widgets.pf_chip_text_ph', 'タグの文字'))}"
+                       value="${this._escAttr(c.text || '')}" style="flex:1;min-width:0;${rowStyle}">
+            </div>`;
+        };
+
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay active';
+        modal.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)';
+        modal.onclick = e => { if (e.target === modal) Widgets._pfCloseModal(modal, id); };
+        modal.innerHTML = `
+            <div class="modal-window" style="gap:12px;max-height:85vh;overflow-y:auto">
+                <h3 style="margin:0;font-size:17px;font-weight:600">${I18n.t('widgets.pf_edit_title', 'プロフィールカードを編集')}</h3>
+
+                <input type="text" id="pfName" maxlength="20" placeholder="${this._escAttr(I18n.t('widgets.pf_name_ph', '名前'))}"
+                       value="${this._escAttr(d.name)}" style="${rowStyle}">
+                <input type="text" id="pfSig" maxlength="40" placeholder="${this._escAttr(I18n.t('widgets.pf_sig_ph', 'ひとこと'))}"
+                       value="${this._escAttr(d.sig)}" style="${rowStyle}">
+
+                <div>
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">${I18n.t('widgets.pf_avatar_label', 'アバター')}</label>
+                    ${this._pfSlotHtml(w.id, 'avatar', d.avatar, refs, rowStyle, true)}
+                </div>
+
+                <div>
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">${I18n.t('widgets.pf_photo_a_label', '写真')}</label>
+                    ${this._pfSlotHtml(w.id, 'a', d.photoA, refs, rowStyle, false)}
+                </div>
+
+                ${isWide ? `
+                <div id="pfSlotBRow" style="display:${layoutWide === 'duo' ? 'block' : 'none'}">
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">${I18n.t('widgets.pf_photo_b_label', '写真B')}</label>
+                    ${this._pfSlotHtml(w.id, 'b', d.photoB, refs, rowStyle, false)}
+                </div>
+
+                <div>
+                    <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:6px">${I18n.t('widgets.pf_layout_label', '横長レイアウト')}</label>
+                    <div class="pf-layout-group">
+                        ${layoutOpt('banner', I18n.t('widgets.pf_layout_banner', 'クラシック横長'), I18n.t('widgets.pf_layout_banner_desc', '頭像と名前の下に横長写真'))}
+                        ${layoutOpt('duo', I18n.t('widgets.pf_layout_duo', '写真2枚コラージュ'), I18n.t('widgets.pf_layout_duo_desc', '写真を左右に並べ、頭像が継ぎ目にまたがる'))}
+                        ${layoutOpt('info', I18n.t('widgets.pf_layout_info', '写真＋情報欄'), I18n.t('widgets.pf_layout_info_desc', '縦写真の横に名前・ひとこと・タグ'))}
+                        ${layoutOpt('overlay', I18n.t('widgets.pf_layout_overlay', '満版写真＋重ね'), I18n.t('widgets.pf_layout_overlay_desc', '満版写真に頭像とひとことを重ねる'))}
+                    </div>
+                </div>
+
+                <div id="pfChipsRow" style="display:${layoutWide === 'info' ? 'flex' : 'none'};flex-direction:column;gap:6px">
+                    <label style="font-size:12px;color:var(--text-secondary)">${I18n.t('widgets.pf_chips_label', 'タグ（最大3つ）')}</label>
+                    ${chipRow(0)}${chipRow(1)}${chipRow(2)}
+                </div>
+                ` : ''}
+
+                <button type="button" onclick="Widgets._togglePfSize('${id}', this.closest('.modal-overlay'))"
+                        style="padding:8px;border:1px solid var(--border-light);border-radius:8px;background:none;color:var(--text-secondary);font-size:12px;cursor:pointer">
+                    ${this._esc(sizeSwitchLabel)}
+                </button>
+
+                <div style="display:flex;gap:8px;margin-top:4px">
+                    <button onclick="Widgets._pfCloseModal(this.closest('.modal-overlay'), '${id}')"
+                            style="flex:1;padding:10px;border:1px solid var(--border-medium);border-radius:8px;background:none;color:var(--text-primary);font-size:14px;cursor:pointer">${I18n.t('btn.cancel', '取消')}</button>
+                    <button onclick="Widgets._saveProfile('${id}', this.closest('.modal-overlay'))"
+                            style="flex:1;padding:10px;border:none;border-radius:8px;background:var(--accent-color);color:#fff;font-size:14px;font-weight:600;cursor:pointer">${I18n.t('btn.confirm', '确定')}</button>
+                </div>
+            </div>`;
+        document.body.appendChild(modal);
+    },
+
+    // アバター/写真スロットの共通フォーム片：showRefDropdown=true のときだけ放送局立絵の
+    // <select> を足す（avatar 専用の第三経路——photoA/B は「アップロード＋URL」二経路のみ）。
+    // #pfSlot<Cap> の data-blobid/data-url/data-pos が唯一の真相源（照 charcard の _ccSlotHtml）。
+    _pfSlotHtml(widgetId, slot, ref, refs, rowStyle, showRefDropdown) {
+        const capId = slot.charAt(0).toUpperCase() + slot.slice(1);
+        const blobId = (ref && ref.blobId) || '';
+        const url = (ref && ref.url) || '';
+        const posAttr = (ref && ref.pos) ? ` data-pos="${this._escAttr(JSON.stringify(ref.pos))}"` : '';
+        const urlAttr = url ? ` data-url="${this._escAttr(url)}"` : '';
+        const hasAny = !!(blobId || url);
+        const uploadTitle = I18n.t('widgets.pf_upload_btn', 'アルバムからアップロード');
+        const urlPh = I18n.t('widgets.pf_url_ph', '画像URLを貼り付け…');
+        const posLabel = I18n.t('widgets.imgpos_open_btn', '位置を調整');
+        const refSelectHtml = showRefDropdown ? (() => {
+            const placeholderTxt = I18n.t('widgets.pf_ref_placeholder', 'アップロード画像 / 未選択');
+            const optionsHtml = refs.map(r => `<option value="${this._escAttr(r.blobId)}" ${r.blobId === blobId ? 'selected' : ''}>${Utils.escapeHtml(r.name || '?')}</option>`).join('');
+            return `<select id="pfRef${capId}" style="${rowStyle}" onchange="Widgets._pfOnRefSelect(this.closest('.modal-overlay'),'${slot}')">
+                <option value="">${Utils.escapeHtml(placeholderTxt)}</option>
+                ${optionsHtml}
+            </select>`;
+        })() : '';
+        return `
+            <div id="pfSlot${capId}" data-blobid="${this._escAttr(blobId)}"${urlAttr}${posAttr} style="display:flex;flex-direction:column;gap:6px">
+                ${refSelectHtml}
+                <div style="display:flex;gap:6px">
+                    <input type="text" id="pfUrl${capId}" placeholder="${this._escAttr(urlPh)}" value="${this._escAttr(url)}"
+                           style="flex:1;min-width:0;${rowStyle}" onchange="Widgets._pfOnUrlInput(this.closest('.modal-overlay'),'${slot}',this.value)">
+                    <label class="widget-upload-btn" title="${this._escAttr(uploadTitle)}"
+                           style="flex:none;display:flex;align-items:center;justify-content:center;width:40px;padding:0;cursor:pointer">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/></svg>
+                        <input type="file" accept="image/*" style="display:none"
+                               onchange="Widgets._pfHandleUpload('${widgetId}','${slot}',this.files[0],this.closest('.modal-overlay'));this.value=''">
+                    </label>
+                </div>
+                <button type="button" id="pfPosBtn${capId}" onclick="Widgets._pfOpenPositioner('${widgetId}','${slot}',this.closest('.modal-overlay'))"
+                        style="display:${hasAny ? 'flex' : 'none'};align-items:center;justify-content:center;gap:6px;padding:8px;border:1px solid var(--border-light);border-radius:8px;background:none;color:var(--text-secondary);font-size:12px;cursor:pointer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
+                    ${Utils.escapeHtml(posLabel)}
+                </button>
+            </div>`;
+    },
+
+    // 放送局登録簿から選択（avatar のみ）→ data-blobid に書き込み、data-url/data-pos をクリア
+    _pfOnRefSelect(modal, slot) {
+        if (!modal) return;
+        const capId = slot.charAt(0).toUpperCase() + slot.slice(1);
+        const sel = modal.querySelector(`#pfRef${capId}`);
+        const slotEl = modal.querySelector(`#pfSlot${capId}`);
+        if (!sel || !slotEl || !sel.value) return;
+        slotEl.dataset.blobid = sel.value;
+        slotEl.removeAttribute('data-url');
+        slotEl.removeAttribute('data-pos');
+        const urlInput = modal.querySelector(`#pfUrl${capId}`);
+        if (urlInput) urlInput.value = '';
+        this._pfRefreshPosBtn(modal, slot);
+    },
+
+    // URL 入力欄が変わった → data-url に書き込み、data-blobid/data-pos をクリア（空にしたら解除）
+    _pfOnUrlInput(modal, slot, value) {
+        if (!modal) return;
+        const capId = slot.charAt(0).toUpperCase() + slot.slice(1);
+        const slotEl = modal.querySelector(`#pfSlot${capId}`);
+        if (!slotEl) return;
+        const v = (value || '').trim();
+        if (v) {
+            slotEl.dataset.url = v;
+            slotEl.removeAttribute('data-blobid');
+            slotEl.removeAttribute('data-pos');
+            const sel = modal.querySelector(`#pfRef${capId}`);
+            if (sel) sel.value = '';
+        } else {
+            slotEl.removeAttribute('data-url');
+        }
+        this._pfRefreshPosBtn(modal, slot);
+    },
+
+    // File → Utils.readImageFile 压缩成 dataURL → Blob → IllustGallery（照 _handleCharCardUpload）。
+    // blobId 与 widget+槽位一一对应（pf_up_<widgetId>_<slot>），重传即覆盖，不留孤儿 blob。
+    async _pfHandleUpload(id, slot, file, modal) {
+        if (!file || !file.type || file.type.indexOf('image/') !== 0 || !modal) return;
+        if (typeof IllustGallery === 'undefined') return;
+        let dataUrl;
+        try {
+            dataUrl = await Utils.readImageFile(file);
+        } catch (e) {
+            Utils.showToast(I18n.t('widgets.pf_upload_fail', '画像の読み込みに失敗しました'));
+            return;
+        }
+        if (!dataUrl) return;
+        let blob;
+        try {
+            blob = await fetch(dataUrl).then(r => r.blob());
+        } catch (e) {
+            Utils.showToast(I18n.t('widgets.pf_upload_fail', '画像の読み込みに失敗しました'));
+            return;
+        }
+        const blobId = `pf_up_${id}_${slot}`;
+        await IllustGallery.save(blobId, blob);
+        const capId = slot.charAt(0).toUpperCase() + slot.slice(1);
+        const slotEl = modal.querySelector(`#pfSlot${capId}`);
+        if (!slotEl) return;   // 弹窗已在等待期间关闭
+        slotEl.dataset.blobid = blobId;
+        slotEl.removeAttribute('data-url');
+        slotEl.removeAttribute('data-pos');
+        const sel = modal.querySelector(`#pfRef${capId}`);
+        if (sel) sel.value = '';
+        const urlInput = modal.querySelector(`#pfUrl${capId}`);
+        if (urlInput) urlInput.value = '';
+        this._pfRefreshPosBtn(modal, slot);
+        Utils.showToast(I18n.t('widgets.pf_upload_done', '画像をアップロードしました'));
+    },
+
+    _pfRefreshPosBtn(modal, slot) {
+        const capId = slot.charAt(0).toUpperCase() + slot.slice(1);
+        const slotEl = modal.querySelector(`#pfSlot${capId}`);
+        const btn = modal.querySelector(`#pfPosBtn${capId}`);
+        if (!slotEl || !btn) return;
+        btn.style.display = (slotEl.dataset.blobid || slotEl.dataset.url) ? 'flex' : 'none';
+    },
+
+    // 位置定位（接 ImagePositioner）：avatar shape:'circle'、photoA/B shape:'rect'。
+    // 临时 blob URL 按 scope 登记（Utils.trackBlobUrl），关闭弹窗时统一 revoke（照 charcard T2）。
+    async _pfOpenPositioner(id, slot, modal) {
+        if (!modal || typeof ImagePositioner === 'undefined') return;
+        return Utils.withLock(`pf-imgpos-open-${id}-${slot}`, async () => {
+            const capId = slot.charAt(0).toUpperCase() + slot.slice(1);
+            const slotEl = modal.querySelector(`#pfSlot${capId}`);
+            if (!slotEl) return;
+            const blobId = slotEl.dataset.blobid;
+            const url = slotEl.dataset.url;
+            const scope = `pf-imgpos-${id}-${slot}`;
+            let src = '';
+            if (blobId) {
+                if (typeof IllustGallery === 'undefined') return;
+                const blob = await IllustGallery.getBlob(blobId).catch(() => null);
+                if (!blob) { Utils.showToast(I18n.t('widgets.pf_pos_missing', '画像が見つかりません')); return; }
+                Utils.revokeBlobScope(scope);
+                src = Utils.trackBlobUrl(URL.createObjectURL(blob), scope);
+            } else if (url) {
+                src = url;
+            } else {
+                return;
+            }
+            let pos = null;
+            if (slotEl.dataset.pos) { try { pos = JSON.parse(slotEl.dataset.pos); } catch (e) { pos = null; } }
+            const shape = slot === 'avatar' ? 'circle' : 'rect';
+            // review 修复系（A1 同源）：预览框比例量现场桌面 DOM（当前渲染态的真实图框），量不到退 1
+            let aspect = 1;
+            if (shape !== 'circle') {
+                const fig = document.querySelector(`[data-pf-widget="${id}"][data-pf-slot="${slot}"]`);
+                const fr = fig && fig.getBoundingClientRect();
+                if (fr && fr.width > 4 && fr.height > 4) aspect = fr.width / fr.height;
+            }
+            ImagePositioner.open({
+                src, shape, aspect, pos,
+                onApply: p => {
+                    if (p) slotEl.dataset.pos = JSON.stringify(p);
+                    else slotEl.removeAttribute('data-pos');
+                }
+            });
+        });
+    },
+
+    // 横長レイアウト単選：同組内互斥高亮（复用 _noteChipPick 通用逻辑）+ 联动显隐照片B区/chips区
+    _pfLayoutPick(btn) {
+        this._noteChipPick(btn);
+        const modal = btn.closest('.modal-overlay');
+        if (!modal) return;
+        const val = btn.dataset.val;
+        const bRow = modal.querySelector('#pfSlotBRow');
+        const chipsRow = modal.querySelector('#pfChipsRow');
+        if (bRow) bRow.style.display = val === 'duo' ? 'block' : 'none';
+        if (chipsRow) chipsRow.style.display = val === 'info' ? 'flex' : 'none';
+    },
+
+    _saveProfile(id, modal) {
+        const w = this._getWidgets().find(x => x.id === id);
+        if (!w) { modal.remove(); return; }
+        const name = (modal.querySelector('#pfName').value || '').trim().slice(0, 20);
+        const sig = (modal.querySelector('#pfSig').value || '').trim().slice(0, 40);
+        const buildRef = slot => {
+            const capId = slot.charAt(0).toUpperCase() + slot.slice(1);
+            const slotEl = modal.querySelector(`#pfSlot${capId}`);
+            if (!slotEl) return null;
+            const blobId = slotEl.dataset.blobid;
+            const url = slotEl.dataset.url;
+            if (!blobId && !url) return null;
+            let pos = null;
+            if (slotEl.dataset.pos) { try { pos = JSON.parse(slotEl.dataset.pos); } catch (e) { pos = null; } }
+            const ref = blobId ? { blobId } : { url };
+            if (pos) ref.pos = pos;
+            return ref;
+        };
+        const avatar = buildRef('avatar');
+        const photoA = buildRef('a');
+        // 各字段「弹窗里有对应控件才从 DOM 收，否则沿用旧值」：small 弹窗没有 B/chips/布局区，
+        // wide 弹窗三区常驻 DOM（layout 联动只切 display、隐藏时输入值仍在）——这样小方档下
+        // 保存不会抹掉横条档已配好的照片B/chips/布局，切布局保存也不丢另一布局的配置
+        const prev = w.data || this._pfDefaultData();
+        const layoutActive = modal.querySelector('.pf-layout-opt.active');
+        const layoutWide = (layoutActive && ['banner', 'duo', 'info', 'overlay'].includes(layoutActive.dataset.val))
+            ? layoutActive.dataset.val
+            : (['banner', 'duo', 'info', 'overlay'].includes(prev.layoutWide) ? prev.layoutWide : 'banner');
+        const photoB = modal.querySelector('#pfSlotB') ? buildRef('b') : (prev.photoB || null);
+        let chips = Array.isArray(prev.chips) ? prev.chips : [];
+        if (modal.querySelector('#pfChipText0')) {
+            chips = [];
+            for (let i = 0; i < 3; i++) {
+                const group = modal.querySelectorAll('.pf-chip-icon-group')[i];
+                const activeBtn = group && group.querySelector('.pf-chip-icon-btn.active');
+                const icon = (activeBtn && activeBtn.dataset.val) || 'star';
+                const textEl = modal.querySelector(`#pfChipText${i}`);
+                const text = ((textEl && textEl.value) || '').trim().slice(0, 10);
+                if (text) chips.push({ icon, text });
+            }
+        }
+        w.data = { name, sig, avatar, photoA, photoB, chips, layoutWide };
+        Utils.revokeBlobScope(`pf-imgpos-${id}-avatar`);
+        Utils.revokeBlobScope(`pf-imgpos-${id}-a`);
+        Utils.revokeBlobScope(`pf-imgpos-${id}-b`);
+        this._save();
+        this._pfCleanupOrphanUploads(id);
+        this.render();
+        modal.remove();
+    },
+
+    // review 修复系配套（照 charcard C2/D2）：editProfile 会话内新上传但最终未被 data 引用的
+    // pf_up_<id>_<slot> 键——取消/保存都走这里回收，堵住三条孤儿路径（换图/取消/删组件）。
+    _pfCleanupOrphanUploads(id) {
+        if (typeof IllustGallery === 'undefined' || !IllustGallery.remove) return;
+        const w = this._getWidgets().find(x => x.id === id);
+        const kept = new Set();
+        if (w && w.data) {
+            ['avatar', 'photoA', 'photoB'].forEach(k => { if (w.data[k] && w.data[k].blobId) kept.add(w.data[k].blobId); });
+        }
+        ['avatar', 'a', 'b'].forEach(slot => {
+            const key = `pf_up_${id}_${slot}`;
+            if (!kept.has(key)) IllustGallery.remove(key).catch(() => {});
+        });
+    },
+
+    // 统一关闭出口（背景点击/取消按钮都走这里）：回收三个槽位定位器的临时 blob URL + 清孤儿上传
+    _pfCloseModal(modal, id) {
+        Utils.revokeBlobScope(`pf-imgpos-${id}-avatar`);
+        Utils.revokeBlobScope(`pf-imgpos-${id}-a`);
+        Utils.revokeBlobScope(`pf-imgpos-${id}-b`);
+        this._pfCleanupOrphanUploads(id);
+        if (modal) modal.remove();
+    },
+
+    // small ↔ wide 两档循环（照 _toggleNoteSize）：切换后关闭弹窗、需重新打开才能编辑新档专属字段
+    _togglePfSize(id, modal) {
+        const w = this._getWidgets().find(x => x.id === id);
+        if (w) {
+            w.size = (w.size === 'wide') ? 'small' : 'wide';
+            this._save();
+            if (typeof DesktopRenderer !== 'undefined') this._syncLayoutSpan(w.id, w.size);
+            this.render();
+        }
+        if (modal) modal.remove();
+    },
+    // ── Profile Card end ──
+
+    // ══════════════════════════════════════
     //  追加・削除メニュー
     // ══════════════════════════════════════
     showAddMenu() {
@@ -2511,6 +3042,11 @@ const Widgets = {
                         <div class="widget-menu-name">${I18n.t('widgets.type_duoframe', 'ふたりフレーム')}</div>
                         <div class="widget-menu-desc">${I18n.t('widgets.df_menu_desc', '星の軌道でつなぐ2枚')}</div>
                     </div>
+                    <div class="widget-menu-item" onclick="Widgets.addWidget('profile', this.closest('.modal-overlay'))">
+                        <div class="widget-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:22px;height:22px"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.3 18.3c1.1-2.7 3-4.1 5.7-4.1s4.6 1.4 5.7 4.1"/></svg></div>
+                        <div class="widget-menu-name">${I18n.t('widgets.type_profile', 'プロフィールカード')}</div>
+                        <div class="widget-menu-desc">${I18n.t('widgets.pf_menu_desc', '頭像・名前・ひとこと・生活写真')}</div>
+                    </div>
                 </div>
                 <button onclick="this.closest('.modal-overlay').remove()"
                         style="width:100%;padding:10px;border:1px solid var(--border-medium);border-radius:8px;background:none;color:var(--text-primary);font-size:14px;cursor:pointer">取消</button>
@@ -2521,10 +3057,12 @@ const Widgets = {
     addWidget(type, modal) {
         if (!AppState.data.widgets) AppState.data.widgets = [];
         // 默认尺寸：clock 走 wide（横条更具表现力），photo/music/polaroid 走 small 方形（少女纸艺感），calendar/news 走 wide 条形（信息量大）
-        // v2.212：moonphase/weather 恒为圆形 1 列；note/duoframe 走 medium 两列
+        // v2.212：moonphase/weather 恒为圆形（size 仍是 'small'，2×2 圆）；note 走 medium 两列
+        // v2.249：duoframe 改走 wide 整行（原 medium 两列已随桌面网格重构退役），其余不变
+        // v2.250：profile 走 small（经典布局默认；wide 三布局需用户手动切档，见 spec）
         const defaultSize = (type === 'photo' || type === 'music' || type === 'polaroid'
-            || type === 'moonphase' || type === 'weather') ? 'small'
-            : (type === 'note' || type === 'duoframe') ? 'medium' : 'wide';
+            || type === 'moonphase' || type === 'weather' || type === 'profile') ? 'small'
+            : (type === 'note') ? 'medium' : 'wide';
         const w = {
             id: this._genId(),
             type,
@@ -2534,6 +3072,7 @@ const Widgets = {
         if (type === 'moonphase' || type === 'weather') w.shape = 'circle';
         if (type === 'note') w.data = { text: '', style: 'plain', vertical: false, fontSize: 'm' };
         if (type === 'duoframe') w.data = { refA: null, refB: null };
+        if (type === 'profile') w.data = this._pfDefaultData();
         if (type === 'music') w.data = { title: '', artist: '', coverUrl: '', audioSongId: '', audioUrl: '' };
         if (type === 'clock') w.data = { format24: true };
         if (type === 'polaroid') {
@@ -2572,6 +3111,8 @@ const Widgets = {
             // review 修复（C2/D2）：charcard 自由上传的 blob 随组件删除从 IndexedDB 一并回收。
             // 组件已从数组移除 → kept 集为空 → 两个槽位键无条件清掉。
             if (wType === 'charcard') this._ccCleanupOrphanUploads(id);
+            // profile card 自由上传的 blob 随组件删除一并回收（照 charcard 同一模式）
+            if (wType === 'profile') this._pfCleanupOrphanUploads(id);
             // 清理 music widget 的 audio 实例（避免删除后还在后台播）
             if (this._musicAudios?.[id]) {
                 const a = this._musicAudios[id];
@@ -2589,6 +3130,11 @@ const Widgets = {
             if (this._duoframeUrls[id]) {
                 this._duoframeUrls[id].forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
                 delete this._duoframeUrls[id];
+            }
+            // 清理 profile card 的 ObjectURL（避免删除后泄漏，照 charcard/duoframe 同一模式）
+            if (this._pfUrls[id]) {
+                this._pfUrls[id].forEach(u => { try { URL.revokeObjectURL(u); } catch (e) {} });
+                delete this._pfUrls[id];
             }
             // 清理轮播 ObjectURL（B2）
             if (this._rotationUrls[id]) {

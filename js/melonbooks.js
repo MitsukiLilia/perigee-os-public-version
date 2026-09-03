@@ -1639,7 +1639,8 @@ ${productList}
     // ===== 表紙画像生成 =====
 
     _hasImageApi() {
-        const config = AppState.data.imageApiConfig;
+        // 大review A2/C1 修（2026-08-07）：按板块生效配置判断（绑定预设→预设的 key；未绑定→全局，行为不变）
+        const config = PixivIllust.resolveModuleConfig('melonbooks').config;
         const modules = AppState.data.imageGenModules || {};
         return !!(config && config.key && config.provider && modules.melonbooks !== false);
     },
@@ -1720,45 +1721,29 @@ Generate cover illustration tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple
     async _generateProductCovers(products) {
         if (!this._hasImageApi()) return;
 
-        const config = AppState.data.imageApiConfig;
-        const naiSettings = AppState.data.novelaiSettings || {};
+        // D4（2026-08-07 阶段3）：melonbooks 板块绑定的预设生效 config——未绑定时与全局逐字节一致
+        const { config } = PixivIllust.resolveModuleConfig('melonbooks');
         const targets = products.filter(p => !p.generatedCoverId);
         if (targets.length === 0) return;
 
         console.log(`[Melonbooks ImageGen] Generating covers for ${targets.length} products`);
 
-        // 表紙は縦長
-        const imgSize = config.provider === 'novelai'
-            ? (naiSettings.resolution || '1024x1024')
-            : '768x1024';
+        // 表紙は縦長。D5（2026-08-07 阶段4）：按尺寸分炉——不再按 provider 分叉，一律传本板块固定尺寸；
+        // NAI 走 dispatchGenerate → generateWithNovelAI 内部会把这个值 snap 到 NAI 面板法定枚举（832x1216 竖版）
+        const imgSize = '768x1024';
+
+        // D5（2026-08-07 阶段4）：批量生成失败可见化——统计失败张数，批次结束给一条汇总 toast（不逐张刷屏）
+        let failCount = 0;
 
         for (const product of targets) {
             try {
                 const prompt = await this._buildCoverPrompt(product);
                 if (!prompt) continue;
 
-                let blobs = [];
-                switch (config.provider) {
-                    case 'openai':
-                        blobs = await PixivIllust.generateWithOpenAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'gpt-image':
-                        blobs = await PixivIllust._gptImage(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'openrouter':
-                        blobs = await PixivIllust.generateWithOpenRouter(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'stabilityai':
-                        blobs = await PixivIllust.generateWithStabilityAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'novelai':
-                        blobs = await PixivIllust.generateWithNovelAI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                    case 'midjourney':
-                    case 'custom':
-                        blobs = await PixivIllust.generateWithCustomAPI(prompt.positive, prompt.negative, imgSize, 1, config, prompt.charCaptions);
-                        break;
-                }
+                const blobs = await PixivIllust.dispatchGenerate({
+                    positivePrompt: prompt.positive, negativePrompt: prompt.negative,
+                    size: imgSize, count: 1, config, charCaptions: prompt.charCaptions, moduleKey: 'melonbooks'
+                });
 
                 if (blobs && blobs.length > 0) {
                     const id = 'melon_cover_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -1769,10 +1754,18 @@ Generate cover illustration tags (use [SCENE]/[CHAR1]/[CHAR2] format if multiple
                     // DOM差替（カード + 詳細ページ両方）
                     this._replaceCoversInDOM(product);
                     console.log(`[Melonbooks ImageGen] Cover generated for: ${product.title}`);
+                } else {
+                    failCount++;
+                    console.error('[Melonbooks ImageGen] No image returned for:', product.title);
                 }
             } catch (e) {
+                failCount++;
                 console.error('[Melonbooks ImageGen] Failed for:', product.title, e);
             }
+        }
+
+        if (failCount > 0) {
+            Utils.showToast(I18n.t('t.melon_cover_batch_fail', { n: failCount }));
         }
     },
 

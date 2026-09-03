@@ -473,6 +473,9 @@ const APISettings = {
             url = 'https://api.openai.com/v1'; // 强制官方地址
         } else if (provider === 'openrouter') {
             if (!url) url = 'https://openrouter.ai/api/v1'; // OpenRouter 官方地址兜底（用户没填时）
+        } else if (provider === 'openai-compat') {
+            // D1：自定义中转/聚合站，URL 一律用户自填，不给任何默认地址——空了就必须提醒
+            if (!url) return alert(I18n.t('api.compat_fetch_url_required', '请先填写 API Base URL'));
         } else if (!url) {
             return alert('请输入完整的 API URL');
         }
@@ -534,6 +537,19 @@ const APISettings = {
         btn.textContent = 'Fetch';
         btn.disabled = false;
 
+        // D1：openai-compat 聚合站 /v1/models 常年混着几十上百个文字模型，过滤出生图模型让用户少翻。
+        // 零命中（聚合站 id 命名太野）时回退展示全量列表，不能让用户看着空下拉抓瞎。
+        let compatFallback = false;
+        if (provider === 'openai-compat' && models.length > 0) {
+            const imageModelRe = /image|dall|flux|seedream|diffusion|sdxl|sd3|midjourney|mj|cogview|kolors|hunyuan|janus|playground|recraft|ideogram/i;
+            const filtered = models.filter(m => imageModelRe.test(m));
+            if (filtered.length > 0) {
+                models = filtered;
+            } else {
+                compatFallback = true;
+            }
+        }
+
         if (models.length > 0) {
             // 填充自定义下拉 select（iOS 原生 datalist 弹不出，改用 select；点 input 右侧 ▼ 选）
             if (select) {
@@ -552,7 +568,11 @@ const APISettings = {
                 const prev = input.value.trim();
                 if (prev && models.includes(prev)) select.value = prev;
             }
-            alert(`✓ 成功获取 ${models.length} 个模型！\n点输入框右侧 ▼ 选择，或手动输入。`);
+            if (compatFallback) {
+                alert(I18n.t('api.compat_fetch_fallback', { n: models.length }));
+            } else {
+                alert(`✓ 成功获取 ${models.length} 个模型！\n点输入框右侧 ▼ 选择，或手动输入。`);
+            }
         } else {
             alert(`获取失败: ${errorMsg || '未找到兼容的模型列表'}\n\n请手动输入模型名称。`);
         }
@@ -561,7 +581,7 @@ const APISettings = {
 
 // 2. 系统配置模块
 const SystemConfig = {
-    THEMES: ['sakura', 'night-sky', 'summer-rain', 'journal', 'minimal', 'animal', 'strawberry', 'snow-country'],
+    THEMES: ['sakura', 'night-sky', 'summer-rain', 'journal', 'minimal', 'animal', 'strawberry', 'snow-country', 'taro-choco', 'mint-choco'],
     FONTS: ['cjk-serif', 'jp-mincho', 'sans', 'mono', 'system'],
 
     // 老 → 新主题映射（静默迁移）
@@ -578,11 +598,12 @@ const SystemConfig = {
     },
 
     init() {
-        // 加载系统配置（默认主题改为 sakura，温暖系欢迎新用户）
+        // 兜底分支：正常新档不会走到这里（app.js 的 AppState 初始数据已建 systemConfig，
+        // 新档默认主题在那边定）；只有异常档（导入残档等）缺 systemConfig 才补建，主题与新档默认保持一致
         if (!AppState.data.systemConfig) {
             AppState.data.systemConfig = {
                 language: 'zh',
-                theme: 'sakura',
+                theme: 'mint-choco',
                 fontFamily: 'sans',
                 wallpaper: '',
                 bgTexture: 'none',
@@ -627,8 +648,8 @@ const SystemConfig = {
             cfg._fontRecMigrated = true;
         }
 
-        // 字段兜底
-        if (!cfg.theme || !this.THEMES.includes(cfg.theme)) cfg.theme = 'sakura';
+        // 字段兜底（theme 兜底值与 app.js 新档默认保持一致——导入缺 theme 字段的旧备份会真实走到这里）
+        if (!cfg.theme || !this.THEMES.includes(cfg.theme)) cfg.theme = 'mint-choco';
         if (!cfg.fontFamily || !this.FONTS.includes(cfg.fontFamily)) cfg.fontFamily = 'sans';
         if (cfg.bgTexture === undefined) cfg.bgTexture = 'none';
         if (cfg.customTheme === undefined) cfg.customTheme = '';
@@ -850,7 +871,7 @@ const SystemConfig = {
         if (theme && this.THEMES.includes(theme)) {
             document.documentElement.setAttribute('data-theme', theme);
         } else {
-            document.documentElement.setAttribute('data-theme', 'sakura');
+            document.documentElement.setAttribute('data-theme', 'mint-choco');
         }
         // 主题专属图标（applyTheme 只改属性、不重渲染图标，这里主动刷新一次）
         if (typeof ConstellationIcons !== 'undefined') ConstellationIcons.apply();
@@ -860,6 +881,8 @@ const SystemConfig = {
         if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
         if (typeof AnimalIcons !== 'undefined') AnimalIcons.apply();
         if (typeof RainIcons !== 'undefined') RainIcons.apply();
+        if (typeof TaroChocoIcons !== 'undefined') TaroChocoIcons.apply();
+        if (typeof MintChocoIcons !== 'undefined') MintChocoIcons.apply();
         // 切主题后更新「动态特效开关」行（按当前主题显示对应开关 / 隐藏）
         if (typeof this._updateThemeEffectRow === 'function') this._updateThemeEffectRow();
         if (typeof this._updateGlassQualityRow === 'function') this._updateGlassQualityRow();
@@ -1357,6 +1380,8 @@ const IconCustomizer = {
         if (typeof SakuraIcons !== 'undefined') SakuraIcons.apply();
         if (typeof AnimalIcons !== 'undefined') AnimalIcons.apply();
         if (typeof RainIcons !== 'undefined') RainIcons.apply();
+        if (typeof TaroChocoIcons !== 'undefined') TaroChocoIcons.apply();
+        if (typeof MintChocoIcons !== 'undefined') MintChocoIcons.apply();
     }
 };
 
@@ -1380,10 +1405,18 @@ const ImageAPISettings = {
         document.getElementById('imageApiUrl').value = config.url || '';
         document.getElementById('imageApiKey').value = config.key || '';
         document.getElementById('imageApiModel').value = config.model || '';
+        document.getElementById('imgDefaultPositive').value = config.defaultPositive || '';
+        document.getElementById('imgDefaultNegative').value = config.defaultNegative || '';
 
         // Bind events
         document.getElementById('imageApiProvider').onchange = this.onProviderChange.bind(this);
         document.getElementById('saveImageApiBtn').onclick = this.save.bind(this);
+
+        // 绑定生图预设事件（D3 2026-08-07，照 APISettings 的聊天预设三件套）
+        document.getElementById('imageApiPresetSelect').onchange = this.applyPreset.bind(this);
+        document.getElementById('saveImageApiPresetBtn').onclick = this.savePreset.bind(this);
+        document.getElementById('deleteImageApiPresetBtn').onclick = this.deletePreset.bind(this);
+        this.loadPresets();
 
         // 模型下拉（透明 select 叠在 input 右侧 ▼）选中后回填 input —— iOS 原生 datalist 弹不出，改用 select
         const imageModelSelect = document.getElementById('imageModelSelect');
@@ -1424,8 +1457,32 @@ const ImageAPISettings = {
             if (gdEl) gdEl.checked = imgModules.goods === true;  // 官方周边默认关
         }
 
+        // D4（2026-08-07 阶段3）：回填四个板块预设绑定下拉（loadPresets() 已在上面跑过、选项已就绪）
+        this._loadModulePresetBindings();
+
         // Initial UI update
         this.updateUIForProvider();
+    },
+
+    // D4 分板块指定 API 预设（2026-08-07 阶段3）：moduleKey → 画像生成モジュール区对应 <select> 的 id
+    _MODULE_PRESET_SELECT_IDS: {
+        pixiv: 'imageModulePreset_pixiv',
+        twitter: 'imageModulePreset_twitter',
+        melonbooks: 'imageModulePreset_melonbooks',
+        goods: 'imageModulePreset_goods'
+    },
+
+    // 用 AppState.data.imageModulePresets 回填四个下拉的选中值；绑定的 id 已失效（预设被删/数据损坏）
+    // 时落回 ''（跟随全局）——不假设 loadPresets() 已把无效选项清出下拉，这里按数据源头再核一遍。
+    _loadModulePresetBindings() {
+        const bindings = AppState.data.imageModulePresets || {};
+        const presets = AppState.data.imageApiPresets || [];
+        Object.entries(this._MODULE_PRESET_SELECT_IDS).forEach(([moduleKey, selectId]) => {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            const id = bindings[moduleKey] || '';
+            select.value = presets.some(p => p.id === id) ? id : '';
+        });
     },
 
     onProviderChange() {
@@ -1439,6 +1496,7 @@ const ImageAPISettings = {
         const novelaiPanel = document.getElementById('novelaiSettingsPanel');
         const urlRow = document.getElementById('imageApiUrlRow');
         const modelRow = document.getElementById('imageApiModelRow');
+        const defaultPromptRows = document.getElementById('imgDefaultPromptRows');
 
         // Show/hide NovelAI panel
         if (novelaiPanel) novelaiPanel.style.display = provider === 'novelai' ? 'block' : 'none';
@@ -1447,6 +1505,8 @@ const ImageAPISettings = {
         const showStandard = provider !== 'novelai';
         if (urlRow) urlRow.style.display = showStandard ? '' : 'none';
         if (modelRow) modelRow.style.display = showStandard ? '' : 'none';
+        // D2：常驻附加提示词只给非 NAI provider 用（NAI 用自己面板里那对 naiDefaultPositive/Negative，不重复）
+        if (defaultPromptRows) defaultPromptRows.style.display = showStandard ? '' : 'none';
 
         switch (provider) {
             case 'openai':
@@ -1480,6 +1540,11 @@ const ImageAPISettings = {
             case 'novelai':
                 // NovelAI uses its own panel, no need for standard URL/model
                 break;
+            case 'openai-compat':
+                // D1（2026-08-07）：自定义中转/聚合站——绝不覆盖 urlInput.value，用户填什么留什么，只给占位符示例
+                urlInput.placeholder = 'https://your-api-host.com/v1';
+                modelInput.placeholder = 'gpt-image-2';
+                break;
             case 'custom':
                 urlInput.value = '';
                 urlInput.placeholder = '输入自定义API地址';
@@ -1497,7 +1562,9 @@ const ImageAPISettings = {
             provider: provider,
             url: url,
             key: document.getElementById('imageApiKey').value.trim(),
-            model: document.getElementById('imageApiModel').value.trim()
+            model: document.getElementById('imageApiModel').value.trim(),
+            defaultPositive: (document.getElementById('imgDefaultPositive')?.value || '').trim(),
+            defaultNegative: (document.getElementById('imgDefaultNegative')?.value || '').trim()
         };
 
         // モジュール別画像生成設定
@@ -1505,6 +1572,15 @@ const ImageAPISettings = {
             twitter: document.getElementById('imageGenTwitter')?.checked ?? true,
             melonbooks: document.getElementById('imageGenMelonbooks')?.checked ?? true,
             goods: document.getElementById('imageGenGoods')?.checked ?? false  // 官方周边默认关
+        };
+
+        // D4 分板块指定 API 预设（2026-08-07 阶段3）：值=预设 id，''=跟随全局。ワンドロ不设独立键、跟随 twitter
+        // （PixivIllust.resolveModuleConfig('twitter') 供 wandoro.js 复用，见该文件 _generatePoipikuIllust）
+        AppState.data.imageModulePresets = {
+            pixiv: document.getElementById('imageModulePreset_pixiv')?.value || '',
+            twitter: document.getElementById('imageModulePreset_twitter')?.value || '',
+            melonbooks: document.getElementById('imageModulePreset_melonbooks')?.value || '',
+            goods: document.getElementById('imageModulePreset_goods')?.value || ''
         };
 
         // Save NovelAI-specific settings
@@ -1524,31 +1600,256 @@ const ImageAPISettings = {
 
         Utils.saveData();
         Utils.showToast(I18n.t('t.set_image_api_saved', '✓ Image API settings saved'));
+    },
+
+    // ===== 生图 API 预设管理（D3 2026-08-07）=====
+    // 交互语义与 APISettings 的聊天预设三件套（js/settings.js:370-455）完全一致：
+    // save = 从当前表单收集 → 同名 confirm 覆盖（保留原 id）→ 落盘 → 刷新下拉选中新项
+    // delete = 未选中 alert → confirm → 按 id 删除 → 刷新下拉
+    // apply(下拉 change) = 按 id 取 → 只回填表单（+ NAI 快照）→ updateUIForProvider() → toast，不落盘
+    //
+    // 唯一刻意偏差：option.value 用 preset.id（时间戳串）而不是数组下标。聊天预设按下标寻址，
+    // 删除任意一条会让后面所有下标移位，但聊天预设不被别处引用所以无妨；生图预设的 id 要在
+    // 阶段3（D4 分板块绑定，AppState.data.imageModulePresets）里当外键长期持有，下标寻址会在
+    // 删除/重排后悄悄指向错的预设，必须用稳定 id。
+
+    _genPresetId() {
+        return 'imgp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    },
+
+    loadPresets() {
+        const presets = AppState.data.imageApiPresets || [];
+        const select = document.getElementById('imageApiPresetSelect');
+        if (!select) return;
+
+        select.innerHTML = '<option value="" data-i18n="api.select_image_preset">-- 选择预设 --</option>';
+
+        presets.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            select.appendChild(opt);
+        });
+
+        // D4（2026-08-07 阶段3）：预设列表变了（新增/删除/改名），四个板块绑定下拉的选项要跟着刷新——
+        // 接在这里而不是要求每个调用点（init/savePreset/deletePreset）各自记得调用一次。
+        this._refreshModulePresetSelects();
+    },
+
+    // 重建四个板块预设下拉的 <option> 列表（「跟随全局」+ 各预设名，value=预设 id）；尽量保留当前选中值——
+    // 还在新列表里就还原，已不在了（预设被删）就落回 ''（跟随全局）。数据源头的绑定回填另见 _loadModulePresetBindings（init 专用）。
+    _refreshModulePresetSelects() {
+        const presets = AppState.data.imageApiPresets || [];
+        Object.values(this._MODULE_PRESET_SELECT_IDS).forEach(selectId => {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            const prevValue = select.value;
+            select.innerHTML = `<option value="" data-i18n="api.module_preset_follow_global">${Utils.escapeHtml(I18n.t('api.module_preset_follow_global', '跟随全局'))}</option>`;
+            presets.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.name;
+                select.appendChild(opt);
+            });
+            select.value = presets.some(p => p.id === prevValue) ? prevValue : '';
+        });
+    },
+
+    savePreset() {
+        const name = (prompt(I18n.t('t.set_img_preset_name_prompt', '请输入预设名称 (例如: NovelAI 反代)')) || '').trim();
+        if (!name) return;
+
+        const provider = document.getElementById('imageApiProvider').value;
+        let url = document.getElementById('imageApiUrl').value.trim();
+        while (url.endsWith('/')) url = url.slice(0, -1);
+
+        const preset = {
+            id: null, // 新建时生成；同名覆盖时保留旧 id（见下方）
+            name: name,
+            provider: provider,
+            url: url,
+            key: document.getElementById('imageApiKey').value.trim(),
+            model: document.getElementById('imageApiModel').value.trim(),
+            defaultPositive: (document.getElementById('imgDefaultPositive')?.value || '').trim(),
+            defaultNegative: (document.getElementById('imgDefaultNegative')?.value || '').trim()
+        };
+
+        // provider=novelai 时把 NAI 面板整套参数快照进 novelai 字段（与 AppState.data.novelaiSettings 同 schema）
+        if (provider === 'novelai') {
+            preset.novelai = {
+                model: document.getElementById('naiModel').value,
+                proxyUrl: (document.getElementById('naiProxyUrl')?.value || '').trim(),
+                resolution: document.getElementById('naiResolution').value,
+                steps: parseInt(document.getElementById('naiSteps').value) || 28,
+                cfgScale: parseFloat(document.getElementById('naiCfgScale').value) || 5,
+                sampler: document.getElementById('naiSampler').value,
+                seed: parseInt(document.getElementById('naiSeed').value),
+                defaultPositive: (document.getElementById('naiDefaultPositive')?.value || '').trim(),
+                defaultNegative: (document.getElementById('naiDefaultNegative')?.value || '').trim()
+            };
+        }
+
+        if (!AppState.data.imageApiPresets) AppState.data.imageApiPresets = [];
+
+        // 检查是否覆盖（按名字撞车判断，跟聊天预设一致）；覆盖时保留原 id——
+        // 阶段3 的分板块绑定存的是 id，改名以外的编辑不该让绑定失效
+        const existing = AppState.data.imageApiPresets.find(p => p.name === name);
+        if (existing) {
+            if (!confirm(I18n.t('t.set_img_preset_confirm_overwrite', { name }))) return;
+            preset.id = existing.id;
+            Object.assign(existing, preset);
+            // Object.assign 不会删除新对象里没有的键：旧预设若是 NAI、这次覆盖成非 NAI，
+            // 陈旧 novelai 快照会残留并在 apply 时污染 NAI 面板——显式清掉
+            if (!preset.novelai) delete existing.novelai;
+        } else {
+            preset.id = this._genPresetId();
+            AppState.data.imageApiPresets.push(preset);
+        }
+
+        Utils.saveData();
+        this.loadPresets();
+        document.getElementById('imageApiPresetSelect').value = preset.id;
+
+        Utils.showToast(I18n.t('t.set_img_preset_saved', '预设已保存'));
+    },
+
+    deletePreset() {
+        const select = document.getElementById('imageApiPresetSelect');
+        const id = select.value;
+
+        if (!id) {
+            return alert(I18n.t('t.set_img_preset_select_first', '请先选择一个预设'));
+        }
+
+        if (!confirm(I18n.t('t.set_img_preset_confirm_delete', '确定要删除此预设吗？'))) return;
+
+        const idx = (AppState.data.imageApiPresets || []).findIndex(p => p.id === id);
+        if (idx >= 0) AppState.data.imageApiPresets.splice(idx, 1);
+
+        // D4（2026-08-07 阶段3）：删除的预设若正被某个板块绑定，绑定清为 ''（跟随全局）——resolveModuleConfig
+        // 本身在 id 失效时就会安全回落全局（生成行为不受影响），这里是防 AppState.data.imageModulePresets
+        // 里悄悄留一个指向空气的 id，跟设置面板下次打开时下拉实际显示的「跟随全局」静默不一致
+        const bindings = AppState.data.imageModulePresets;
+        if (bindings) {
+            Object.keys(bindings).forEach(moduleKey => {
+                if (bindings[moduleKey] === id) bindings[moduleKey] = '';
+            });
+        }
+
+        Utils.saveData();
+        this.loadPresets();
+        select.value = '';
+        Utils.showToast(I18n.t('t.set_img_preset_deleted', '预设已删除'));
+    },
+
+    applyPreset() {
+        const id = document.getElementById('imageApiPresetSelect').value;
+        if (!id) return;
+
+        const preset = (AppState.data.imageApiPresets || []).find(p => p.id === id);
+        if (!preset) return;
+
+        // 只回填表单——不调用 save()、不写 AppState.data.imageApiConfig，点保存按钮才生效
+        document.getElementById('imageApiProvider').value = preset.provider || 'openai';
+        document.getElementById('imageApiUrl').value = preset.url || '';
+        document.getElementById('imageApiKey').value = preset.key || '';
+        document.getElementById('imageApiModel').value = preset.model || '';
+        document.getElementById('imgDefaultPositive').value = preset.defaultPositive || '';
+        document.getElementById('imgDefaultNegative').value = preset.defaultNegative || '';
+
+        // 有 NAI 快照才回填 NAI 面板；非 NAI 预设没有 novelai 字段时面板保持原样，
+        // 避免切一个 OpenRouter 预设就把她已经调好的 NAI 参数静默清空
+        if (preset.novelai) {
+            const n = preset.novelai;
+            if (document.getElementById('naiModel')) document.getElementById('naiModel').value = n.model || 'nai-diffusion-4-5-full';
+            if (document.getElementById('naiProxyUrl')) document.getElementById('naiProxyUrl').value = n.proxyUrl || '';
+            if (document.getElementById('naiResolution')) document.getElementById('naiResolution').value = n.resolution || '1024x1024';
+            if (document.getElementById('naiSteps')) {
+                document.getElementById('naiSteps').value = n.steps || 28;
+                document.getElementById('naiStepsVal').textContent = n.steps || 28;
+            }
+            if (document.getElementById('naiCfgScale')) {
+                document.getElementById('naiCfgScale').value = n.cfgScale || 5;
+                document.getElementById('naiCfgVal').textContent = n.cfgScale || 5;
+            }
+            if (document.getElementById('naiSampler')) document.getElementById('naiSampler').value = n.sampler || 'k_euler_ancestral';
+            if (document.getElementById('naiSeed')) document.getElementById('naiSeed').value = n.seed ?? -1;
+            if (document.getElementById('naiDefaultPositive')) document.getElementById('naiDefaultPositive').value = n.defaultPositive || '';
+            if (document.getElementById('naiDefaultNegative')) document.getElementById('naiDefaultNegative').value = n.defaultNegative || '';
+        }
+
+        this.updateUIForProvider();
+        // 大review A1 修（2026-08-07）：updateUIForProvider 的 custom/midjourney 分支会无条件清空 URL 框
+        // （那是为「用户手动切 provider」设计的），apply 复用它之后必须重新断言预设值——对强制官方地址的
+        // provider 是恒等回写，无副作用
+        document.getElementById('imageApiUrl').value = preset.url || '';
+        document.getElementById('imageApiModel').value = preset.model || '';
+        // 明确提示要点保存——生图配置分板块（阶段3）后果比聊天 API 重，比聊天预设那句多这一层提醒
+        Utils.showToast(I18n.t('t.set_img_preset_loaded', { name: preset.name }));
     }
 };
 
-// ===== 视频生成 API（Seedance PV，js/video-gen.js 消费 workerUrl/key/model） =====
+// ===== 视频生成 API（火山方舟 Seedance / MiniMax H3，js/video-gen.js 消费 provider/workerUrl/key/model） =====
 const VideoAPISettings = {
     init() {
         // 懒创建配置对象（照 ImageAPISettings.init 的姿势）
         if (!AppState.data.videoApiConfig) {
-            AppState.data.videoApiConfig = { workerUrl: '', key: '', model: (typeof VideoGen !== 'undefined' && VideoGen.MODELS?.[0]?.id) || '' };
+            AppState.data.videoApiConfig = { provider: 'ark', workerUrl: '', key: '', model: (typeof VideoGen !== 'undefined' && VideoGen.MODELS?.[0]?.id) || '' };
+        } else if (!AppState.data.videoApiConfig.provider) {
+            // 存量数据兜底：正常路径下 MIGRATIONS v5 已经补过 provider，这里是双保险（防绕过迁移的边缘路径）
+            AppState.data.videoApiConfig.provider = 'ark';
         }
         const config = AppState.data.videoApiConfig;
 
+        document.getElementById('videoApiProvider').value = config.provider || 'ark';
         document.getElementById('videoApiWorkerUrl').value = config.workerUrl || '';
         document.getElementById('videoApiKey').value = config.key || '';
-        this.populateModels(config.model);
+        this.populateModels(config.model, config.provider || 'ark');
+        this.updateUIForProvider();
 
+        document.getElementById('videoApiProvider').onchange = this.onProviderChange.bind(this);
         document.getElementById('videoApiFetchModelsBtn').onclick = this.tryFetchVideoModels.bind(this);
         document.getElementById('saveVideoApiBtn').onclick = this.save.bind(this);
+
+        // 预设三件套（2026-08-09，照 ImageAPISettings D3 的姿势）
+        document.getElementById('videoApiPresetSelect').onchange = this.applyPreset.bind(this);
+        document.getElementById('saveVideoApiPresetBtn').onclick = this.savePreset.bind(this);
+        document.getElementById('deleteVideoApiPresetBtn').onclick = this.deletePreset.bind(this);
+        this.loadPresets();
     },
 
-    // 用 VideoGen.MODELS 填 select（value=id，text=label）
-    populateModels(selected) {
+    onProviderChange() {
+        const provider = document.getElementById('videoApiProvider').value;
+        this.populateModels('', provider);   // 换 provider 不保留旧模型选中值——两家模型 id 命名空间不通用
+        this.updateUIForProvider();
+    },
+
+    // provider 切换后的三处联动：模型下拉换源（在 populateModels 调用点做）、拉取按钮仅 ark 可用
+    // （MiniMax H3/v1 都没有公开 models 端点）、key 输入框 placeholder 换文案、拉取说明文字仅 ark 显示。
+    // key placeholder 按"是不是 ark"二分而不是逐个枚举——minimax 和 minimax_v1 共用同一把 MiniMax API Key，
+    // 文案没必要分裂成三份（旧写法只特判 'minimax'，minimax_v1 会静默落到 ark 的文案，是本该避免的漏判）
+    updateUIForProvider() {
+        const provider = document.getElementById('videoApiProvider').value;
+        const fetchBtn = document.getElementById('videoApiFetchModelsBtn');
+        const keyInput = document.getElementById('videoApiKey');
+        const fetchNote = document.getElementById('videoApiFetchNote');
+        if (fetchBtn) fetchBtn.disabled = provider !== 'ark';
+        if (keyInput) {
+            keyInput.placeholder = provider === 'ark'
+                ? I18n.t('settings.video_api_key_ph', '输入火山方舟 API Key')
+                : I18n.t('settings.video_api_key_ph_minimax', '输入 MiniMax API Key');
+        }
+        if (fetchNote) fetchNote.style.display = provider === 'ark' ? '' : 'none';
+    },
+
+    // 用 VideoGen.models(provider) 填 select（value=id，text=label）；provider 未传时读当前下拉的值。
+    // selected 不在内置表时不静默丢弃、追加为一项保住（ark「拉取模型列表」选来的新 id 落库后，
+    // 下次打开设置/回填预设都会走到这——手法照 tryFetchVideoModels 的 prevSelected 兜底）
+    populateModels(selected, provider) {
         const select = document.getElementById('videoApiModel');
         if (!select) return;
-        const models = (typeof VideoGen !== 'undefined' && VideoGen.MODELS) ? VideoGen.MODELS : [];
+        const p = provider || document.getElementById('videoApiProvider')?.value || 'ark';
+        const models = (typeof VideoGen !== 'undefined' && VideoGen.models) ? VideoGen.models(p) : [];
         select.innerHTML = '';
         models.forEach(m => {
             const opt = document.createElement('option');
@@ -1556,7 +1857,13 @@ const VideoAPISettings = {
             opt.textContent = m.label;
             select.appendChild(opt);
         });
-        if (selected && models.some(m => m.id === selected)) {
+        if (selected && !models.some(m => m.id === selected)) {
+            const opt = document.createElement('option');
+            opt.value = selected;
+            opt.textContent = selected;
+            select.appendChild(opt);
+        }
+        if (selected) {
             select.value = selected;
         } else if (models.length) {
             select.value = models[0].id;
@@ -1568,6 +1875,7 @@ const VideoAPISettings = {
         while (workerUrl.endsWith('/')) workerUrl = workerUrl.slice(0, -1);
 
         AppState.data.videoApiConfig = {
+            provider: document.getElementById('videoApiProvider').value,
             workerUrl,
             key: document.getElementById('videoApiKey').value.trim(),
             model: document.getElementById('videoApiModel').value
@@ -1580,7 +1888,11 @@ const VideoAPISettings = {
     // GET {workerUrl}/ark/api/v3/models（Bearer）→ 过滤 id 含 seedance 的项替换 select；
     // 保留当前选中值（不在新列表里也追加一项防丢配置）；任何失败/空结果都不动内置列表，只 toast。
     // 容错风格照 APISettings.tryFetchModels（js/settings.js:153）/ WeiboApiSettings._fetchModels。
+    // 仅 ark 可用（按钮在 updateUIForProvider 里已 disabled，这里再挡一层防意外触发）——MiniMax 没有公开的 models 列表端点。
     async tryFetchVideoModels() {
+        const provider = document.getElementById('videoApiProvider').value;
+        if (provider !== 'ark') return;
+
         const workerUrl = document.getElementById('videoApiWorkerUrl').value.trim().replace(/\/+$/, '');
         const key = document.getElementById('videoApiKey').value.trim();
         const select = document.getElementById('videoApiModel');
@@ -1633,12 +1945,110 @@ const VideoAPISettings = {
         } finally {
             if (btn) { btn.textContent = I18n.t('settings.video_api_fetch_models', '拉取模型列表'); btn.disabled = false; }
         }
+    },
+
+    // ===== 视频生成 API 预设管理（2026-08-09，照 ImageAPISettings D3 / js/settings.js:1602 起 的既有姿势）=====
+    // 交互语义与生图 API 预设三件套完全一致：
+    // save = 从当前表单收集 → 同名 confirm 覆盖（保留原 id）→ 落盘 → 刷新下拉选中新项
+    // delete = 未选中 alert → confirm → 按 id 删除 → 刷新下拉
+    // apply(下拉 change) = 按 id 取 → 只回填表单（+ 按预设的 provider 重建模型下拉）→ toast，不落盘
+    // option.value 用 preset.id（时间戳串）而不是数组下标——理由同生图预设：稳定 id 不受删除重排影响
+
+    _genPresetId() {
+        return 'vidp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    },
+
+    loadPresets() {
+        const presets = AppState.data.videoApiPresets || [];
+        const select = document.getElementById('videoApiPresetSelect');
+        if (!select) return;
+
+        select.innerHTML = '<option value="" data-i18n="settings.video_api_select_preset">-- 选择预设 --</option>';
+
+        // 预设名走 DOM textContent（不是拼 innerHTML 字符串），天然免转义——name 里出现 <script> 等字符也只会被当纯文本渲染
+        presets.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            select.appendChild(opt);
+        });
+    },
+
+    savePreset() {
+        const name = (prompt(I18n.t('settings.video_api_preset_name_prompt', '请输入预设名称 (例如: MiniMax H3)')) || '').trim();
+        if (!name) return;
+
+        let workerUrl = document.getElementById('videoApiWorkerUrl').value.trim();
+        while (workerUrl.endsWith('/')) workerUrl = workerUrl.slice(0, -1);
+
+        const preset = {
+            id: null,   // 新建时生成；同名覆盖时保留旧 id
+            name,
+            provider: document.getElementById('videoApiProvider').value,
+            workerUrl,
+            key: document.getElementById('videoApiKey').value.trim(),
+            model: document.getElementById('videoApiModel').value
+        };
+
+        if (!AppState.data.videoApiPresets) AppState.data.videoApiPresets = [];
+
+        const existing = AppState.data.videoApiPresets.find(p => p.name === name);
+        if (existing) {
+            if (!confirm(I18n.t('settings.video_api_preset_confirm_overwrite', { name }))) return;
+            preset.id = existing.id;
+            Object.assign(existing, preset);
+        } else {
+            preset.id = this._genPresetId();
+            AppState.data.videoApiPresets.push(preset);
+        }
+
+        Utils.saveData();
+        this.loadPresets();
+        document.getElementById('videoApiPresetSelect').value = preset.id;
+
+        Utils.showToast(I18n.t('settings.video_api_preset_saved', '预设已保存'));
+    },
+
+    deletePreset() {
+        const select = document.getElementById('videoApiPresetSelect');
+        const id = select.value;
+
+        if (!id) {
+            return alert(I18n.t('settings.video_api_preset_select_first', '请先选择一个预设'));
+        }
+
+        if (!confirm(I18n.t('settings.video_api_preset_confirm_delete', '确定要删除此预设吗？'))) return;
+
+        const idx = (AppState.data.videoApiPresets || []).findIndex(p => p.id === id);
+        if (idx >= 0) AppState.data.videoApiPresets.splice(idx, 1);
+
+        Utils.saveData();
+        this.loadPresets();
+        select.value = '';
+        Utils.showToast(I18n.t('settings.video_api_preset_deleted', '预设已删除'));
+    },
+
+    applyPreset() {
+        const id = document.getElementById('videoApiPresetSelect').value;
+        if (!id) return;
+
+        const preset = (AppState.data.videoApiPresets || []).find(p => p.id === id);
+        if (!preset) return;
+
+        // 只回填表单——不调用 save()、不写 AppState.data.videoApiConfig，点保存按钮才生效
+        document.getElementById('videoApiProvider').value = preset.provider || 'ark';
+        document.getElementById('videoApiWorkerUrl').value = preset.workerUrl || '';
+        document.getElementById('videoApiKey').value = preset.key || '';
+        this.populateModels(preset.model, preset.provider || 'ark');
+        this.updateUIForProvider();
+
+        Utils.showToast(I18n.t('settings.video_api_preset_loaded', { name: preset.name }));
     }
 };
 
 // ===== TTS 语音朗读设置 =====
 const TTSSettings = {
-    // MiniMax 区域 → API endpoint 映射（两个站账号不互通；参考 Kitty 机 2026.1 版）
+    // MiniMax 区域 → API endpoint 映射（两个站账号不互通；参考 既有方案 2026.1 版）
     MINIMAX_ENDPOINTS: {
         global: 'https://api.minimax.io',
         china:  'https://api.minimaxi.com'
@@ -1887,7 +2297,7 @@ const TTSSettings = {
     },
 
     // 获取/同步 MiniMax 语音模型：测试连接 + 刷新预设列表
-    // MiniMax TTS 没有标准列模型 API，沿用 Kitty 机做法 —— 预设 + 测试
+    // MiniMax TTS 没有标准列模型 API，沿用 既有方案做法 —— 预设 + 测试
     async fetchSpeechModels() {
         const region = document.getElementById('ttsMinimaxRegion')?.value || 'global';
         const customBase = (document.getElementById('ttsMinimaxCustomBase')?.value || '').trim();
@@ -1945,5 +2355,39 @@ const TTSSettings = {
         } finally {
             if (btn) { btn.textContent = 'Fetch'; btn.disabled = false; }
         }
+    }
+};
+
+// ============ 历代图标馆（设置→关于→历代图标）============
+// 只陈列真正服役过的默认图标；历代原件常驻仓库根目录不删档，本页按需加载（不进 SW precache）。
+const IconHistory = {
+    exhibits: [
+        { file: 'icon-512-v8.png', key: 'v8', from: '2026-08-16', to: null },
+        { file: 'icon-512-v7.png', key: 'v7', from: '2026-07-15', to: '2026-08-16' },
+        { file: 'icon-512-v6.png', key: 'v6', from: '2026-07-15', to: '2026-07-15' },
+        { file: 'icon-512-v5.png', key: 'v5', from: '2026-06-20', to: '2026-07-15' },
+        { file: 'icon-512-v4.png', key: 'v4', from: '2026-03-20', to: '2026-06-20' }
+    ],
+
+    open() {
+        Navigation.goTo('icon-history');
+        this.render();
+    },
+
+    render() {
+        const wrap = document.getElementById('iconHistoryScroll');
+        if (!wrap) return;
+        wrap.innerHTML = this.exhibits.map(e => {
+            const period = e.from + ' → ' + (e.to || I18n.t('iconhist.now'));
+            return `
+            <div class="settings-card icon-history-card${e.to ? '' : ' is-current'}">
+                <img class="icon-history-img" src="${e.file}" alt="" loading="lazy">
+                <div class="icon-history-info">
+                    <div class="icon-history-name">${I18n.t('iconhist.' + e.key + '_name')}</div>
+                    <div class="icon-history-period">${period}</div>
+                    <div class="icon-history-note">${I18n.t('iconhist.' + e.key + '_note')}</div>
+                </div>
+            </div>`;
+        }).join('');
     }
 };

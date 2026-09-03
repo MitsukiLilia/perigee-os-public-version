@@ -49,7 +49,7 @@ const JournalIcons = {
       } else if (c.dataset.iconDefault) {
         // 离开手帐主题 / 该 app 无手帐图标：恢复原始 SVG
         // 但若当前是夜空/草莓/雪国/梦之芭蕾/动森/夏雨主题，图标已由对应模块接管，不要恢复（七方守卫镜像对称）
-        if (document.documentElement.dataset.theme !== 'night-sky' && document.documentElement.dataset.theme !== 'strawberry' && document.documentElement.dataset.theme !== 'snow-country' && document.documentElement.dataset.theme !== 'sakura' && document.documentElement.dataset.theme !== 'animal' && document.documentElement.dataset.theme !== 'summer-rain') {
+        if (document.documentElement.dataset.theme !== 'night-sky' && document.documentElement.dataset.theme !== 'strawberry' && document.documentElement.dataset.theme !== 'snow-country' && document.documentElement.dataset.theme !== 'sakura' && document.documentElement.dataset.theme !== 'animal' && document.documentElement.dataset.theme !== 'summer-rain' && document.documentElement.dataset.theme !== 'taro-choco' && document.documentElement.dataset.theme !== 'mint-choco') {
           c.innerHTML = c.dataset.iconDefault;
           delete c.dataset.iconDefault;
         }
