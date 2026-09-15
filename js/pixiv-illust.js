@@ -739,9 +739,13 @@ Generate image tags:`;
         fd.append('prompt', finalPrompt);
         fd.append('n', String(imageCount));
         fd.append('size', size);
+        // v2.264.0：单张参考图字段名用 `image`、多张才用 `image[]`。官方 Images API 两种写法都吃；
+        // 部分聚合站自己解析 multipart、只认恰好一个 `image` 文件（社区反馈 INVALID_NATIVE_REQUEST
+        // 「字段 'image' 必须且只能上传一个图片文件」）。单张场景改字段名即兼容；多张场景撞到同类报错时给提示。
+        const imageField = refBlobs.length === 1 ? 'image' : 'image[]';
         refBlobs.forEach((blob, i) => {
             const ext = (blob.type && blob.type.indexOf('jpeg') !== -1) ? 'jpg' : 'png';
-            fd.append('image[]', blob, `ref${i}.${ext}`);
+            fd.append(imageField, blob, `ref${i}.${ext}`);
         });
 
         const response = await Utils._fetchWithTimeout(`${base}/v1/images/edits`, {
@@ -752,7 +756,11 @@ Generate image tags:`;
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({}));
-            throw new Error(error.error?.message || 'OpenAI-compat images edits request failed');
+            let msg = error.error?.message || 'OpenAI-compat images edits request failed';
+            if (refBlobs.length > 1 && /image/i.test(msg)) {
+                msg += ' ' + I18n.t('pixiv_illust.err_compat_multi_ref_hint', '（该渠道可能只支持单张参考图：CP 设置里只保留一位角色的立绘再试）');
+            }
+            throw new Error(msg);
         }
 
         const data = await response.json();
@@ -1211,15 +1219,26 @@ Generate image tags:`;
             throw new Error(I18n.t('pixiv_illust.err_jszip_not_loaded', 'JSZip 库未加载，请重试'));
         }
 
+        // v2.264.0：解压前先嗅探 body 魔数。反代 200 但回的不是 zip（JSON 报错 / HTML）时，此前 JSZip 直接抛
+        // 「Can't find end of central directory : is this a zip file ?」这种看不懂的原话（社区反馈）；
+        // 现在把反代 body 的前 300 字透出来，用户能看到真正的错因。顺手把裸 PNG/JPEG（反代不打包）也接住。
+        const head = new Uint8Array(await zipBlob.slice(0, 4).arrayBuffer());
+        const isZip = head.length >= 2 && head[0] === 0x50 && head[1] === 0x4B;
+        if (!isZip) {
+            if (zipBlob.type && zipBlob.type.startsWith('image/')) return zipBlob;
+            const isPng = head.length >= 4 && head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4E && head[3] === 0x47;
+            const isJpg = head.length >= 3 && head[0] === 0xFF && head[1] === 0xD8 && head[2] === 0xFF;
+            if (isPng) return new Blob([zipBlob], { type: 'image/png' });
+            if (isJpg) return new Blob([zipBlob], { type: 'image/jpeg' });
+            const text = (await zipBlob.slice(0, 600).text()).replace(/\s+/g, ' ').trim().slice(0, 300);
+            throw new Error(I18n.t('pixiv_illust.err_nai_not_zip', { text: text || '(empty body)' }));
+        }
+
         const zip = await JSZip.loadAsync(zipBlob);
         for (const filename in zip.files) {
             if (filename.match(/\.(png|jpg|jpeg|webp)$/i)) {
                 return zip.files[filename].async('blob');
             }
-        }
-
-        if (zipBlob.type && zipBlob.type.startsWith('image/')) {
-            return zipBlob;
         }
 
         throw new Error(I18n.t('pixiv_illust.err_no_image_in_zip', 'ZIP 文件中未找到图片'));

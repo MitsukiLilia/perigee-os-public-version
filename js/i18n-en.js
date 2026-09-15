@@ -2869,6 +2869,8 @@ I18n.translations.en = {
             'pixiv_illust.err_nai_body_timeout': 'NovelAI response read timed out (10 minutes)',
             'pixiv_illust.err_jszip_not_loaded': 'JSZip library not loaded. Please try again.',
             'pixiv_illust.err_no_image_in_zip': 'No image found in ZIP file',
+            'pixiv_illust.err_nai_not_zip': 'NovelAI proxy returned something other than an image/ZIP (check proxy URL and model settings): {text}',
+            'pixiv_illust.err_compat_multi_ref_hint': '(This relay may accept only one reference image. Keep just one character\'s reference image in CP settings and retry.)',
 
             // Weibo module
             'weibo.app_icon_title': 'Weibo',

@@ -8,7 +8,7 @@
 // 同步 deploy.sh DEFAULT_FILES（sw.js 不 precache 归档、靠 runtime cache）。条目内容永不修改（数据只增）。
 
 const Changelog = {
-    CURRENT: '2.263.0',
+    CURRENT: '2.265.0',
 
     // 冻结月归档（新→旧）。file 相对站点根。
     ARCHIVES: [
@@ -19,6 +19,23 @@ const Changelog = {
     ],
 
     versions: [
+        {
+            version: '2.265.0',
+            date: '2026-09-15',
+            highlights: [
+                '帮助中心新增「PV 视频生成（Seedance / MiniMax）」一节：说明目前支持火山引擎 Seedance 与 MiniMax（H3 / Hailuo）两家渠道、为什么需要自己准备一个转发用的中转、以及在设置里填哪里'
+            ],
+            voiceFromKlaude: '',
+        },
+        {
+            version: '2.264.0',
+            date: '2026-09-15',
+            highlights: [
+                'OpenAI 兼容线带参考立绘生图修复：只设一张立绘时，参考图改用标准的单图字段写法——部分 OpenAI 兼容渠道严格只认一个 image 字段，此前会报「字段 image 必须且只能上传一个图片文件」；两张立绘都设了仍撞到同类报错时，会提示该渠道可能只支持单张参考图',
+                'NovelAI 线报错透明化：反代返回的不是图片/ZIP 时，不再抛出 JSZip 的「is this a zip file?」，改为直接显示反代返回的原文，方便定位反代地址或模型设置的问题；反代直接回裸 PNG/JPEG 的情况也顺手接住'
+            ],
+            voiceFromKlaude: '',
+        },
         {
             version: '2.263.0',
             date: '2026-08-23',

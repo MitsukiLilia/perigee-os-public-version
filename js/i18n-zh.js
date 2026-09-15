@@ -2946,6 +2946,8 @@ I18n.translations.zh = {
             'pixiv_illust.err_nai_body_timeout': 'NovelAI 响应读取超时（10 分钟）',
             'pixiv_illust.err_jszip_not_loaded': 'JSZip 库未加载，请重试',
             'pixiv_illust.err_no_image_in_zip': 'ZIP 文件中未找到图片',
+            'pixiv_illust.err_nai_not_zip': 'NovelAI 反代返回的不是图片/ZIP（请检查反代地址与模型设置）: {text}',
+            'pixiv_illust.err_compat_multi_ref_hint': '（该渠道可能只支持单张参考图：CP 设置里只保留一位角色的立绘再试）',
 
             // 微博模块
             'weibo.app_icon_title': '微博',

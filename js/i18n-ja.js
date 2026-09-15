@@ -2868,6 +2868,8 @@ I18n.translations.ja = {
             'pixiv_illust.err_nai_body_timeout': 'NovelAI レスポンスの読み取りがタイムアウトしました（10 分）',
             'pixiv_illust.err_jszip_not_loaded': 'JSZip ライブラリが読み込まれていません。もう一度お試しください',
             'pixiv_illust.err_no_image_in_zip': 'ZIP ファイル内に画像が見つかりません',
+            'pixiv_illust.err_nai_not_zip': 'NovelAI プロキシの応答が画像/ZIP ではありません（プロキシ URL とモデル設定を確認してください）: {text}',
+            'pixiv_illust.err_compat_multi_ref_hint': '（この中継サービスは参照画像 1 枚のみ対応の可能性があります。CP 設定でどちらか一方の立ち絵だけ残して再試行してください）',
 
             // 微博模块（日文 fallback 到中文）
             'weibo.app_icon_title': '微博',
