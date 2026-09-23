@@ -686,12 +686,24 @@ I18n.translations.en = {
             'nico.pv_prompt_placeholder': 'Write shots, dialogue, and mood (text inside "" will be voiced)',
             'nico.pv_ai_write_btn': 'AI Assist',
             'nico.pv_ai_writing': 'Generating…',
-            'nico.pv_ref_label': 'Reference Images (0-9)',
+            'nico.pv_ref_label': 'Reference Images (0-{n})',
             'nico.pv_ref_label_v1': 'Reference Image (0-1)',
             'nico.pv_ref_add_title': 'Add Image',
             'nico.pv_ref_disabled_hint': "This model doesn't support reference images",
             'nico.pv_ref_single_frame_hint': "The Hailuo channel supports only 1 reference image, which becomes the video's first frame",
             'nico.pv_ref_remove_title': 'Remove',
+            'nico.pv_frames_label': 'Storyboard Frames',
+            'nico.pv_frames_gen_btn': 'Generate Storyboard Frames',
+            'nico.pv_frames_clear_btn': 'Clear Storyboard Frames',
+            'nico.pv_frames_confirm': 'This will generate {n} storyboard frame images using the current image API. Continue?',
+            'nico.pv_frames_confirm_over': 'Note: {a} character image(s) + {b} storyboard frame(s) exceeds this model\'s limit of {n} reference images. You will need to remove {x} before submitting.',
+            'nico.pv_ref_total_exceeded': 'Too many reference images: {a} character image(s) + {b} storyboard frame(s); this model allows up to {n}',
+            'nico.pv_frames_no_shots': 'No shots detected — write the storyboard script first',
+            'nico.pv_frames_busy': 'Storyboard frames are generating, please wait',
+            'nico.pv_frames_progress': 'Frames {k}/{n}',
+            'nico.pv_frames_done': 'Storyboard frame generation complete',
+            'nico.pv_frames_done_with_errors': 'Storyboard frame generation complete ({n} failed, can be regenerated)',
+            'nico.pv_frame_regen_btn': 'Regenerate',
             'nico.pv_model_label': 'Model',
             'nico.pv_resolution_label': 'Resolution',
             'nico.pv_duration_label': 'Duration',
@@ -746,12 +758,30 @@ I18n.translations.en = {
             'nico.pv_ref_audio_stop_title': 'Stop',
             'nico.pv_ref_audio_err_format': 'Could not decode this audio file — please use mp3 or wav',
             'nico.pv_ref_audio_err_size': 'Audio file too large ({size}MB, limit 15MB)',
-            'nico.pv_trim_title': 'Select Audio Segment (max 15s)',
+            'nico.pv_trim_title': 'Select Audio Segment (max {n}s)',
             'nico.pv_trim_range_format': '{start}s - {end}s',
 
             // Lyrics (v2.242)
             'nico.pv_lyrics_label': 'Lyrics (optional)',
-            'nico.pv_lyrics_ph': 'Paste the lyrics matching the reference audio segment to sync the cuts with them',
+            'nico.pv_lyrics_ph': 'Paste the lyrics matching the reference audio segment to sync the cuts with them (LRC timestamps supported)',
+
+            // Lyric subtitles (Phase 6 P2, 2026-09-19)
+            'nico.pv_lyric_offset_label': 'Lyric Time Offset',
+            'nico.pv_lyric_preview_timed': '{n} lines · first line at {t}s',
+            'nico.pv_lyric_preview_untimed': 'No timestamps detected — lines will be spaced evenly by length',
+            'nico.pv_lyric_preview_empty': 'No usable lyrics detected',
+            'nico.pv_lyric_audio_over_limit_hint': 'This model supports reference audio up to {n}s — please reselect and re-trim the audio',
+            'nico.pv_lyric_toggle_show': 'Show Subtitles',
+            'nico.pv_lyric_toggle_hide': 'Hide Subtitles',
+            'nico.pv_save_btn': 'Save',
+            'nico.pv_save_menu_title': 'Save Video',
+            'nico.pv_save_original': 'Original Video',
+            'nico.pv_save_with_lyrics': 'Export with Subtitles',
+            'nico.pv_export_progress_title': 'Exporting…',
+            'nico.pv_export_progress_hint': 'Keep this page in the foreground while exporting',
+            'nico.pv_export_unsupported': "This browser doesn't support exporting with subtitles — you can save the original video instead",
+            'nico.pv_export_busy': 'Exporting, please wait',
+            'nico.pv_export_done_title': 'Export complete',
 
             // Style axes + polish pass (v2.243)
             'nico.pv_style_type_label': 'Style Type',
@@ -763,6 +793,7 @@ I18n.translations.en = {
             'nico.pv_style_type_yokoku': 'Next Episode Preview',
             'nico.pv_style_type_highlight': 'Season Highlight',
             'nico.pv_style_type_battle': 'Battle',
+            'nico.pv_style_type_mv': 'Music Video',
             'nico.pv_style_mood_iyashi': 'Healing',
             'nico.pv_style_mood_setsunai': 'Bittersweet',
             'nico.pv_style_mood_moeru': 'Intense',
@@ -775,6 +806,13 @@ I18n.translations.en = {
 
             // Dialogue & narration language (2026-08-23)
             'nico.pv_dialogue_lang_label': 'Dialogue & narration language',
+
+            // Art style anchor (PV phase 6, 2026-09-18)
+            'nico.pv_art_style_label': 'Art Style',
+            'nico.pv_art_style_cel': 'Anime Key Animation / Cel-Shaded 2D',
+            'nico.pv_art_style_flat': 'Flat Illustration',
+            'nico.pv_art_style_painterly': 'Painterly / Watercolor',
+            'nico.pv_art_style_realistic': 'Realistic / 3D CG',
 
             // PV submission form triple upgrade (v2.244)
             'nico.pv_cast_label': 'Cast',
@@ -1416,6 +1454,9 @@ I18n.translations.en = {
             // Music · vinyl record
             'widgets.mu_size_small': 'Small Square',
             'widgets.mu_size_wide': 'Wide Bar',
+            'widgets.mu_size_bar': 'Slim Bar (1 row)',
+            'widgets.mu_size_bar3': 'Slim Bar (3 cols)',
+            'widgets.mu_size_wide3': 'Wide Bar (3 cols)',
             'widgets.mu_size_circle': 'Vinyl Record',
             'widgets.mu_size_switch_prefix': 'Switch size (current: ',
             // Text note
@@ -2420,6 +2461,12 @@ I18n.translations.en = {
 
             'forum.plot_import_h3': 'Plot import',
             'forum.plot_import_desc': 'Choose a TXT (per-episode text) or JSON (array) file',
+            'forum.plot_import_chunk_hint': 'Long texts are parsed in several segments (about 40k characters each), so the API is called more than once',
+            'forum.plot_import_plan': 'About {n} characters, parsing in {c} segment(s)',
+            'forum.plot_import_progress': 'AI parsing {i}/{c}…',
+            'forum.plot_import_detected': '{n} episode(s) detected',
+            'forum.plot_import_btn': 'Import {n} episode(s)',
+            'forum.plot_import_partial': 'Segment {i} failed ({e}). The {n} episode(s) already parsed can be imported now',
             'forum.btn_close': 'Close',
 
             'forum.export_h3': 'Export thread',
@@ -3427,5 +3474,59 @@ I18n.translations.en = {
             'lofter.next_ch_finished_notice': 'This series is complete — the new chapter will be written as a bonus epilogue.',
             'lofter.btn_cancel': 'Cancel',
             'lofter.btn_generate': 'Generate',
-            'common.cancel': 'Cancel'
+            'common.cancel': 'Cancel',
+            // 负一屏（2026-09-21 第一阶段：目次卡 + 排行榜卡）
+            'minus_one.novels_title': 'Favorite Novels',
+            // 空字符串：英文不带单位。注意 I18n.t 对空串 dict 值会当成"缺失"继续往下查、
+            // 落到中文字典（js/i18n.js t() 的 fallback 链是 当前语言→en→zh→调用方fallback，
+            // '' 和 undefined 一样是 falsy）——js/minus-one.js _unitHtml() 因此没有直接
+            // 调 I18n.t 查这个 key，而是按 currentLang === 'en' 分支直接不渲染单位 span。
+            // 这两个 key 留在字典里只是保持三语文件同构，实际不会被 t() 读到。
+            'minus_one.novels_unit': '',
+            'minus_one.novels_empty': 'No favorite novels yet',
+            'minus_one.novels_empty_hint': 'Bookmark a novel in Pixiv and it will show up here',
+            'minus_one.threads_title': 'Saved Threads',
+            'minus_one.threads_subtitle': 'Ranking',
+            'minus_one.threads_unit': '',
+            'minus_one.threads_empty': 'No saved threads yet',
+            'minus_one.threads_empty_hint': 'Save threads in the forum; the most replied ones rank first',
+            // Minus-one page, phase 2: goods display card (pin badge board)
+            'minus_one.goods_solo_title': 'Goods Display',
+            'minus_one.goods_solo_tag': 'My Fave',
+            'minus_one.goods_pair_tag': 'Matching',
+            'minus_one.goods_edit_title': 'Edit Goods Display',
+            'minus_one.goods_layout_solo': 'Solo',
+            'minus_one.goods_layout_pair': 'Pair',
+            'minus_one.goods_ribbon_label': 'Ribbon Color',
+            'minus_one.goods_ribbon_theme': 'Match Theme',
+            'minus_one.goods_ribbon_custom': 'Custom Color',
+            'minus_one.goods_hero_label': 'Main Badge',
+            'minus_one.goods_minis_label': 'Mini Badges',
+            'minus_one.goods_slot_a': 'Left',
+            'minus_one.goods_slot_b': 'Right',
+            'minus_one.goods_upload_btn': 'Upload',
+            'minus_one.goods_change_btn': 'Change',
+            'minus_one.goods_remove_btn': 'Remove',
+            'minus_one.goods_swap_btn': 'Swap Sides',
+            'minus_one.goods_upload_fail': 'Failed to read image',
+            'minus_one.goods_upload_done': 'Uploaded',
+            'minus_one.goods_pos_missing': 'Image not found',
+            'minus_one.goods_field_tag': 'Tag text',
+            // Minus-one page, phase 3: optional board background + card show/hide/reorder
+            'minus_one.goods_bg_label': 'Background',
+            'minus_one.goods_bg_type_dots': 'Dots',
+            'minus_one.goods_bg_type_preset': 'Preset Image',
+            'minus_one.goods_bg_type_upload': 'Your Own Image',
+            'minus_one.goods_bg_mint_fabric': 'Mint Stitched Fabric',
+            'minus_one.goods_bg_sakura_lace': 'Sakura Lace Fabric',
+            'minus_one.goods_bg_journal_linen': 'Journal Linen',
+            'minus_one.goods_bg_strawberry_cream': 'Strawberry Cream Fabric',
+            'minus_one.goods_bg_snow_frost': 'Snow Frost Fabric',
+            'minus_one.goods_bg_rain_blue': 'Summer Rain Blue',
+            'minus_one.goods_bg_taro_lavender': 'Taro Floral Fabric',
+            'minus_one.goods_bg_animal_berry': 'Forest Berry Fabric',
+            'minus_one.manage_title': 'Edit Minus-One Page',
+            'minus_one.manage_move_up': 'Move Up',
+            'minus_one.manage_move_down': 'Move Down',
+            'minus_one.manage_empty_hint': 'The minus-one page is empty. Turn cards back on in Edit below',
 };

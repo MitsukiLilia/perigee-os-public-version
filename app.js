@@ -202,6 +202,9 @@ const Navigation = {
             if (screenId === 'desktop' && typeof Widgets !== 'undefined' && Widgets.onDesktopReturn) {
                 Widgets.onDesktopReturn();
             }
+            // 负一屏不走 DesktopRenderer.render() 那条重渲染路径（回桌面时桌面本来就没重建），
+            // 单独刷一下——否则在别处收藏了小说/帖子、滑回负一屏还是旧内容
+            if (screenId === 'desktop' && typeof MinusOne !== 'undefined') MinusOne.refresh();
             if (screenId === 'conversation' && data) Conversation.init(data);
             if (screenId === 'characterEditor') CharEditor.init();
             // my-profile-screen removed — identity management is in LINE Home
@@ -314,14 +317,21 @@ const DesktopPager = {
     currentPage: 0,
     totalPages: 2,
     startX: 0,
+    startY: 0,
+    // 负一屏（js/minus-one.js）：不在 desktopLayout.pages 里的独立节点，页码记作 -1
+    // v2.275：折叠屏展开态负一屏常驻左半边（MinusOne.docked()），翻页器里就没有 -1 页了
+    get minPage() { return (typeof MinusOne !== 'undefined' && MinusOne.enabled() && !MinusOne.docked()) ? -1 : 0; },
     goToPage(index) {
-        if (index < 0 || index >= this.totalPages) return;
+        if (index < this.minPage || index >= this.totalPages) return;
         this.currentPage = index;
         const pages = document.getElementById('desktopPages');
-        pages.style.transform = `translateX(-${index * 100}%)`;
+        pages.style.transform = `translateX(${-index * 100}%)`;   // 原写法 `-${index*100}` 在 index=-1 时会拼出非法的 `--100%`
         document.querySelectorAll('.page-dots .dot').forEach((d, i) => {
             d.classList.toggle('active', i === index);
         });
+        // 鼠标设备专属的负一屏小标记（触屏不渲染，见 js/desktop-edit.js _updatePageDots）
+        const minusDot = document.querySelector('.page-dots .dot-minus');
+        if (minusDot) minusDot.classList.toggle('active', index === -1);
         // 第1页以外はウィジェットと時計を隠す
         const topArea = document.querySelector('.desktop-widget');
         if (topArea) topArea.style.visibility = index === 0 ? '' : 'hidden';
@@ -331,10 +341,16 @@ const DesktopPager = {
         if (!wrapper) return;
         wrapper.addEventListener('touchstart', (e) => {
             this.startX = e.touches[0].clientX;
+            this.startY = e.touches[0].clientY;
         }, { passive: true });
         wrapper.addEventListener('touchend', (e) => {
             if (this._locked) return;
             const diff = this.startX - e.changedTouches[0].clientX;
+            // 负一屏是纵向滚动页：竖直方向为主的手势是在滚动列表、不是翻页
+            if (this.currentPage === -1) {
+                const diffY = this.startY - e.changedTouches[0].clientY;
+                if (Math.abs(diffY) > Math.abs(diff)) return;
+            }
             if (Math.abs(diff) > 50) {
                 if (diff > 0) this.goToPage(this.currentPage + 1);
                 else this.goToPage(this.currentPage - 1);

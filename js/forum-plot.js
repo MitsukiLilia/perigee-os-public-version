@@ -594,69 +594,138 @@ Object.assign(Forum, {
         Utils.showToast(I18n.t('t.forum_plots_imported', { n: imported }));
     },
 
-    async _extractPlotsFromText(rawText) {
-        const preview = document.getElementById('plotImportPreview');
-        preview.innerHTML = '<div style="padding:12px;color:var(--text-secondary);font-size:13px;">AI解析中...</div>';
+    // ===== 长文本分片：每片约 4 万字，切点往前找最近空行/换行，不在句子中间下刀 =====
+    _splitPlotText(text, size = 40000) {
+        const chunks = [];
+        let pos = 0;
+        while (pos < text.length) {
+            let end = Math.min(pos + size, text.length);
+            if (end < text.length) {
+                const floor = pos + Math.floor(size * 0.6);
+                const win = text.slice(floor, end);
+                let cut = win.lastIndexOf('\n\n');
+                if (cut < 0) cut = win.lastIndexOf('\n');
+                if (cut >= 0) end = floor + cut + 1;
+            }
+            chunks.push(text.slice(pos, end));
+            pos = end;
+        }
+        return chunks;
+    },
 
-        try {
-            const systemPrompt = `あなたはアニメ・漫画のストーリーテキストから各話の要約を抽出する専門家です。
+    // 解析结果按话号合并：后来的覆盖先来的（跨片被切开的半话由后一片输出合并版）
+    _mergePlotEpisodes(list, incoming) {
+        incoming.forEach(item => {
+            const num = Number(item.episodeNumber);
+            if (!Number.isFinite(num)) { list.push(item); return; }
+            item.episodeNumber = num;
+            const idx = list.findIndex(x => x.episodeNumber === num);
+            if (idx >= 0) list[idx] = item; else list.push(item);
+        });
+        list.sort((a, b) => (a.episodeNumber || 0) - (b.episodeNumber || 0));
+        return list;
+    },
+
+    _plotExtractSystemPrompt() {
+        return `あなたは物語テキスト（アニメ・漫画・小説・チャットログなど）から各話の要約を抽出する専門家です。
 
 以下のテキストから、各話/各章のタイトルとあらすじを抽出してJSON配列で出力してください。
 
 ルール:
-- 各要素は { "episodeNumber": 数字, "title": "話タイトル", "summary": "あらすじ要約（80字以内）" } の形式
-- 元テキストの話番号がわかる場合はそれを使用
-- わからない場合は連番
-- summaryは元テキストの内容を忠実に要約すること（捏造禁止）
+- 各要素は { "episodeNumber": 数字, "title": "話タイトル", "summary": "あらすじ" } の形式
+- 【最重要・言語】title と summary は必ず原文と同じ言語で書くこと。原文が中国語なら中国語、日本語なら日本語、英語なら英語。翻訳・言語変換は禁止（原文の細かいニュアンスが失われるため）
+- summary は 200 字以内。原文の具体的なディテール（固有名詞・印象的な台詞・転換点・小さな出来事・伏線）をできるだけ残すこと。捏造禁止
+- 元テキストに話番号がある場合はそれを使用。ない場合は連番
 - 出力はJSON配列のみ（説明文なし）
 
-例:
-[{"episodeNumber":1,"title":"第1話 始まり","summary":"主人公が魔法学校に入学する。同級生のBと出会い..."},{"episodeNumber":2,"title":"第2話 試練","summary":"初めての戦闘訓練で..."}]`;
+例（原文が中国語の場合）:
+[{"episodeNumber":1,"title":"第1话 初遇","summary":"主人公在雨夜的车站捡到一把没有署名的伞……"},{"episodeNumber":2,"title":"第2话 约定","summary":"……"}]
 
-            const messages = [{ role: 'user', content: rawText.slice(0, 15000) }]; // Limit input size
-            const response = await Utils.callChatAPI(messages, systemPrompt);
+例（原文が日本語の場合）:
+[{"episodeNumber":1,"title":"第1話 始まり","summary":"主人公が魔法学校に入学する。同級生のBと出会い……"},{"episodeNumber":2,"title":"第2話 試練","summary":"……"}]`;
+    },
 
-            // Extract JSON from response
-            const jsonMatch = response.match(/\[[\s\S]*\]/);
-            if (!jsonMatch) {
-                Utils.showToast(I18n.t('t.forum_ai_parse_failed', 'AI解析に失敗しました。テキスト形式を確認してください'));
+    // 分片 i（0 起）的用户消息：非首片带上一片尾巴，让被切开的半话能缝上、话号能接上
+    _plotChunkMessage(chunk, i, total, prevLast) {
+        if (total <= 1) return chunk;
+        let head = `【分片 ${i + 1}/${total}】このテキストは長い原文の一部です。`;
+        if (i > 0 && prevLast) {
+            head += `前の部分は第 ${prevLast.episodeNumber} 話「${prevLast.title || ''}」まで解析済みで、そのあらすじは次の通り：\n${prevLast.summary || ''}\n\nこの部分の冒頭がその話の続きであれば、同じ episodeNumber（${prevLast.episodeNumber}）を使い、前のあらすじと合わせた完成版のあらすじを出力すること。そうでなければ ${prevLast.episodeNumber + 1} から続けて番号を振る（原文に話番号があればそれを優先）。`;
+        } else if (i > 0) {
+            head += `前の部分では話が検出されなかったため、1 から番号を振ること。`;
+        }
+        if (i < total - 1) head += `この部分の末尾は途中で切れている可能性がある。`;
+        return `${head}\n\n────────\n\n${chunk}`;
+    },
+
+    async _extractPlotsFromText(rawText) {
+        const preview = document.getElementById('plotImportPreview');
+        const _esc = s => Utils.escapeHtml(s || '');
+        const hint = msg => `<div style="padding:12px;color:var(--text-secondary);font-size:13px;">${_esc(msg)}</div>`;
+
+        await Utils.withLock('plotImport', async () => {
+            const chunks = this._splitPlotText(rawText);
+            const total = chunks.length;
+            preview.innerHTML = hint(I18n.t('forum.plot_import_plan', { n: rawText.length.toLocaleString(), c: total }));
+
+            const collected = [];
+            let failed = null; // { i, e }
+            try {
+                for (let i = 0; i < total; i++) {
+                    preview.innerHTML = hint(I18n.t('forum.plot_import_progress', { i: i + 1, c: total }));
+                    const prevLast = collected.length ? collected[collected.length - 1] : null;
+                    const messages = [{ role: 'user', content: this._plotChunkMessage(chunks[i], i, total, prevLast) }];
+                    let parsed;
+                    try {
+                        const response = await Utils.callChatAPI(messages, this._plotExtractSystemPrompt());
+                        const jsonMatch = response.match(/\[[\s\S]*\]/);
+                        if (!jsonMatch) throw new Error(I18n.t('t.forum_ai_parse_failed'));
+                        parsed = JSON.parse(jsonMatch[0]);
+                        if (!Array.isArray(parsed)) throw new Error(I18n.t('t.forum_ai_parse_failed'));
+                    } catch (err) {
+                        // 失败保留已解析的：中途某片挂了，前面的结果照常进预览
+                        console.error('[PlotImport] chunk', i + 1, err);
+                        failed = { i: i + 1, e: err.message };
+                        break;
+                    }
+                    this._mergePlotEpisodes(collected, parsed);
+                }
+            } catch (err) {
+                Utils.showToast(I18n.t('t.forum_ai_parse_error') + err.message);
+                preview.innerHTML = '';
+                console.error('[PlotImport]', err);
+                return;
+            }
+
+            if (collected.length === 0) {
+                Utils.showToast(failed ? I18n.t('t.forum_ai_parse_error') + failed.e : I18n.t('t.forum_no_plots_found'));
                 preview.innerHTML = '';
                 return;
             }
 
-            const parsed = JSON.parse(jsonMatch[0]);
-            if (!Array.isArray(parsed) || parsed.length === 0) {
-                Utils.showToast(I18n.t('t.forum_no_plots_found', '話が見つかりませんでした'));
-                preview.innerHTML = '';
-                return;
-            }
-
-            // Show preview before importing
-            const _esc = s => Utils.escapeHtml(s || '');
+            const warn = failed
+                ? `<div style="padding:8px;font-size:12px;color:var(--danger,#c0392b);">${_esc(I18n.t('forum.plot_import_partial', { i: failed.i, e: failed.e, n: collected.length }))}</div>`
+                : '';
             preview.innerHTML = `
+                ${warn}
                 <div style="padding:8px;font-size:13px;color:var(--text-secondary);">
-                    ${parsed.length} 話を検出しました：
+                    ${_esc(I18n.t('forum.plot_import_detected', { n: collected.length }))}
                 </div>
                 <div style="max-height:200px;overflow-y:auto;padding:0 8px;">
-                    ${parsed.map(p => `
+                    ${collected.map(p => `
                         <div style="padding:6px 0;border-bottom:1px solid var(--border-light);font-size:12px;">
-                            <strong>${_esc(p.title || `第${p.episodeNumber}話`)}</strong>
+                            <strong>${_esc(p.title || `#${p.episodeNumber}`)}</strong>
                             <div style="color:var(--text-secondary);margin-top:2px;">${_esc((p.summary || '').slice(0, 60))}...</div>
                         </div>
                     `).join('')}
                 </div>
                 <button class="glass-btn primary" style="width:100%;margin-top:8px;" onclick="Forum._confirmPlotImport()">
-                    インポートする (${parsed.length}話)
+                    ${_esc(I18n.t('forum.plot_import_btn', { n: collected.length }))}
                 </button>`;
 
             // Store temporarily for confirmation
-            this._pendingPlotImport = parsed;
-
-        } catch (err) {
-            Utils.showToast(I18n.t('t.forum_ai_parse_error', 'AI解析エラー: ') + err.message);
-            preview.innerHTML = '';
-            console.error('[PlotImport]', err);
-        }
+            this._pendingPlotImport = collected;
+        }, () => Utils.showToast(I18n.t('forum.plot_import_progress', { i: '…', c: '…' })));
     },
 
     _confirmPlotImport() {

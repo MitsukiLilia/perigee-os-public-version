@@ -1,5 +1,9 @@
 /* 主题变量 - 冬夜主题（默认）- 莫兰迪蓝紫 */
 :root {
+    /* app 实际宽度：平时 = 视口宽；宽视口舞台生效时 = 舞台宽（见 body 规则下方的 @media）。
+       凡是「按 app 宽度」算的尺寸一律用它，不要再写 vw（vw 永远按整个视口算，舞台里会大三倍） */
+    --app-w: 100vw;
+    --rail: 0px; /* 右侧系统栏宽度：仅 html.side-rail（右侧安全区 > 0 的设备）取实际值，见「右侧系统栏让位」 */
     --bg-base: #eef2f5;
     --bg-secondary: #f5f7f9;
     --bg-elevated: #f8fafb;
@@ -79,6 +83,59 @@ body {
     width: 100vw;
     height: 100vh;
     padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* ── 宽视口舞台（电脑 / iPad / 折叠屏展开态）──
+   各仿真 app 都是照手机端原型做的，拉到满屏宽会走样：视口够宽够高时把整个 OS 收进一块手机宽的舞台。
+   · 条件刻意同时卡宽和高：手机竖屏宽度不够、手机横屏高度不够，手机永远不进这里。
+   · transform 让 body 成为全部 position:fixed 后代的定位基准 —— 各 app 的 fixed 底栏/弹窗/浮层自动跟着舞台走。
+     副作用：JS 里拿视口坐标摆 fixed 元素的地方要经 Utils.stageRect() 换算。
+   · 两侧用 body 自己的超大外扩阴影铺色：颜色在 body 上解析，深色模式/各主题的 --bg-base 都能跟上。
+   · 默认居中；折叠屏展开态由 index.html <head> 里的小脚本给 <html> 挂 .stage-right → 贴右半边，避开中线折痕。 */
+@media (min-width: 700px) and (min-height: 500px) {
+    :root { --app-w: calc(466px - var(--rail)); }
+    html {
+        overflow: hidden;
+        height: 100%;
+        background: var(--bg-base);
+    }
+    body {
+        width: var(--app-w);
+        margin: 0 auto;
+        transform: translateZ(0);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 0 0 100vmax var(--bg-base);
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 0 0 100vmax color-mix(in srgb, var(--bg-base) 90%, #000);
+    }
+    html.stage-right body { margin: 0 var(--rail) 0 auto; }
+    /* v2.275：展开态负一屏常驻左半边＝body 的 fixed 后代跑到 body 左缘之外（css/minus-one.css .mo-docked）。
+       html 已 overflow:hidden，body 的 overflow:hidden 不再传给视口、会裁自己的溢出——只在贴右舞台下放开。
+       body 的在流子元素只有 fixed 的各 .screen / 浮层，放开不会多出滚动条或横向溢出。 */
+    html.stage-right body { overflow: visible; }
+}
+
+/* ── 右侧系统栏让位（目前只有折叠屏 iPhone Duo 会遇到）──
+   Duo 的系统状态区（时间 / Wi-Fi）竖着悬浮在屏幕右上角，系统用 safe-area-inset-right 报出这条宽度（84px），
+   外屏合上态与内屏展开态都在同一位置。做法与舞台同一招：整台「手机」让出这一条——body 收窄并带 transform，
+   全部 fixed 底栏/弹窗/浮层自动跟随，右侧留一条主题底色的竖栏给系统。
+   · html.side-rail 由 index.html <head> 的小脚本在「右侧安全区 > 0」时挂上；普通手机竖屏该值恒为 0，永远不挂。
+   · --rail 只在挂了 .side-rail 时才取安全区值，其余情况恒为 0px（上面舞台的 --app-w / 贴右 margin 因此逐值不变）。
+   · 合上态 = 视口宽 − 竖栏；展开贴右态 = 舞台宽 − 竖栏、再整体左移一个竖栏宽 → 两种形态同一副长相。 */
+html.side-rail { --rail: env(safe-area-inset-right, 0px); }
+html.side-rail body { padding-right: 0; } /* 竖栏已由 body 收窄让出，不再叠一层右 padding */
+@media (orientation: portrait) {
+    html.side-rail {
+        --app-w: calc(100vw - var(--rail));
+        overflow: hidden;
+        height: 100%;
+        background: var(--bg-base);
+    }
+    html.side-rail body {
+        width: var(--app-w);
+        margin: 0;
+        transform: translateZ(0);
+        box-shadow: 0 0 0 100vmax var(--bg-base);
+        box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--bg-base) 94%, #000);
+    }
 }
 
 .screen {
@@ -227,7 +284,7 @@ body.dark-mode #desktop::before {
     justify-content: center;
     align-items: center;
     gap: 8px;
-    max-width: calc(100vw - 24px);
+    max-width: calc(var(--app-w) - 24px);
     padding: 8px 10px;
     background: var(--glass-panel);
     backdrop-filter: blur(20px);
@@ -558,6 +615,16 @@ body.dark-mode #desktop::before {
     width: 100%;
     height: auto;
 }
+/* v2.274 图标齐平档（bar=整行×1 行／bar3=3 列×1 行／wide3=3 列×2 行）：高度不锁比例、跟网格走——
+   1 行档卡高=图标方块边长（--app-icon-size：横屏 64 / 竖屏手机 56），顶底与同一行图标齐平；
+   2 行档卡高=行单位+行距+图标边长，即上排图标顶沿到下排图标底沿。格子内顶对齐（默认 flex-start）；
+   --desktop-row-gap / --app-icon-size 由 .app-grid 三处规则各自镜像写入。
+   比例随机型列宽浮动（3 列档 ≈3.8~4.1:1、整行 ≈5.2~5.5:1），皮肤不能 100% 100% 整贴、走三段切片。 */
+.desktop-grid-widget .widget-bar,
+.desktop-grid-widget .widget-bar3 { height: var(--app-icon-size, 64px); }
+.desktop-grid-widget .widget-wide3 {
+    height: calc(var(--desktop-row-unit, 89px) + var(--desktop-row-gap, 30px) + var(--app-icon-size, 64px));
+}
 
 /* ===== 小组件系统 ===== */
 
@@ -607,6 +674,16 @@ body.dark-mode #desktop::before {
 .widget-large {
     width: 100%;
     aspect-ratio: 338 / 354;
+}
+/* v2.274 图标齐平档：不锁比例（高度在 .desktop-grid-widget 那边按网格算），这里只给非桌面场景的兜底 */
+.widget-bar,
+.widget-bar3 {
+    width: 100%;
+    height: var(--app-icon-size, 64px);
+}
+.widget-wide3 {
+    width: 100%;
+    min-height: 160px;
 }
 
 /* ===================================================
@@ -1154,17 +1231,20 @@ body.dark-mode .polaroid-image {
 .vinyl-square .spark-b { top: 24px; left: 10px; }
 
 /* ── wide（3 格横条）：左黑胶 + 中文字 + 右按钮 + 蝴蝶结角饰 ── */
-.vinyl-wide {
+.vinyl-wide,
+.vinyl-wide3 {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 10px 14px;
     min-height: 80px;
 }
-.vinyl-wide .vinyl-disc-wrap {
+.vinyl-wide .vinyl-disc-wrap,
+.vinyl-wide3 .vinyl-disc-wrap {
     flex-shrink: 0;
 }
-.vinyl-wide .vinyl-disc {
+.vinyl-wide .vinyl-disc,
+.vinyl-wide3 .vinyl-disc {
     width: 54px; height: 54px;
 }
 .vinyl-info-wide {
@@ -1173,7 +1253,8 @@ body.dark-mode .polaroid-image {
     position: relative;
     z-index: 2;
 }
-.vinyl-wide .vinyl-title {
+.vinyl-wide .vinyl-title,
+.vinyl-wide3 .vinyl-title {
     font-size: 13px;
     font-weight: 600;
     color: var(--accent-color);
@@ -1181,7 +1262,8 @@ body.dark-mode .polaroid-image {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.vinyl-wide .vinyl-artist {
+.vinyl-wide .vinyl-artist,
+.vinyl-wide3 .vinyl-artist {
     font-size: 11px;
     color: var(--accent-color);
     opacity: 0.65;
@@ -1190,19 +1272,24 @@ body.dark-mode .polaroid-image {
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.vinyl-wide .vinyl-controls-group {
+.vinyl-wide .vinyl-controls-group,
+.vinyl-wide3 .vinyl-controls-group {
     justify-content: flex-start;
     gap: 12px;
     margin-top: 4px;
 }
-.vinyl-wide .vinyl-controls-group svg { width: 12px; height: 12px; }
-.vinyl-wide .vinyl-controls-group .vinyl-play { width: 18px; height: 18px; }
-.vinyl-wide .vinyl-bow-corner {
+.vinyl-wide .vinyl-controls-group svg,
+.vinyl-wide3 .vinyl-controls-group svg { width: 12px; height: 12px; }
+.vinyl-wide .vinyl-controls-group .vinyl-play,
+.vinyl-wide3 .vinyl-controls-group .vinyl-play { width: 18px; height: 18px; }
+.vinyl-wide .vinyl-bow-corner,
+.vinyl-wide3 .vinyl-bow-corner {
     bottom: -4px; right: -4px;
     width: 60px; height: 24px;
     transform: rotate(15deg);
 }
-.vinyl-wide .vinyl-heart {
+.vinyl-wide .vinyl-heart,
+.vinyl-wide3 .vinyl-heart {
     position: absolute;
     top: 14px; right: 14px;
     z-index: 2;
@@ -1214,6 +1301,41 @@ body.dark-mode .polaroid-image {
 
 /* 中央标题只在 vinyl-title 是 square 子类时隐藏（避免干扰黑胶旋转显示）*/
 .vinyl-square .vinyl-info-wide { display: none; }
+
+/* v2.274 细横条（bar/bar3·卡高 64px 与图标齐平）：小黑胶 + 一行标题/歌手 + 右侧控件，
+   不放蝴蝶结/爱心/进度条（64px 塞不下）。文字区 flex:1 挤压，控件不缩。 */
+.vinyl-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px 0 10px;
+}
+.vinyl-bar .vinyl-disc-wrap { flex-shrink: 0; }
+.vinyl-bar .vinyl-disc { width: 44px; height: 44px; }
+.vinyl-bar .vinyl-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.vinyl-bar .vinyl-artist {
+    font-size: 10px;
+    color: var(--accent-color);
+    opacity: 0.65;
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.vinyl-bar .vinyl-controls-group {
+    flex-shrink: 0;
+    gap: 10px;
+    margin: 0;
+}
+.vinyl-bar .vinyl-controls-group svg { width: 12px; height: 12px; }
+.vinyl-bar .vinyl-controls-group .vinyl-play { width: 20px; height: 20px; }
 
 /* 情報速報組件 */
 .widget-news {
@@ -1456,6 +1578,7 @@ body.dark-mode .widget-clock {
 }
 
 .desktop-pages {
+    position: relative;   /* 负一屏（.minus-one-page）用 right:100% 绝对定位贴左，需要这个当包含块 */
     display: flex;
     transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
     height: 100%;
@@ -1489,6 +1612,23 @@ body.dark-mode .widget-clock {
 }
 
 .page-dots .dot.active {
+    background: rgba(255, 255, 255, 0.9);
+    transform: scale(1.25);
+}
+
+/* 鼠标设备专属：负一屏（js/minus-one.js）的页点标记，比圆点略宽的小圆角短条，与 .dot 同款配色/
+   active 规则——只是形状不同，用来和裸页索引的圆点区分开。触屏设备不渲染这个元素（见
+   js/desktop-edit.js _updatePageDots），这条规则本身不产生任何视觉差异。 */
+.page-dots .dot-minus {
+    width: 14px;
+    height: 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.4);
+    cursor: pointer;
+    transition: all 0.25s;
+}
+
+.page-dots .dot-minus.active {
     background: rgba(255, 255, 255, 0.9);
     transform: scale(1.25);
 }
@@ -1556,6 +1696,10 @@ body.dark-mode .widget-clock {
        天然共享同一条规则。 */
     grid-auto-rows: minmax(var(--desktop-row-unit, 89px), max-content);
     gap: 30px 20px;
+    /* v2.274 图标齐平档（.widget-bar/.widget-bar3/.widget-wide3）算卡高要读行距和图标边长，
+       这两个变量是 gap / .app-icon 尺寸的镜像，三处（基础、竖屏媒体查询、cols-4）随各自的 gap 同改 */
+    --desktop-row-gap: 30px;
+    --app-icon-size: 64px;
     align-content: start;
     position: relative; /* 装饰图层用绝对定位需要 */
 }
@@ -1565,6 +1709,7 @@ body.dark-mode .widget-clock {
 #desktop.cols-4 .app-grid {
     padding: 20px 22px;
     gap: 26px 14px;
+    --desktop-row-gap: 26px;
 }
 
 .app-item {
@@ -2450,13 +2595,17 @@ body.dark-mode .widget-clock {
 }
 
 /* 1:1 方屏幕适配（⚠️ max-aspect-ratio:1/1 = 所有竖屏手机都命中，不只方屏——
-   这里的 .app-grid 排在基础规则之后，同名属性会覆盖基础规则，列数必须同样走 var） */
+   这里的 .app-grid 排在基础规则之后，同名属性会覆盖基础规则，列数必须同样走 var。
+   第三个条件＝宽视口舞台：舞台里 app 是手机宽，但视口是横的、前两个条件命不中，得显式拉进这条手机分支。 */
 @media (aspect-ratio: 1/1),
-(max-aspect-ratio: 1/1) {
+(max-aspect-ratio: 1/1),
+(min-width: 700px) and (min-height: 500px) {
     .app-grid {
         grid-template-columns: repeat(var(--desktop-cols, 3), minmax(0, 1fr));
         gap: 20px 15px;
         padding: 15px 20px;
+        --desktop-row-gap: 20px;  /* v2.274 镜像本条 gap（cols-4 分支另有 26px，特异性更高照旧压过） */
+        --app-icon-size: 56px;    /* v2.274 镜像下方 .app-icon 56px */
     }
 
     .app-icon {
@@ -3401,7 +3550,7 @@ details.tl>span {
 }
 
 .image-modal img {
-    max-width: 90vw;
+    max-width: calc(var(--app-w) * 0.9);
     max-height: 90vh;
     border-radius: 8px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);

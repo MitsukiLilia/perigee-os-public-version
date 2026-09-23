@@ -1152,7 +1152,8 @@
     overflow: hidden;
     border-radius: 0;
 }
-@media (min-width: 600px) {
+/* 宽屏浮窗分支只在「宽视口舞台不生效」时才用：舞台生效（宽≥700 且高≥500）时 app 是手机宽，详情页应保持手机端的整屏样式 */
+@media (min-width: 600px) and (max-width: 699.98px), (min-width: 600px) and (max-height: 499.98px) {
     .pixiv-detail-window {
         position: relative;
         inset: auto;
@@ -1163,7 +1164,7 @@
         border-radius: 12px;
     }
 }
-@media (min-width: 600px) {
+@media (min-width: 600px) and (max-width: 699.98px), (min-width: 600px) and (max-height: 499.98px) {
     .pixiv-detail-window {
         max-height: 90vh;
         border-radius: 12px;

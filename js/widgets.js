@@ -771,7 +771,7 @@ const Widgets = {
         if (!layout) return;
         const span = (typeof _widgetSpan === 'function')
             ? _widgetSpan(size)
-            : (({ mini: 1, small: 2, medium: 2, wide: 3, large: 3 })[size] || 1);
+            : (({ mini: 1, small: 2, medium: 2, wide: 3, large: 3, bar: 3, bar3: 3, wide3: 3 })[size] || 1);
         for (const page of layout.pages) {
             for (const item of page.items) {
                 if (item.type === 'widget' && item.widgetId === widgetId) {
@@ -1102,9 +1102,28 @@ const Widgets = {
             </div>`;
         }
 
-        if (w.size === 'wide') {
+        if (w.size === 'bar' || w.size === 'bar3') {
+            // v2.274 细横条（1 行高＝图标方块 64px，顶底与旁边图标齐平）：小黑胶 + 一行标题/歌手 + 控件；
+            // 64px 里蝴蝶结/爱心放不下、不带；独立类 vinyl-bar 不吃各主题给 vinyl-wide 烧的 2.14:1 皮肤
+            //（这档比例随机型浮动，皮肤另做）。
+            return `<div class="widget-card ${sizeClass} widget-vinyl vinyl-bar${playClass}"
+                         data-widget-id="${w.id}"
+                         onclick="Widgets.editMusic('${w.id}')">
+                <div class="vinyl-disc-wrap">${disc}</div>
+                <div class="vinyl-info-wide">
+                    <div class="vinyl-title">${this._esc(d.title || 'Dreamy Afternoon')}</div>
+                    <div class="vinyl-artist">${this._esc(d.artist || 'Soft Indie')}</div>
+                </div>
+                ${controls}
+            </div>`;
+        }
+
+        if (w.size === 'wide' || w.size === 'wide3') {
             // 横条：左小黑胶 + 中文字 + 右按钮
-            return `<div class="widget-card ${sizeClass} widget-vinyl vinyl-wide${playClass}"
+            // wide3（v2.274 三列×两行、卡高=上下两排图标外沿）用同一套内容排布，但类名 vinyl-wide3 独立——
+            // 主题给 vinyl-wide 烧的皮肤是 2.14:1 整行画，贴到 3 列×2 行上会变形，皮肤另做
+            const wideClass = w.size === 'wide3' ? 'vinyl-wide3' : 'vinyl-wide';
+            return `<div class="widget-card ${sizeClass} widget-vinyl ${wideClass}${playClass}"
                          data-widget-id="${w.id}"
                          onclick="Widgets.editMusic('${w.id}')">
                 ${this._bowSvg('vinyl-bow-corner')}
@@ -1285,14 +1304,18 @@ const Widgets = {
             return `<option value="${this._escAttr(s.id)}" ${s.id === d.audioSongId ? 'selected' : ''}>${this._esc(label + sub)}</option>`;
         }).join('');
 
-        // 尺寸切换按钮文案：small → wide → circle → small 三档循环，显示「当前 → 下一档」
+        // 尺寸切换按钮文案：按 _MUSIC_SIZE_CYCLE 顺序循环，显示「当前 → 下一档」
         const musicSizeNames = {
             small: I18n.t('widgets.mu_size_small', '小さい四角'),
             wide: I18n.t('widgets.mu_size_wide', '横長バー'),
+            bar: I18n.t('widgets.mu_size_bar', '細長バー（1行）'),
+            bar3: I18n.t('widgets.mu_size_bar3', '細長バー（3列）'),
+            wide3: I18n.t('widgets.mu_size_wide3', '横長バー（3列）'),
             circle: I18n.t('widgets.mu_size_circle', 'レコード盤')
         };
-        const musicCurSizeKey = w.shape === 'circle' ? 'circle' : (w.size === 'wide' ? 'wide' : 'small');
-        const musicNextSizeKey = musicCurSizeKey === 'small' ? 'wide' : (musicCurSizeKey === 'wide' ? 'circle' : 'small');
+        const cycle = this._MUSIC_SIZE_CYCLE;
+        const musicCurSizeKey = this._musicSizeKey(w);
+        const musicNextSizeKey = cycle[(cycle.indexOf(musicCurSizeKey) + 1) % cycle.length];
         const musicSizeSwitchLabel = I18n.t('widgets.mu_size_switch_prefix', 'サイズ切替（現在：')
             + musicSizeNames[musicCurSizeKey] + ' → ' + musicSizeNames[musicNextSizeKey] + '）';
 
@@ -1352,23 +1375,29 @@ const Widgets = {
         document.body.appendChild(modal);
     },
 
+    // 音乐组件尺寸环（v2.274 加 bar/bar3/wide3 三档图标齐平横条）。圆盘＝shape:'circle'+size:'small'
+    //（中尺寸的 2:1 矩形放不下圆形黑胶，不入环）。
+    _MUSIC_SIZE_CYCLE: ['small', 'wide', 'bar', 'bar3', 'wide3', 'circle'],
+    _musicSizeKey(w) {
+        if (w.shape === 'circle') return 'circle';
+        return this._MUSIC_SIZE_CYCLE.includes(w.size) ? w.size : 'small';
+    },
+
     _toggleMusicSize(id, modal) {
         const w = this._getWidgets().find(x => x.id === id);
         if (w) {
-            // 三档循环：小方形 → 宽横条 → 圆盘 → 小方形
-            // 圆盘＝shape:'circle'+size:'small'（中尺寸的 2:1 矩形放不下圆形黑胶，不入环）
-            if (w.shape === 'circle') {
-                delete w.shape;
-                w.size = 'small';
-            } else if (w.size === 'wide') {
+            const cycle = this._MUSIC_SIZE_CYCLE;
+            const next = cycle[(cycle.indexOf(this._musicSizeKey(w)) + 1) % cycle.length];
+            if (next === 'circle') {
                 w.size = 'small';
                 w.shape = 'circle';
             } else {
-                w.size = 'wide';
+                delete w.shape;
+                w.size = next;
             }
             this._save();
             if (typeof DesktopRenderer !== 'undefined') {
-                // w.size 此时恒为 'small' 或 'wide'（circle 档下沿也是 'small'），不会把 'circle' 传给尺寸→colSpan 映射
+                // w.size 此时恒为环里的实尺寸（circle 档下沿也是 'small'），不会把 'circle' 传给尺寸→colSpan 映射
                 this._syncLayoutSpan(w.id, w.size);
             }
             this.render();

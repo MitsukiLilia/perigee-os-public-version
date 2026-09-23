@@ -914,6 +914,8 @@ const SystemConfig = {
             desktop.style.background = '';
             desktop.classList.remove('has-custom-wallpaper');
         }
+        // v2.275：折叠屏展开态常驻左半边的负一屏自带一层壁纸，跟着同步
+        if (typeof MinusOne !== 'undefined' && MinusOne.syncWallpaper) MinusOne.syncWallpaper();
     },
 
     // 雨效果开关（仅夏雨主题有雨；关闭只去雨、背景图 + 玻璃质感保留）

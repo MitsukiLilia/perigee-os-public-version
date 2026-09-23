@@ -205,7 +205,7 @@ img.tw-profile-avatar { display: block; }
     backdrop-filter: blur(8px);
 }
 .tw-fullimg {
-    max-width: 92vw;
+    max-width: calc(var(--app-w) * 0.92);
     max-height: 90vh;
     object-fit: contain;
     border-radius: 8px;
@@ -1659,7 +1659,7 @@ body.dark-mode .tw-profile-avatar-wrap { background: var(--bg-base); }
     cursor: zoom-out;
 }
 .tw-image-fullview img {
-    max-width: 95vw;
+    max-width: calc(var(--app-w) * 0.95);
     max-height: 95vh;
     object-fit: contain;
 }

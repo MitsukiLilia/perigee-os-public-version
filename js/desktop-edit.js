@@ -74,7 +74,9 @@ function _maxRows() {
 function _widgetSpan(size) {
     const c = _cols();
     if (size === 'mini') return 1;
-    if (size === 'wide' || size === 'large') return c;
+    if (size === 'wide' || size === 'large' || size === 'bar') return c;
+    // v2.274 三列档（bar3=3×1／wide3=3×2）：4 列桌面下旁边留一格放图标，3 列桌面下等于整行
+    if (size === 'bar3' || size === 'wide3') return Math.min(3, c);
     if (size === 'small' || size === 'medium') return Math.min(2, c);
     return 1;   // 未知档兜底＝1 列
 }
@@ -123,6 +125,10 @@ function _widgetRowSpan(w) {
         case 'medium': return 2;
         case 'wide': return (w.type === 'profile') ? 3 : 2;
         case 'large': return 4;
+        // v2.274 图标齐平档：bar/bar3 恒 1 行（卡高=图标方块 64px）、wide3 占 2 行（卡高=上下两排图标外沿）
+        case 'bar': return 1;
+        case 'bar3': return 1;
+        case 'wide3': return 2;
         default: return 1;
     }
 }
@@ -153,6 +159,7 @@ const DesktopRenderer = {
         const layout = AppState.data.desktopLayout;
         const cols = _cols();
         pages.innerHTML = '';
+        this._healOutOfBounds();
 
         const desktopEl = document.getElementById('desktop');
         if (desktopEl) {
@@ -182,6 +189,9 @@ const DesktopRenderer = {
             if (typeof Decorations !== 'undefined') Decorations.renderForPage(grid, pi);
             pages.appendChild(grid);
         });
+
+        // 负一屏：独立于 layout.pages 的节点，绝对定位贴在第 0 页左侧（见 js/minus-one.js）
+        if (typeof MinusOne !== 'undefined') MinusOne.mount(pages);
 
         // Update page dots
         this._updatePageDots(layout.pages.length);
@@ -433,6 +443,46 @@ const DesktopRenderer = {
     // 在指定 page 找第一个能容纳 colSpan×rowSpan 矩形的空 cell，找不到返回 null。
     // v2.251：行单位制下组件真占多行，occupied 登记改二维（colSpan×rowSpan 全格），
     // 扫描判的是矩形而不是单行——否则会把「已被 2×2 组件占住的第二行」误判成空位。
+    // v2.274 越界自愈：widget 的 col + span > cols 时 CSS Grid 会为它长出一条 0 宽隐式列，
+    // 看起来是「横条卡在第 2 列、只剩 3 列宽、却仍占两行槽位」（作者 2026-09-21 截图的病；
+    // 本会话复现的成因＝span 在运行中长大而 col 没重算：跑着旧代码时不认识的新尺寸档按 1 列落点、
+    // 换新代码后 span 变整行——旧存档从 3 列切 4 列前的落点同理）。只动越界的那一件：先在本页找
+    // 空位、再往后页找，不 reflow 整页（会打乱用户排好的图标）。兜底贴右缘留在本页。
+    _healOutOfBounds() {
+        const layout = AppState.data.desktopLayout;
+        if (!layout || !Array.isArray(layout.pages)) return false;
+        const cols = _cols();
+        let changed = false;
+        layout.pages.forEach((page, pi) => {
+            if (!Array.isArray(page.items)) return;
+            for (const item of [...page.items]) {
+                if (item.type !== 'widget') continue;
+                const span = _itemSpan(item);
+                if ((item.col || 0) + span <= cols) continue;
+                page.items.splice(page.items.indexOf(item), 1);
+                const rowSpan = _itemRowSpan(item);
+                let placed = false;
+                for (let t = pi; t < layout.pages.length && !placed; t++) {
+                    const cell = this._findEmptyCell(layout.pages[t], span, rowSpan);
+                    if (cell) {
+                        item.col = cell.col;
+                        item.row = cell.row;
+                        layout.pages[t].items.push(item);
+                        placed = true;
+                    }
+                }
+                if (!placed) {
+                    item.col = Math.max(0, cols - span);
+                    page.items.push(item);
+                }
+                item.colSpan = span;
+                changed = true;
+            }
+        });
+        if (changed) Utils.saveData();
+        return changed;
+    },
+
     _findEmptyCell(page, colSpan, rowSpan) {
         if (!page || !Array.isArray(page.items)) return null;
         rowSpan = Math.max(1, rowSpan || 1);
@@ -466,6 +516,18 @@ const DesktopRenderer = {
         const dots = document.getElementById('pageDots');
         if (!dots) return;
         dots.innerHTML = '';
+        // 鼠标设备专属：给负一屏（js/minus-one.js，页码 -1，不在裸页索引里）加一颗小标记，插在最前面。
+        // 触屏（手机/平板）完全不渲染——产品要求仿 iOS，iOS 负一屏没有页点。
+        // class 不能叫 .dot：app.js DesktopPager.goToPage 靠 .page-dots .dot 的下标和页码一一对应
+        // 切 active，混进 .dot 里数组下标就整体错位了。
+        const showMinusDot = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+            && typeof MinusOne !== 'undefined' && MinusOne.enabled();
+        if (showMinusDot) {
+            const minusDot = document.createElement('span');
+            minusDot.className = 'dot-minus' + (DesktopPager.currentPage === -1 ? ' active' : '');
+            minusDot.onclick = () => DesktopPager.goToPage(-1);
+            dots.appendChild(minusDot);
+        }
         for (let i = 0; i < count; i++) {
             const span = document.createElement('span');
             span.className = 'dot' + (i === DesktopPager.currentPage ? ' active' : '');
@@ -846,7 +908,8 @@ const DesktopRenderer = {
         // 免得「添加了但当前页没出现」的错觉
         if (typeof DesktopPager !== 'undefined' && DesktopPager.goToPage) {
             const finalIdx = layout.pages.findIndex(p => p.items.some(i => i.id === newItem.id));
-            if (finalIdx >= 0 && finalIdx !== currentPageIdx) DesktopPager.goToPage(finalIdx);
+            // 人停在负一屏（页码 -1，currentPageIdx 已被钳到 0）时也要带过去，否则落在第 0 页的新组件看不见
+            if (finalIdx >= 0 && (finalIdx !== currentPageIdx || DesktopPager.currentPage < 0)) DesktopPager.goToPage(finalIdx);
         }
     },
 
@@ -926,7 +989,7 @@ const DesktopEdit = {
         if (this.dragStarted && this.ghost) {
             e.preventDefault();
             const touch = e.touches[0];
-            this.ghost.style.left = (touch.clientX - this._ghostOffsetX) + 'px';
+            this.ghost.style.left = (touch.clientX - this._ghostOffsetX - this._stageLeft) + 'px';
             this.ghost.style.top = (touch.clientY - this._ghostOffsetY) + 'px';
 
             this._checkDropTarget(touch.clientX, touch.clientY);
@@ -1066,7 +1129,8 @@ const DesktopEdit = {
         this.ghost.className = 'drag-ghost';
         this.ghost.style.width = rect.width + 'px';
         this.ghost.style.height = rect.height + 'px';
-        this.ghost.style.left = rect.left + 'px';
+        this._stageLeft = Utils.stageRect().left; // ghost 是 fixed：视口坐标 → 舞台坐标（手机上恒为 0）
+        this.ghost.style.left = (rect.left - this._stageLeft) + 'px';
         this.ghost.style.top = rect.top + 'px';
         document.body.appendChild(this.ghost);
 
@@ -1079,13 +1143,15 @@ const DesktopEdit = {
     },
 
     _checkDropTarget(x, y) {
-        const viewportW = window.innerWidth;
+        const stage = Utils.stageRect(); // 翻页热区贴的是舞台左右缘，不是视口边缘（手机上两者相同）
         const edgeZone = 30; // px from edge to trigger page switch
+        const leftEdge = stage.left + edgeZone;
+        const rightEdge = stage.left + stage.width - edgeZone;
 
         // Edge detection for cross-page dragging
-        if (x < edgeZone || x > viewportW - edgeZone) {
+        if (x < leftEdge || x > rightEdge) {
             if (!this._edgeScrollTimer) {
-                const direction = x < edgeZone ? -1 : 1;
+                const direction = x < leftEdge ? -1 : 1;
                 this._edgeScrollTimer = setTimeout(() => {
                     this._edgeScrollTimer = null;
                     const targetPage = DesktopPager.currentPage + direction;
@@ -1181,7 +1247,7 @@ const DesktopEdit = {
             indicator.className = 'drop-indicator';
             document.body.appendChild(indicator);
         }
-        indicator.style.left = (gridRect.left + col * cellW + 4) + 'px';
+        indicator.style.left = (gridRect.left - Utils.stageRect().left + col * cellW + 4) + 'px';
         indicator.style.top = (gridRect.top + (padTop || 0) + row * stride + 4) + 'px';
         indicator.style.width = (cellW - 8) + 'px';
         indicator.style.height = (boxH - 8) + 'px';

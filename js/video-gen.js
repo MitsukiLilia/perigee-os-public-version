@@ -136,7 +136,9 @@ const VideoGen = {
             const blob = await this._resolveRefBlob(imgId);
             if (!blob) continue;
             refIndex++;
-            const dataUrl = await this._blobToDataUrl(blob);
+            // 压 JPEG（六期 P1）：PNG 立绘/分镜图体积大，base64 后经反代转发容易撑到上游超时——见 _toJpegBlob 注释
+            const jpegBlob = await this._toJpegBlob(blob);
+            const dataUrl = await this._blobToDataUrl(jpegBlob);
             const base64Len = dataUrl.length - (dataUrl.indexOf(',') + 1);   // 去掉 'data:...;base64,' 头部再估算
             const bytes = Math.floor(base64Len * 3 / 4);
             if (bytes > this.MAX_REF_IMG_BYTES) {
@@ -208,6 +210,9 @@ const VideoGen = {
             model: params.model, resolution: params.resolution, ratio: params.ratio,
             duration: params.duration, generateAudio: params.generateAudio,
             channelId: params.channelId, tweetAccountId: params.tweetAccountId,
+            // 歌词字幕（六期 P2）：解析好的 cues 数组（niconico._pvSubmit 快照阶段算出），可选字段——
+            // retryTask 走 Object.assign({}, old) 会自动带上，无需额外处理
+            lyricCues: params.lyricCues || null,
             // 参考音声元数据（v2.241）：只存文件名/时长这两个轻量字段，绝不把 dataUrl/base64 存进 task 对象——
             // task 活在 AppState.data 里，每次 saveData 全量序列化，几 MB 的 base64 字符串会拖慢全局保存。
             // 音频 blob 真身落 VideoGen.store()（下面单独 saveBlob），跟 vid-*/thumb:* 用同一个 localforage 实例
@@ -262,7 +267,9 @@ const VideoGen = {
         if (refImgIds.length) {
             const blob = await this._resolveRefBlob(refImgIds[0]);
             if (blob) {
-                const dataUrl = await this._blobToDataUrl(blob);
+                // 压 JPEG（六期 P1）：同主分支，理由见 _toJpegBlob 注释
+                const jpegBlob = await this._toJpegBlob(blob);
+                const dataUrl = await this._blobToDataUrl(jpegBlob);
                 const base64Len = dataUrl.length - (dataUrl.indexOf(',') + 1);
                 const bytes = Math.floor(base64Len * 3 / 4);
                 if (bytes > this.MAX_REF_IMG_BYTES_V1) {
@@ -291,6 +298,7 @@ const VideoGen = {
             model: params.model, resolution: params.resolution,
             duration: params.duration, generateAudio: false,   // v1 全系无声，不存在"是否生成音声"这回事
             channelId: params.channelId, tweetAccountId: params.tweetAccountId,
+            lyricCues: params.lyricCues || null,   // 歌词字幕（六期 P2），姿势同主分支 createTask
             packaging: null, error: null, netFails: 0,
             createdAt: Date.now(), updatedAt: Date.now(),
         };
@@ -301,6 +309,20 @@ const VideoGen = {
         return task;
     },
 
+    // 投稿时脚本外面包了一层【素材指代】…【负向控制】骨架（niconico._pvWrapPromptForSubmit），task.prompt 存的是
+    // 包好之后的全文（重试要原样重发）。占位卡标题/包装失败时的兜底标题·说明要的是脚本正文，不是骨架的第一行
+    promptBody(prompt) {
+        const lines = String(prompt || '').split('\n');
+        let start = 0;
+        if (lines[0] === '【素材指代】') {
+            start = 1;
+            while (start < lines.length && /^(图\d+(〜图\d+)?|音频\d+)：/.test(lines[start])) start++;
+        }
+        let end = lines.length;
+        if (end > start && lines[end - 1].startsWith('【负向控制】')) end--;
+        return lines.slice(start, end).join('\n').trim();
+    },
+
     _blobToDataUrl(blob) {
         return new Promise((resolve, reject) => {
             const r = new FileReader();
@@ -308,6 +330,44 @@ const VideoGen = {
             r.onerror = reject;
             r.readAsDataURL(blob);
         });
+    },
+
+    // 参考图压 JPEG（六期 P1，2026-09-18）：立绘/分镜图常是 PNG，体积比 JPEG 大不少——base64 后经用户自建的
+    // Worker 反代转发给上游渠道，大载荷容易撑到反代那一跳的上游超时（比如常见的 100 秒档 CF 524）。
+    // 转 JPEG 能显著压体积，quality 0.9 对「参考构图/画风/人物特征」这种用途已经够用，不必追求原图画质。
+    // 纯函数式：转换失败（decode 出错等）静默回退原 blob，不阻断创建任务；测试环境没有 document/canvas，
+    // 直接原样返回——不在 node 里 polyfill canvas
+    async _toJpegBlob(blob, maxEdge = 1920, quality = 0.9) {
+        if (typeof document === 'undefined' || !blob) return blob;
+        try {
+            const bitmap = await createImageBitmap(blob);
+            let { width, height } = bitmap;
+            const longest = Math.max(width, height);
+            // 已经是 JPEG 且不需要缩边的原样返回——重编码只会白掉一层画质，体积也未必更小
+            if (blob.type === 'image/jpeg' && longest <= maxEdge) {
+                if (bitmap.close) bitmap.close();
+                return blob;
+            }
+            if (longest > maxEdge) {
+                const scale = maxEdge / longest;
+                width = Math.max(1, Math.round(width * scale));
+                height = Math.max(1, Math.round(height * scale));
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            // 先铺白底：JPEG 没有 alpha，canvas 导出时透明像素会被合成到黑色上——透明底立绘不铺底就成了黑底立绘
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(bitmap, 0, 0, width, height);
+            if (bitmap.close) bitmap.close();
+            const jpegBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+            return jpegBlob || blob;
+        } catch (e) {
+            console.warn('[VideoGen] JPEG conversion failed, using original blob', e);
+            return blob;
+        }
     },
 
     // 包装生成（PV のタイトル/説明/タグ/弾幕/コメント/告知ツイート文面）
@@ -544,7 +604,7 @@ ${autoCreate ? 'OFFICIAL_HANDLE: 告知する公式アカウントのハンド�
             }
 
             // 包装未就绪（LLM 慢/失败）→ 占位默认值，标题=提示词前 20 字
-            const pk = task.packaging || { title: task.prompt.slice(0, 20), description: task.prompt, tags: [], danmaku: [], comments: [], views: 1000, tweetText: null };
+            const pk = task.packaging || { title: this.promptBody(task.prompt).slice(0, 20), description: this.promptBody(task.prompt), tags: [], danmaku: [], comments: [], views: 1000, tweetText: null };
 
             const video = Niconico.addRealVideo(task, pk, videoBlobId);           // Task 8
             if (task.tweetAccountId) {
@@ -630,15 +690,24 @@ ${autoCreate ? 'OFFICIAL_HANDLE: 告知する公式アカウントのハンド�
 
     // 相册临时参考图（v2.244）收尾清理：只删「除了 task 自己之外，没有任何任务还在引用」的 pvtemp blob——
     // retryTask「先建后删」顺序下，新任务可能复用同一批临时图 id（createTask 时 params.refImgIds 直接沿用 old
-    // 的数组内容），这时旧任务的收尾清理不能把新任务正用着的 blob 削掉，所以先查一遍剩余任务列表里还有没有别的引用
+    // 的数组内容），这时旧任务的收尾清理不能把新任务正用着的 blob 削掉，所以先查一遍剩余任务列表里还有没有别的引用。
+    // 六期 P1（2026-09-18）：分镜图 pvframe_ blob（存 IllustGallery，niconico-pv-frames.js 生成）投稿成功后
+    // 只从表单会话态摘掉、不立即删——任务的 refImgIds 里还带着它们（retryTask 复用），跟 pvtemp_ 一样要等
+    // 「真的没有任何任务再引用」才能删，所以在这里一并收尾。两种前缀存储位置不同（pvtemp_ 落 VideoGen 自己
+    // 的 store()，pvframe_ 落 IllustGallery），分开调各自的删除方法
     async _cleanupTempRefImgs(task) {
-        const ids = (task.refImgIds || []).filter(id => typeof id === 'string' && id.startsWith('pvtemp_'));
+        const ids = (task.refImgIds || []).filter(id => typeof id === 'string' && (id.startsWith('pvtemp_') || id.startsWith('pvframe_')));
         for (const id of ids) {
             const stillUsed = this.tasks().some(t => t.id !== task.id && (t.refImgIds || []).includes(id));
+            if (stillUsed) continue;
             // v2.246 review（C6）：这条 catch 不再静默吞掉——pvtemp 清理失败意味着一个孤儿 blob 会永久占着
             // IndexedDB 空间，console.warn 留痕方便真机排查（vid-/thumb:/refaud- 的既有 catch 姿势不动，
             // 那几处失败是幂等收尾、吞错是刻意的既定行为，不在本次改动范围内）
-            if (!stillUsed) await this.removeBlob(id).catch(e => console.warn('[VideoGen] temp ref cleanup failed', e));
+            if (id.startsWith('pvtemp_')) {
+                await this.removeBlob(id).catch(e => console.warn('[VideoGen] temp ref cleanup failed', e));
+            } else if (typeof IllustGallery !== 'undefined') {
+                await IllustGallery.remove(id).catch(e => console.warn('[VideoGen] pv frame ref cleanup failed', e));
+            }
         }
     },
 

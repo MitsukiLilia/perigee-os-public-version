@@ -136,8 +136,9 @@ const Decorations = {
 
     // ── 贴纸抽屉（编辑模式下的 + 按钮调出） ──
     openDrawer() {
-        // 当前页
-        const pageIndex = (typeof DesktopPager !== 'undefined') ? DesktopPager.currentPage : 0;
+        // 当前页（负一屏的页码是 -1、不承载贴纸：人停在那儿时调出抽屉，贴纸落到第 0 页，
+        // 否则会记成 page:-1、哪一页都不渲染它）
+        const pageIndex = (typeof DesktopPager !== 'undefined') ? Math.max(0, DesktopPager.currentPage) : 0;
 
         const sheet = document.createElement('div');
         sheet.className = 'deco-drawer-overlay';
@@ -300,9 +301,10 @@ const Decorations = {
         document.body.appendChild(menu);
         const mw = menu.offsetWidth || 180;
         const mh = menu.offsetHeight || 200;
-        const vw = window.innerWidth;
+        const stage = Utils.stageRect(); // 菜单是 fixed：横向按舞台宽夹取，锚点从视口坐标换到舞台坐标（手机上 left=0、width=视口宽）
+        const vw = stage.width;
         const vh = window.innerHeight;
-        const px = Math.max(8, Math.min(vw - mw - 8, (anchorX || vw / 2) - mw / 2));
+        const px = Math.max(8, Math.min(vw - mw - 8, (anchorX ? anchorX - stage.left : vw / 2) - mw / 2));
         const py = Math.max(8, Math.min(vh - mh - 8, (anchorY || vh / 2) + 14));
         menu.style.left = px + 'px';
         menu.style.top = py + 'px';

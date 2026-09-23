@@ -70,7 +70,45 @@
     <link rel="stylesheet" href="css/twitter.css">
     <link rel="stylesheet" href="css/wandoro.css">
     <link rel="stylesheet" href="css/line.css">
+    <link rel="stylesheet" href="css/minus-one.css">
     <meta name="theme-color" content="#007AFF">
+    <!-- 宽视口舞台：折叠屏展开态贴右半边（避开中线折痕）。特征＝视口比系统报告的整块屏幕还宽
+         （展开后 innerWidth 是内屏宽，screen.width/height 仍是外屏尺寸），且是触屏（排除桌面浏览器缩放）。
+         只是给 <html> 挂一个 class，样式在 style.css「宽视口舞台」的 @media 里，手机上该 @media 不生效。
+         放在 head 里同步执行：首帧就位，不闪。 -->
+    <script>
+    (function () {
+        function syncStage() {
+            var unfolded = window.innerWidth > Math.max(screen.width, screen.height)
+                && window.matchMedia('(pointer: coarse)').matches;
+            var wasUnfolded = document.documentElement.classList.contains('stage-right');
+            document.documentElement.classList.toggle('stage-right', unfolded);
+            // v2.275：开合切换时通知负一屏换挂点（展开=常驻左半边 / 合上=回翻页器），见 js/minus-one.js
+            if (wasUnfolded !== unfolded) window.dispatchEvent(new Event('perigee:stage-change'));
+            // 右侧安全区 > 0（系统状态区占着右上角的设备）→ .side-rail：整台手机让出这一条，见 style.css「右侧系统栏让位」
+            var probe = document.createElement('div');
+            probe.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;padding-right:env(safe-area-inset-right,0px)';
+            document.documentElement.appendChild(probe);
+            var rail = parseFloat(getComputedStyle(probe).paddingRight) || 0;
+            probe.remove();
+            // 只在用得到的两种形态下挂：竖屏（合上态）或舞台生效的宽视口（展开态）；横屏手机的刘海安全区不算
+            var wide = window.innerWidth >= 700 && window.innerHeight >= 500;
+            var portrait = window.innerHeight >= window.innerWidth;
+            document.documentElement.classList.toggle('side-rail', rail > 0 && (portrait || wide));
+        }
+        syncStage();
+        window.addEventListener('resize', syncStage);
+        window.addEventListener('orientationchange', syncStage);
+        // v2.274.1：iPhone Duo 模拟器（iOS 27.1）standalone 冷启动时，head 同步执行那一刻
+        // env(safe-area-inset-right) 还是 0、系统状态区落位后才变 84，且不发 resize——竖栏因此不挂
+        //（探针法实测：load 时 html 无 side-rail，事后重跑判定即 84）。判定是幂等 toggle，
+        // 这里在 DOM 就绪 / load / 之后几个时间点再跑几遍补上；普通手机右侧安全区恒 0，多跑无副作用。
+        document.addEventListener('DOMContentLoaded', syncStage);
+        window.addEventListener('load', syncStage);
+        [250, 1000, 3000].forEach(function (ms) { setTimeout(syncStage, ms); });
+        if (window.visualViewport) window.visualViewport.addEventListener('resize', syncStage);
+    })();
+    </script>
 </head>
 
 <body>
@@ -4835,6 +4873,8 @@
             <h3 data-i18n="forum.plot_import_h3">剧情导入</h3>
             <p style="font-size:13px;color:var(--text-secondary);margin:4px 0 12px;" data-i18n="forum.plot_import_desc">
                 请选择 TXT（各话文本）或 JSON（数组格式）文件</p>
+            <p style="font-size:12px;color:var(--text-secondary);margin:-6px 0 12px;" data-i18n="forum.plot_import_chunk_hint">
+                长文本会自动分成多段解析（每段约 4 万字），需要多次调用 API</p>
             <input type="file" id="plotImportFileInput" accept=".txt,.json,.text"
                 onchange="Forum.handlePlotFileUpload(this.files[0])"
                 style="width:100%;margin-bottom:12px;font-size:13px;">
@@ -5016,10 +5056,17 @@
     <script src="js/mercari.js"></script>
     <script src="js/video-gen.js"></script>
     <script src="js/niconico.js"></script>
+    <script src="js/niconico-pv-form.js"></script>
+    <script src="js/niconico-pv-media.js"></script>
+    <script src="js/niconico-pv-storyboard.js"></script>
+    <script src="js/niconico-pv-submit.js"></script>
+    <script src="js/niconico-pv-frames.js"></script>
+    <script src="js/niconico-pv-lyrics.js"></script>
     <script src="js/pixiv-illust.js"></script>
     <script src="js/travel.js"></script>
     <script src="js/image-positioner.js"></script>
     <script src="js/widgets.js"></script>
+    <script src="js/minus-one.js"></script>
     <script src="js/decorations.js"></script>
     <script src="js/rain.js"></script>
     <script src="js/rain-glass.js"></script>

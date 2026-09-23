@@ -395,12 +395,13 @@ Generate image tags:`;
      * @param {Object} opts.config - AppState.data.imageApiConfig，调用方已读好传入；provider 从 opts.config.provider 取，dispatch 不自行读取全局状态。opts.moduleKey 存在时本字段会被 resolveModuleConfig 的结果覆盖
      * @param {string[]} [opts.charCaptions] - AI辅助/结构化输出的多角色外观描述，合回 prompt 用
      * @param {string[]} [opts.refCharNames] - 仅 gpt-image / openrouter / openai-compat 分支消费（按角色名过滤 CP 参考立绘）；其余 provider 分支的 generateWithXxx 本就没有这个形参，传了也不会被读取
+     * @param {Blob[]} [opts.refBlobs] - 六期 P1（2026-09-18）：调用方已解析好的参考图 Blob，仅 gpt-image / openrouter / openai-compat 分支消费。传了这个键（哪怕是空数组）就完全接管参考图逻辑、不再走 Broadcast.getCPRefImages——空数组＝明确「这次不带参考图」，不会静默回退去捞 CP 参考立绘（PV 分镜图按镜头引用的立绘不是「CP 参考立绘」这个概念，走这条独立通路）。不传（undefined）＝其余 5 处调用点的既有行为，原样落到 CP 参考立绘
      * @param {boolean} [opts.strictProvider] - true 时对未匹配任何 case 的 provider 抛出 Error('Unsupported API provider')（仅 pixiv 手动模式原有行为）；默认/未传 = 静默返回 []（其余 5 处原有行为，不视为错误）
      * @param {string} [opts.moduleKey] - D4（2026-08-07 阶段3）：板块标识（'pixiv'/'twitter'/'melonbooks'/'goods'）。存在时用 resolveModuleConfig(moduleKey) 的结果覆盖 opts.config，并把解析出的 nai 透传给 novelai 分支；未传 = 阶段0 行为（直接用 opts.config，novelai 分支自读全局）
      * @returns {Promise<Blob[]>}
      */
     async dispatchGenerate(opts) {
-        let { positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames, strictProvider, moduleKey } = opts;
+        let { positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames, refBlobs, strictProvider, moduleKey } = opts;
 
         // D4 分板块绑定（2026-08-07 阶段3）：moduleKey 存在时用解析结果覆盖调用方传入的全局 config——
         // 调用方传的 opts.config 作废。未绑定/预设已删时 resolveModuleConfig 本就回落全局 imageApiConfig，
@@ -426,13 +427,13 @@ Generate image tags:`;
                 blobs = await this.generateWithOpenAI(positivePrompt, negativePrompt, size, count, config, charCaptions);
                 break;
             case 'gpt-image':
-                blobs = await this._gptImage(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames);
+                blobs = await this._gptImage(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames, refBlobs);
                 break;
             case 'openrouter':
-                blobs = await this.generateWithOpenRouter(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames);
+                blobs = await this.generateWithOpenRouter(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames, refBlobs);
                 break;
             case 'openai-compat':
-                blobs = await this._openaiCompat(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames);
+                blobs = await this._openaiCompat(positivePrompt, negativePrompt, size, count, config, charCaptions, refCharNames, refBlobs);
                 break;
             case 'stabilityai':
                 blobs = await this.generateWithStabilityAI(positivePrompt, negativePrompt, size, count, config, charCaptions);
@@ -586,14 +587,23 @@ Generate image tags:`;
     // 四个生图入口（pixiv AI/手动、twitter、melon）的 case 'gpt-image' 都走这里，逻辑单一来源。
     // charCaptions（可选）: AI 辅助モード结构化输出的人物描述，转发给下游合回 positive（同 generateWithOpenRouter 处理）。
     // refCharNames（可选）: 周边商品生图按关联角色过滤 CP 立绘；其余入口不传 → 取全部（行为不变）。
-    async _gptImage(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames) {
-        let refBlobs = [];
-        try {
-            if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
-                refBlobs = await Broadcast.getCPRefImages(refCharNames);
-            }
-        } catch (e) {
+    // refBlobsOverride（可选，六期 P1）：调用方已解析好的参考图 Blob，跳过 Broadcast.getCPRefImages——
+    // PV 分镜图按镜头引用的立绘不是「CP 参考立绘」，走这条独立通路，不影响其它 5 处调用点的既有行为。
+    // 判据是 !== undefined（不是「非空」）：调用方明确传了这个参数就采信它，哪怕是空数组——分镜图某一镜
+    // 没引用任何图K时就该是纯文生图，不能因为「override 是空的」又静默回退去捞 CP 参考立绘
+    async _gptImage(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames, refBlobsOverride) {
+        let refBlobs;
+        if (refBlobsOverride !== undefined) {
+            refBlobs = refBlobsOverride;
+        } else {
             refBlobs = [];
+            try {
+                if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
+                    refBlobs = await Broadcast.getCPRefImages(refCharNames);
+                }
+            } catch (e) {
+                refBlobs = [];
+            }
         }
         return (refBlobs && refBlobs.length > 0)
             ? this.generateWithGptImageEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs, charCaptions)
@@ -777,14 +787,20 @@ Generate image tags:`;
     // 分流器：CP 设了参考立绘 → edits 端点（保人物一致）；否则 → 纯文生图 generations。同 _gptImage 的姿势，
     // 复用同一来源 Broadcast.getCPRefImages。
     // refCharNames（可选）: 周边商品生图按关联角色过滤 CP 立绘；其余入口不传 → 取全部（行为同 gpt-image/openrouter）。
-    async _openaiCompat(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames) {
-        let refBlobs = [];
-        try {
-            if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
-                refBlobs = await Broadcast.getCPRefImages(refCharNames);
-            }
-        } catch (e) {
+    // refBlobsOverride（可选，六期 P1）：同 _gptImage，判据同样是 !== undefined（空数组也采信，不回退 CP）。
+    async _openaiCompat(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames, refBlobsOverride) {
+        let refBlobs;
+        if (refBlobsOverride !== undefined) {
+            refBlobs = refBlobsOverride;
+        } else {
             refBlobs = [];
+            try {
+                if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
+                    refBlobs = await Broadcast.getCPRefImages(refCharNames);
+                }
+            } catch (e) {
+                refBlobs = [];
+            }
         }
         return (refBlobs && refBlobs.length > 0)
             ? this.generateWithOpenAICompatEdits(positivePrompt, negativePrompt, imageSize, imageCount, config, refBlobs, charCaptions)
@@ -799,7 +815,8 @@ Generate image tags:`;
     //          ⑤ chat completions 无 n 参数 → imageCount>1 时并发多次请求各取首图
     // 默认模型 openai/gpt-5.4-image-2（OpenRouter 路由的 GPT Image 2，作者要的参考图人物一致性）；用户可在设置改任意 OpenRouter 生图模型（Gemini nano banana 等）。
     // refCharNames（可选）: 周边商品生图按关联角色过滤 CP 立绘；其余入口不传 → 取全部（行为不变）。
-    async generateWithOpenRouter(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames) {
+    // refBlobsOverride（可选，六期 P1）：同 _gptImage，调用方已解析好的参考图 Blob 优先，跳过 getCPRefImages。
+    async generateWithOpenRouter(positivePrompt, negativePrompt, imageSize, imageCount, config, charCaptions, refCharNames, refBlobsOverride) {
         // AI 辅助多角色时 positivePrompt 只剩 [SCENE] 场景、各角色外观在 charCaptions（同 NovelAI 处理）。
         // 必须把角色描述合回 prompt + 明确「这 N 个角色都要同时出现」，否则 OpenRouter 只收到场景、易塌成单角色。
         let scenePrompt = positivePrompt;
@@ -811,10 +828,16 @@ Generate image tags:`;
             `${scenePrompt} (avoid: ${negativePrompt})` :
             scenePrompt;
 
-        // CP 参考立绘（与 gpt-image 同一来源 getCPRefImages）→ base64 data URL 塞进多模态输入
+        // CP 参考立绘（与 gpt-image 同一来源 getCPRefImages）→ base64 data URL 塞进多模态输入。
+        // refBlobsOverride !== undefined 时直接用它（PV 分镜图按镜头引用的立绘，不走 CP 参考立绘这条路）——
+        // 空数组也采信，同 _gptImage 的判据：某一镜没引用任何图K就该是纯文生图，不回退去捞 CP 参考立绘
         let refDataUrls = [];
         try {
-            if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
+            if (refBlobsOverride !== undefined) {
+                if (refBlobsOverride.length > 0) {
+                    refDataUrls = (await Promise.all(refBlobsOverride.map(b => this.blobToDataUrl(b).catch(() => null)))).filter(Boolean);
+                }
+            } else if (typeof Broadcast !== 'undefined' && Broadcast.getCPRefImages) {
                 const refBlobs = await Broadcast.getCPRefImages(refCharNames);
                 if (refBlobs && refBlobs.length > 0) {
                     // 单张失败只丢该张（对齐 broadcast.getCPRefImages 的 .catch(()=>null) 风格），不整组丢
@@ -1270,7 +1293,7 @@ Generate image tags:`;
         modal.className = 'modal-overlay active pixiv-illust-viewer';
         modal.style.zIndex = '10000';
         modal.innerHTML = `
-            <div class="modal-window" style="max-width:90vw; max-height:90vh; padding:0; background:transparent; position:relative;">
+            <div class="modal-window" style="max-width:calc(var(--app-w, 100vw) * 0.9); max-height:90vh; padding:0; background:transparent; position:relative;">
                 <img src="${modalUrl}" style="max-width:100%; max-height:80vh; border-radius:8px; display:block;" alt="Generated image">
                 <div style="display:flex; gap:8px; padding:10px 0 0; justify-content:center;">
                     <button onclick="PixivIllust._shareIllustToForum('${img.id}')"

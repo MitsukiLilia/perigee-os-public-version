@@ -20,7 +20,7 @@ const DataExport = {
         { key: 'travel', label: '旅行账本', i18nKey: 'data_export.travel', fields: ['travelData'] },
         { key: 'learn', label: '学习工具', i18nKey: 'data_export.learn', fields: ['dictionary', 'tutorMessages', 'knowledgeBase'] },
         { key: 'calendar', label: '日历', i18nKey: 'data_export.calendar', fields: ['calendarEvents'] },
-        { key: 'desktop', label: '桌面美化', i18nKey: 'data_export.desktop', fields: ['widgets', 'decorations', 'desktopLayout', 'customIcons'] },
+        { key: 'desktop', label: '桌面美化', i18nKey: 'data_export.desktop', fields: ['widgets', 'decorations', 'desktopLayout', 'customIcons', 'minusOne'] },
         { key: 'persona', label: '个人身份资料', i18nKey: 'data_export.persona', fields: ['userProfile', 'myPersonaPresets', 'activePersonaId'] },
         { key: 'wallet', label: '支付 & 钱包', i18nKey: 'data_export.wallet', fields: ['wallet', 'payments'] },
         { key: 'worldbook', label: '世界书', i18nKey: 'data_export.worldbook', fields: ['worldBooks'] },

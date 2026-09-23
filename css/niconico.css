@@ -298,6 +298,34 @@
     pointer-events: none;
 }
 
+/* 歌词字幕叠加层（六期 P2）：底部居中、不挡原生 controls（pointer-events:none）。字幕叠在视频画面上，
+   跟随画面明暗而非 app 主题——固定配色，不用 var() 主题变量 */
+.nico-lyric-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 34px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 0 12px;
+    pointer-events: none;
+    z-index: 3;
+}
+.nico-lyric-main,
+.nico-lyric-sub {
+    color: #fff;
+    font-weight: 700;
+    text-align: center;
+    line-height: 1.3;
+    max-width: 100%;
+    word-break: break-word;
+    text-shadow: 0 0 4px #000, 0 0 4px #000, 1px 1px 2px #000, -1px -1px 2px #000, 1px -1px 2px #000, -1px 1px 2px #000;
+}
+.nico-lyric-main { font-size: clamp(14px, calc(var(--app-w) * 0.04), 20px); }
+.nico-lyric-sub { font-size: clamp(11px, calc(var(--app-w) * 0.03), 15px); opacity: 0.88; }
+
 /* ───── オーディオドラマ プレイヤー ───── */
 .nico-audio-player-area {
     background: linear-gradient(135deg, #2c2440 0%, #1a1430 100%);
@@ -532,7 +560,7 @@
     pointer-events: none;
 }
 @keyframes nico-scroll {
-    from { transform: translateX(100vw); }
+    from { transform: translateX(var(--app-w)); }
     to { transform: translateX(-100%); }
 }
 
@@ -904,6 +932,20 @@
     margin: 0;
     line-height: 1.4;
 }
+/* 歌词字幕（六期 P2）：偏移输入 + 预览行 */
+.nico-pv-lyric-offset-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.nico-pv-lyric-offset-label { font-size: 12px; color: #aaa; }
+.nico-pv-lyric-offset-input {
+    width: 70px;
+    background: #333;
+    border: 1px solid #444;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 13px;
+    color: #e0e0e0;
+}
+.nico-pv-lyric-offset-input:focus { outline: none; border-color: #666; }
+.nico-pv-lyric-preview { font-size: 12px; color: #888; flex: 1; min-width: 0; }
 .nico-pv-ai-btn {
     align-self: flex-start;
     background: #333 !important;
@@ -1008,6 +1050,34 @@
 .nico-pv-ref-add svg { width: 20px; height: 20px; }
 .nico-pv-ref-add:disabled { opacity: 0.4; cursor: default; }
 
+/* 分镜图（六期 P1，2026-09-18）：16:9 缩略图，视觉语言照参考图缩略图（.nico-pv-ref-thumb）——加大到 84x47 好看清内容 */
+.nico-pv-frames-row { display: flex; gap: 10px; flex-wrap: wrap; }
+.nico-pv-frame-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.nico-pv-frame-thumb {
+    position: relative;
+    width: 84px;
+    height: 47px;
+    border-radius: 6px;
+    background-color: #333;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #888;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.nico-pv-frame-thumb svg { width: 16px; height: 16px; }
+.nico-pv-frame-thumb.pending { border: 1px dashed #555; cursor: default; }
+.nico-pv-frame-thumb.generating { animation: nico-gencard-pulse 1.6s ease-in-out infinite; cursor: default; }
+.nico-pv-frame-thumb.done { cursor: zoom-in; }
+.nico-pv-frame-thumb.error { border-color: #dc3545; color: #ff8f8f; }
+.nico-pv-frame-actions { display: flex; gap: 4px; }
+.nico-pv-frames-progress { font-size: 12px; color: var(--text-tertiary, #999); }
+.nico-pv-frame-viewer-img { max-width: calc(var(--app-w) * 0.92); max-height: 80vh; border-radius: 8px; }
+
 /* 出演キャラ chips（v2.244）：参考図の选择を「选图」から「选人」に一段抽象化——立绘があるキャラだけ表示 */
 .nico-pv-cast-wrap.disabled { opacity: 0.4; pointer-events: none; }
 .nico-pv-cast-chips { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1102,6 +1172,16 @@
 /* 参考図なし软闸确认弾窗（v2.244）：既存 nico-modal 骨架をそのまま流用、文が長めなので行間だけ調整 */
 .nico-pv-confirm-modal { max-width: 320px; }
 .nico-pv-confirm-modal .nico-modal-title { line-height: 1.5; }
+
+/* 带字幕导出の進捗弾窗（六期 P2）：既存 nico-pv-confirm-modal 骨架をそのまま流用 */
+.nico-pv-export-progress-text {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    color: #e0e0e0;
+    margin: 4px 0 10px;
+    font-variant-numeric: tabular-nums;
+}
 
 /* 参考音声（v2.241）：ファイル選択ボタン + 選択済み情報チップ（ファイル名/試聴/削除） */
 .nico-pv-refaudio-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }

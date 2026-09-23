@@ -1,6 +1,6 @@
 // Service Worker for Perigee OS
 // 版本号：每次更新代码时修改此版本号以强制更新缓存
-const VERSION = '2.265.0';
+const VERSION = '2.276.0';
 const CACHE_NAME = `perigee-os-v${VERSION}`;
 // vendor 大库独立持久缓存（js/vendor/ 内容不随版本变，activate 清理旧缓存时不删，
 // 避免每次发版重拉 ~1MB；不进 precache，首次用到时缓存、之后离线可用）
@@ -64,9 +64,16 @@ const coreUrls = [
   './js/video-gen.js',
   './js/pixiv-illust.js',
   './js/niconico.js',
+  './js/niconico-pv-form.js',
+  './js/niconico-pv-media.js',
+  './js/niconico-pv-storyboard.js',
+  './js/niconico-pv-submit.js',
+  './js/niconico-pv-frames.js',
+  './js/niconico-pv-lyrics.js',
   './js/travel.js',
   './js/image-positioner.js',
   './js/widgets.js',
+  './js/minus-one.js',
   './js/taro-choco-icons.js',
   './js/mint-choco-icons.js',
   './js/decorations.js',
@@ -110,6 +117,7 @@ const coreUrls = [
   './css/twitter.css',
   './css/wandoro.css',
   './css/line.css',
+  './css/minus-one.css',
   './assets/textures/washi.svg',
   './assets/textures/watercolor.svg',
   './assets/textures/flowers.svg',
@@ -313,10 +321,22 @@ const coreUrls = [
   './assets/widgets/mint-choco/note-paper.webp',
   './assets/widgets/mint-choco/note-tab.webp',
   './assets/widgets/mint-choco/duoframe.webp',
+  './assets/widgets/mint-choco/goods-board-solo.webp',
+  './assets/widgets/mint-choco/goods-board-pair.webp',
+  './assets/widgets/mint-choco/goods-board-thumb.webp',
+  './assets/widgets/sakura/goods-board-thumb.webp',
+  './assets/widgets/journal/goods-board-thumb.webp',
+  './assets/widgets/strawberry/goods-board-thumb.webp',
+  './assets/widgets/snow-country/goods-board-thumb.webp',
+  './assets/widgets/summer-rain/goods-board-thumb.webp',
+  './assets/widgets/taro-choco/goods-board-thumb.webp',
+  './assets/widgets/animal/goods-board-thumb.webp',
   './assets/widgets/universal/pf-default-1.webp',
   './assets/widgets/universal/pf-default-2.webp',
   './assets/widgets/universal/pf-default-3.webp',
   './assets/widgets/universal/pf-default-4.webp',
+  './assets/widgets/universal/goods-rosette.webp',
+  './assets/widgets/universal/goods-bow.webp',
   './assets/widgets/universal/square.webp',
   './assets/widgets/universal/medium.webp',
   './assets/widgets/universal/wide.webp',

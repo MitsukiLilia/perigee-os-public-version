@@ -1,0 +1,710 @@
+/* 负一屏（Minus One Page）— 手机桌面第 0 页再往左滑出来的一页，纵向滚动的专属组件板。
+   结构见 js/minus-one.js 顶部注释；这里只管视觉，色值一律走主题 token（--bg-card /
+   --text-primary/secondary/tertiary / --accent-color / --accent-soft / --border-*），
+   默认主题是 mint-choco，但换任意一套主题都要自动成立。
+   项目 UI 铁律：无 emoji（用内联 SVG）、无渐变色观感——装饰全用硬边圆点，不用平滑过渡。 */
+
+.minus-one-page {
+    position: absolute;
+    top: 0;
+    right: 100%;   /* 贴在 .desktop-pages 左侧一屏宽处，翻页靠 app.js DesktopPager 整体 translateX */
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;   /* Firefox */
+    box-sizing: border-box;
+    padding: 20px 22px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    /* 目次卡的明朝体是这张卡自己的版式语言，不跟「设置 → 字体」走：全局 --font-serif 其实是用户选的
+       正文字体（推荐默认是黑体），拿它当衬线用的话目次就成了黑体。没装明朝/宋体的设备自然退回系统字体 */
+    --mo-serif: 'Hiragino Mincho ProN', 'Hiragino Mincho Pro', 'Yu Mincho', 'YuMincho', 'Noto Serif CJK JP', 'Source Han Serif SC', 'Songti SC', 'STSong', serif;
+}
+
+/* v2.275 折叠屏展开态常驻（html.stage-right，节点由 js/minus-one.js 挂到 body 上）：
+   body 就是舞台（transform 定位基准），fixed 以 body 左缘为 0 → 往左退到视口 0；宽度=舞台宽+竖栏宽，
+   与右半边对称，两者之间剩下的就是中线折痕带（951 内屏：466 + 19 + 382 + 84）。
+   顶部留出与舞台状态栏同高（48px）+ 原内边距，卡片与右边桌面内容顶齐；底部吃满到安全区。
+   自带一层壁纸=像另一块手机屏（主题壁纸走变量；自定义壁纸由 MinusOne.syncWallpaper 抄内联 backgroundImage）。 */
+html.stage-right .minus-one-page.mo-docked {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: auto;
+    left: calc(-1 * (100vw - var(--app-w) - var(--rail)));
+    width: calc(var(--app-w) + var(--rail));
+    height: auto;
+    padding: 68px 22px calc(28px + env(safe-area-inset-bottom, 0px));
+    background: var(--wallpaper-gradient);
+    background-size: cover;
+    background-position: center;
+    z-index: 1;
+}
+.minus-one-page::-webkit-scrollbar { display: none; }
+
+/* ===== 卡片基类：素卡 + 主题 token，圆角/阴影向 .widget-card 看齐，是桌面小组件的近亲 ===== */
+.mo-card {
+    flex-shrink: 0;
+    position: relative;
+    box-sizing: border-box;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+}
+
+.mo-card-head {
+    padding-top: 22px;
+    text-align: center;
+}
+.mo-card-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+}
+.mo-card-novels .mo-card-title {
+    font-family: var(--mo-serif);
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-indent: 0.18em;   /* 抵消末字后的字距，让标题在分隔饰上方视觉居中 */
+}
+.mo-card-subtitle {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* 「细线 · 三个小圆点 · 细线」分隔饰（卡 A 头部专用） */
+.mo-head-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 8px auto 0;
+    width: 60%;
+}
+.mo-divider-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border-medium);
+}
+.mo-divider-dots {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+.mo-divider-dots i {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: var(--accent-soft);
+}
+
+/* 空态：标题照常显示，正文换成两行温和提示 */
+.mo-card-empty {
+    padding: 26px 24px 30px;
+    text-align: center;
+}
+.mo-card-empty p {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+}
+.mo-card-empty .mo-empty-hint {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.mo-unit {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    margin-left: 2px;
+    font-weight: 400;
+}
+
+/* ===== 卡 A：收藏的小说·目次 ===== */
+.mo-card-novels {
+    padding-left: 30px;
+    padding-right: 30px;
+}
+/* 左右两条浅色波点装饰柱：硬边圆点平铺，不带任何渐变过渡 */
+.mo-card-novels::before,
+.mo-card-novels::after {
+    content: '';
+    position: absolute;
+    top: 16px;
+    bottom: 16px;
+    width: 22px;
+    background-image:
+        radial-gradient(circle 1.6px at 6px 8px, var(--accent-soft) 1.6px, transparent 1.8px),
+        radial-gradient(circle 1.6px at 17px 20px, var(--accent-soft) 1.6px, transparent 1.8px);
+    background-size: 24px 24px;
+    opacity: 0.85;
+    pointer-events: none;
+}
+.mo-card-novels::before { left: 6px; }
+.mo-card-novels::after { right: 6px; }
+
+.mo-novel-list {
+    padding: 6px 8px 10px;
+    position: relative;
+}
+.mo-novel-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 11px 6px;
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+}
+.mo-novel-row:last-child { border-bottom: none; }
+.mo-novel-row:active { background: var(--bg-hover); }
+
+.mo-novel-idx {
+    flex: 0 0 auto;
+    font-family: var(--mo-serif);
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+.mo-novel-title {
+    flex: 0 1 auto;
+    min-width: 0;
+    font-family: var(--mo-serif);
+    font-size: 15px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mo-dot-leader {
+    flex: 1;
+    min-width: 12px;
+    align-self: flex-end;
+    margin-bottom: 3px;
+    border-bottom: 2px dotted var(--text-tertiary);
+    opacity: 0.6;
+}
+.mo-novel-words {
+    flex: 0 0 auto;
+    font-family: var(--mo-serif);
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* ===== 卡 B：收藏的帖子·排行榜 ===== */
+.mo-card-threads {
+    padding-bottom: 4px;
+}
+
+/* 四角散点装饰：单份 SVG，四角靠 CSS 镜像复用（见 js/minus-one.js _cornerDotsSvg） */
+.mo-corner-dots {
+    position: absolute;
+    width: 40px;
+    height: 34px;
+    opacity: 0.55;
+    pointer-events: none;
+}
+.mo-corner-dots.tl { top: 8px; left: 8px; }
+.mo-corner-dots.tr { top: 8px; right: 8px; transform: scaleX(-1); }
+.mo-corner-dots.bl { bottom: 8px; left: 8px; transform: scaleY(-1); }
+.mo-corner-dots.br { bottom: 8px; right: 8px; transform: scale(-1, -1); }
+.mo-corner-dots .mo-dot-a { fill: var(--accent-soft); }
+.mo-corner-dots .mo-dot-b { fill: var(--text-tertiary); }
+
+.mo-thread-list {
+    padding: 14px 20px 18px;
+    position: relative;
+}
+.mo-rank-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dotted var(--border-medium);
+    cursor: pointer;
+}
+.mo-rank-row:last-child { border-bottom: none; }
+.mo-rank-row:active { background: var(--bg-hover); }
+
+.mo-rank-badge {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    background: var(--accent-soft);
+}
+/* 双数行：空心圈。用实色浅底的话，深色主题下和卡片底色分不开 */
+.mo-rank-row:nth-child(even) .mo-rank-badge {
+    background: transparent;
+    box-shadow: inset 0 0 0 1.5px var(--accent-soft);
+}
+
+.mo-rank-title {
+    flex: 0 1 88px;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mo-rank-bar-track {
+    flex: 1;
+    min-width: 24px;
+    height: 10px;
+    border-radius: 6px;
+}
+.mo-rank-bar {
+    display: block;
+    height: 100%;
+    border-radius: 6px;
+    background: var(--accent-color);
+}
+.mo-rank-row:nth-child(even) .mo-rank-bar {
+    background: var(--text-secondary);
+}
+
+.mo-rank-replies {
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* ===== 卡 C：周边展示（吧唧布板）=====
+   吧唧/缎带是「实物」（罐子胸章/绸带），不是 UI 铬件：胸章奶油衬边固定中性米白色、不跟主题变
+   （像现实里的胸章衬边一样，见 .mo-badge-photo 里的 --mo-badge-cream），文字仍走主题 token——
+   这条是本文件唯一的「不全走 token」例外，写在这里免得以后看着奇怪。
+   布板不再包 .mo-card 外壳，自己就是组件、直接立在壁纸上：圆角+投影自己带（与 .mo-card 同款），
+   margin:0 让左右边界与其它卡片（.mo-card 无左右 margin）对齐。 */
+
+/* 布板：container-type 驱动内部吧唧的 cqw 尺寸；纯 CSS 兜底＝底色 + 硬边圆点（同卡 A 装饰
+   柱同一手法，见上面 .mo-card-novels::before）+ 内缩虚线缝线。solo 方形／pair 3:2。
+   底色走 --mo-board-color（用户在编辑弹窗里选的波点颜色，没选就是 --accent-soft）；圆点固定
+   半透明白、缝线固定半透明深色——这样不管底色多深多浅，圆点/缝线都看得见（brief 定的写法，
+   不走 --bg-card/--text-secondary 这类会随主题变到看不见的 token）。 */
+.mo-goods-board {
+    position: relative;
+    container-type: inline-size;
+    flex-shrink: 0;
+    margin: 0;
+    border-radius: 18px;
+    overflow: hidden;
+    cursor: pointer;
+    background-color: var(--mo-board-color, var(--accent-soft));
+    background-image: radial-gradient(circle 2px at 9px 9px, rgba(255, 255, 255, .7) 2px, transparent 2.2px);
+    background-size: 18px 18px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+.mo-goods-board.mo-goods-solo { aspect-ratio: 1 / 1; }
+.mo-goods-board.mo-goods-pair { aspect-ratio: 3 / 2; }
+.mo-goods-board::before {
+    content: '';
+    position: absolute;
+    inset: 10px;
+    border: 1.5px dashed rgba(0, 0, 0, .28);
+    border-radius: 12px;
+    pointer-events: none;
+}
+/* 背景类型是预设图/自己上传的图（见 js/minus-one.js _goodsBoardStyleAttrs）：关掉圆点与缝线，
+   真正的 background-image 由行内 style 下发（预设图同步内联；上传的图要等 IllustGallery 异步
+   取到 blob 才补上，见 _hydrateGoods）。 */
+.mo-goods-board.mo-goods-bg-image {
+    background-image: none;
+}
+.mo-goods-board.mo-goods-bg-image::before {
+    content: none;
+}
+
+/* 布牌：布板内的小文字牌，卡头没了之后是布板上唯一的文字（单推=solo.tag，CP=pair.tag，位置不同
+   见下面 .mo-goods-pair .mo-goods-tag 覆写）。
+   z-index 要高于 .mo-badge-mini（单推布局里 bottomC 那枚小吧唧挨着布牌，DOM 顺序上 tag 虽然写在
+   最后，但 mini 有显式 z-index、光靠 DOM 顺序盖不过它，必须自己也给个更高的 z-index）。 */
+.mo-goods-tag {
+    position: absolute;
+    left: 50%;
+    top: 68%;      /* 单推默认位：压在缎带垂尾的下半截上（款式图的摆法），给底部那排小吧唧让出一整行 */
+    z-index: 3;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 60cqw;
+    padding: 5px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+    pointer-events: none;
+}
+.mo-goods-tag::before,
+.mo-goods-tag::after {
+    content: '';
+    flex-shrink: 0;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--border-medium);
+}
+.mo-goods-tag-text {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* CP 布牌：压在两条缎带垂尾之间、底边缝线上方——比单推的 68% 更靠下，因为 CP 没有底部一排小吧唧
+   要让位，可以再往下贴一点（数值贴着 css .mo-goods-board::before 的 inset:10px 内缩量估的，
+   浏览器里核对过不压垂尾也不压缝线）。 */
+.mo-goods-pair .mo-goods-tag {
+    top: 80%;
+}
+
+/* CP 白蝴蝶结：压在两圈缎带中间、最上层（分层第 3 条）。top 要跟 js/minus-one.js
+   _goodsPairBoardHtml 里两个 mo-badge-pair 的 top 保持一致（视觉上系在同一条水平线上） */
+.mo-goods-bow {
+    position: absolute;
+    left: 50%;
+    top: 41%;
+    width: 17cqw;
+    aspect-ratio: 300 / 209;
+    transform: translate(-50%, -50%);
+    background: url('../assets/widgets/universal/goods-bow.webp') center / 100% 100% no-repeat;
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* ===== 吧唧单元：缎带圈（可选）+ 圆形本体，结构见 js/minus-one.js _goodsUnitHtml ===== */
+.mo-badge-slot {
+    position: absolute;
+    width: var(--d);
+    aspect-ratio: 1;
+    transform: translate(-50%, -50%) rotate(var(--mo-rot, 0deg));
+}
+.mo-badge-slot.mo-badge-hero { --d: 36cqw; z-index: 2; }
+.mo-badge-slot.mo-badge-mini { --d: 18cqw; z-index: 1; }
+.mo-badge-slot.mo-badge-pair { --d: 29cqw; z-index: 1; }
+
+/* 缎带圈：下层「用户色纯色块 + 缎带图当遮罩」、上层「缎带图本体 multiply」——白×色=色、灰褶皱×色=深一档的色。圆窗几何（相对缎带图
+   自身）：圆心 x=49.8%/y=39.3%，圆窗直径＝图宽 53.5%，图高＝图宽×1.2865。吧唧压住缎带内侧一截
+   （圆窗 = 0.75 D）：主角是用户的图，缎带只露外面一圈褶边，比例向款式图看齐——
+   换算 W = D × 0.75 ÷ 0.535 ≈ D × 1.40187；rosette 用 calc 摆到让圆窗
+   圆心正好对准 .mo-badge-slot 的中心（即吧唧圆心），不用 JS 量尺寸。 */
+.mo-rosette {
+    --rw: calc(var(--d) * 1.40187);
+    position: absolute;
+    isolation: isolate;
+    width: var(--rw);
+    aspect-ratio: 520 / 669;
+    left: calc(50% - 0.498 * var(--rw));
+    top: calc(50% - 0.505611 * var(--rw));   /* 0.393 × 1.28654（缎带图高/宽比） */
+    pointer-events: none;
+}
+.mo-rosette::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--mo-ribbon, var(--accent-color));
+    -webkit-mask: url('../assets/widgets/universal/goods-rosette.webp') center / 100% 100% no-repeat;
+            mask: url('../assets/widgets/universal/goods-rosette.webp') center / 100% 100% no-repeat;
+}
+.mo-rosette::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    mix-blend-mode: multiply;
+    background: url('../assets/widgets/universal/goods-rosette.webp') center / 100% 100% no-repeat;
+}
+
+/* 吧唧本体：圆形，奶油衬边（固定中性色，见本节顶部注释）+ 平涂高光（rgba 白实色，非渐变）+
+   柔和投影。照片比衬边圆小一圈（inset 5%），露出的边缘就是「一圈奶油色的边」。 */
+.mo-badge-photo {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--mo-badge-cream, #fbf4e7);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+}
+.mo-badge-photo-content {
+    position: absolute;
+    left: 5%;
+    top: 5%;
+    width: 90%;
+    height: 90%;
+    border-radius: 50%;
+    overflow: hidden;
+    display: block;
+}
+.mo-badge-photo-content img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.mo-badge-gloss {
+    position: absolute;
+    left: 14%;
+    top: 12%;
+    width: 34%;
+    height: 34%;
+    transform: rotate(-12deg);
+    pointer-events: none;
+}
+
+/* 空吧唧占位：虚线内圈 + 居中「+」，颜色走 token（与本节固定衬边色的例外区分开，空态属于 UI、
+   这条要走 token） */
+.mo-badge-empty-inner {
+    position: absolute;
+    inset: 10%;
+    border-radius: 50%;
+    border: 1.5px dashed var(--border-medium);
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.mo-badge-plus {
+    width: 30%;
+    height: 30%;
+    color: var(--text-tertiary);
+}
+
+/* ===== 编辑弹窗：布局单选 / 缎带色板 / 数量步进器（结构见 js/minus-one.js editGoods 系方法） ===== */
+.mo-edit-layout-group {
+    display: flex;
+    gap: 8px;
+}
+.mo-edit-layout-opt {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid var(--border-medium);
+    border-radius: 8px;
+    background: none;
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    text-align: center;
+}
+.mo-edit-layout-opt.active {
+    border-color: var(--accent-color);
+    background: var(--bg-secondary);
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.mo-ribbon-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.mo-ribbon-dot {
+    position: relative;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    overflow: hidden;
+}
+.mo-ribbon-dot.active {
+    border-color: var(--text-primary);
+    transform: scale(1.12);
+    box-shadow: 0 0 0 2px var(--bg-card);
+}
+.mo-ribbon-theme {
+    background: var(--bg-secondary);
+    border-style: dashed;
+    border-color: var(--border-medium);
+    color: var(--text-secondary);
+}
+.mo-ribbon-theme svg { width: 14px; height: 14px; }
+.mo-ribbon-picker { border-color: var(--border-medium); }
+.mo-ribbon-picker svg {
+    width: 14px;
+    height: 14px;
+    pointer-events: none;
+    filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.55));
+}
+.mo-ribbon-picker input[type="color"] {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: none;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.mo-stepper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.mo-stepper button {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border-medium);
+    background: none;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+}
+.mo-stepper button svg { width: 12px; height: 12px; }
+.mo-stepper span {
+    min-width: 16px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* 背景「预设图」子区：每个注册表条目一个方形缩略图按钮，用它的 solo 图 cover 裁成方形当缩略图 */
+/* 四列等分铺满弹窗宽：56px 定宽的小格装不下五六个字的布名（会被省略号截掉），手机上又没有悬停提示可看 */
+.mo-bg-preset-group {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+.mo-bg-preset-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    padding: 0;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    overflow: hidden;
+}
+.mo-bg-preset-thumb.active {
+    border-color: var(--accent-color);
+}
+.mo-bg-preset-name {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 2px 4px;
+    font-size: 9px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.45);
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;   /* 英文布名较长，最多折两行 */
+    overflow: hidden;
+    text-align: center;
+}
+
+/* ===== 组件管理：底部编辑药丸 + 全关空态 + 编辑弹窗行（结构见 js/minus-one.js editCards 系方法） ===== */
+.mo-manage-btn {
+    align-self: center;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: var(--glass-panel);
+    border: 1px solid var(--glass-border);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+}
+.mo-manage-btn svg { width: 15px; height: 15px; }
+
+/* 三张卡全关时的占位提示：flex:1 撑满剩余高度、文字在这段空间里居中，编辑药丸仍留在最下面 */
+.mo-all-off-hint {
+    flex: 1;
+    min-height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--desktop-text);
+}
+
+.mo-manage-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+}
+.mo-manage-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 14px;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mo-manage-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.mo-manage-move {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    border: 1px solid var(--border-medium);
+    background: none;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+}
+.mo-manage-move svg { width: 12px; height: 12px; }
+.mo-manage-move:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+/* 小吧唧槽位行：里面那条「上传 / 调位置 / 移除」要撑满整行，和上面主推吧唧那一行等宽 */
+.mo-mini-slot-row > div { flex: 1; min-width: 0; }

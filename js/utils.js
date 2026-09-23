@@ -1086,6 +1086,18 @@ ${intro}以下の情報階層を厳守すること。
         }
     },
 
+    // 舞台的水平范围（视口坐标）。宽视口下 body 被限宽并带 transform（见 style.css「宽视口舞台」），
+    // 成为全部 position:fixed 后代的定位基准；而 clientX / getBoundingClientRect / innerWidth 仍是视口坐标。
+    // 凡是「拿视口坐标去写 fixed 元素的 left」或「把 innerWidth 当 app 宽度」的地方，一律经它换算。
+    // 舞台不生效（body 铺满视口，手机上恒如此）时原样返回 { left: 0, width: innerWidth } —— 换算结果与不换算逐值相同。
+    // 只管水平：舞台是满高的，垂直方向没有偏移，top / innerHeight 照旧直接用。
+    stageRect() {
+        const vw = window.innerWidth;
+        const r = document.body.getBoundingClientRect();
+        if (r.width >= vw - 0.5) return { left: 0, width: vw };
+        return { left: r.left, width: r.width };
+    },
+
     // ═══════════════════════════════════════════════════════
     // HTML 转义唯一权威实现（2026-07 P0 收口，规则见项目 CLAUDE.md）
     // 任何 AI 生成文本/用户输入拼 HTML 必须过这里；禁止新写独立转义
@@ -1218,7 +1230,18 @@ ${intro}以下の情報階層を厳守すること。
             paymentData: null,
             calendarEvents: [],
             recentEvents: [],
-            pendingComfortEvents: []
+            pendingComfortEvents: [],
+            // 负一屏：全新字段、不是迁移，真正的惰性兜底在 js/minus-one.js 的
+            // MinusOne._cardsData() / _goodsData()——这里只管 resetAllData 的出厂默认
+            minusOne: {
+                cards: [{ id: 'novels', on: true }, { id: 'threads', on: true }, { id: 'goods', on: true }],
+                goods: {
+                    layout: 'solo',
+                    solo: { tag: '', ribbon: '', count: 4, hero: null, minis: [null, null, null, null, null, null] },
+                    pair: { tag: '', ribbonA: '', ribbonB: '', a: null, b: null },
+                    bg: { type: 'dots', color: '', preset: '', image: null }
+                }
+            }
         };
     },
 
