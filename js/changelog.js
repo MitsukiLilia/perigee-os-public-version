@@ -8,7 +8,7 @@
 // 同步 deploy.sh DEFAULT_FILES（sw.js 不 precache 归档、靠 runtime cache）。条目内容永不修改（数据只增）。
 
 const Changelog = {
-    CURRENT: '2.276.0',
+    CURRENT: '2.276.1',
 
     // 冻结月归档（新→旧）。file 相对站点根。
     ARCHIVES: [
@@ -19,6 +19,15 @@ const Changelog = {
     ],
 
     versions: [
+        {
+            version: '2.276.1',
+            date: '2026-10-01',
+            highlights: [
+                'X（推特）评论区：找茬的评论不再每个帖子都来。以前每读取一批评论几乎都会混进一条；现在每批只有大约一成的概率出现，出现也最多一条，其余批次全是粉丝的反应',
+                '拉黑、通報凍結、引用晒评、粉丝帮腔、LINE 好友安慰这些玩法都还在，只是变成偶尔才遇到；已有的评论不会变'
+            ],
+            voiceFromKlaude: '',
+        },
         {
             version: '2.276.0',
             date: '2026-09-23',

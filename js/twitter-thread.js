@@ -278,6 +278,11 @@ Object.assign(Twitter, {
         // 引用転載晒し（黒評晒し）: 引用元がアンチのリプライなら声援基調に切り替え
         const quotedAntiSnap = (tweet.quotedTweet && tweet.quotedTweet.quotedRole === 'anti') ? tweet.quotedTweet : null;
 
+        // 黑子出场抽签：每批 10% 才放行（最多 1 条），其余批次清一色粉丝
+        // 代码抽签、prompt 按结果定制（与黑子下场抽签同构）；声援潮批次本来就不出黑子、不参与抽签
+        const allowAnti = !quotedAntiSnap && Math.random() < 0.1;
+        const isAntiRole = r => /anti|アンチ/i.test(r.role || '');
+
         // 第一批（postTweet 直後）: 公式 NPC reply 上限 3 件（亲密圈のみ）
         // 追加バッチ（「リプライを読み込む」按钮）: 公式 NPC reply 全面禁止（路人潮）
         const isInitialBatch = !!opts.initialBatch;
@@ -321,9 +326,17 @@ Object.assign(Twitter, {
             }
 
             // 公式 NPC リプライ枠ルール（日本のSNS文化：親しい関係者のみ即レス、その他は引用で反応するため、リプライ欄は徐々に「路人潮」化する）
+            const crowdRoles = allowAnti ? 'fan / anti' : 'fan';
             const npcAllowanceRule = maxNpcReplies > 0
-                ? `\n【公式NPCリプライの枠（最重要ルール）】\n- このバッチでは公式NPCアカウントからのリプライは最大 ${maxNpcReplies} 件まで（投稿者と親しい関係性のキャラ・スタッフのみ）\n- 残りの全リプライは fan / anti のみで構成すること\n- 公式NPC同士の「内輪ノリ」リプライは投稿者と直接関係ある場合のみ自然`
-                : `\n【公式NPCリプライの枠（最重要ルール）】\n- このバッチは「追加リプライ／路人潮」段階。公式NPCアカウントからのリプライは完全に禁止 — ROLE: npc を1件たりとも出力しないこと\n- すべて fan / anti のみで構成すること（親しい関係者は最初のバッチですでに反応済みという前提）\n- 公式が後追いで反応する場合は引用ツイート（QT）で行うのが日本のSNS文化に沿うため、リプライ欄には登場させない`;
+                ? `\n【公式NPCリプライの枠（最重要ルール）】\n- このバッチでは公式NPCアカウントからのリプライは最大 ${maxNpcReplies} 件まで（投稿者と親しい関係性のキャラ・スタッフのみ）\n- 残りの全リプライは ${crowdRoles} のみで構成すること\n- 公式NPC同士の「内輪ノリ」リプライは投稿者と直接関係ある場合のみ自然`
+                : `\n【公式NPCリプライの枠（最重要ルール）】\n- このバッチは「追加リプライ／路人潮」段階。公式NPCアカウントからのリプライは完全に禁止 — ROLE: npc を1件たりとも出力しないこと\n- すべて ${crowdRoles} のみで構成すること（親しい関係者は最初のバッチですでに反応済みという前提）\n- 公式が後追いで反応する場合は引用ツイート（QT）で行うのが日本のSNS文化に沿うため、リプライ欄には登場させない`;
+
+            // アンチ枠ルール（抽签結果に応じて切り替え。引用晒しの回は quotedAntiRule が担当するので注入しない）
+            const antiAllowanceRule = quotedAntiSnap
+                ? ''
+                : allowAnti
+                    ? `\n【アンチの枠】\n- このバッチではライトアンチのリプライは最大 1 件まで（ROLE: anti）。それ以外はすべてファンの反応にすること`
+                    : `\n【このバッチの空気】\n- リプライ欄は好意的なファンの反応だけで構成すること。投稿者や作品への嫌味・批判・揚げ足取り・冷笑のリプライは出さない（ROLE: anti を出力しない）\n- 好意的な範囲でテンションや切り口には幅を持たせること（熱量の高い反応、落ち着いた感想、質問、軽いツッコミ等）`;
 
             // 引用晒し（黒評晒し）: アンチのリプライを引用して投稿した場合、声援基調ルールを注入
             const quotedAntiRule = quotedAntiSnap
@@ -332,7 +345,7 @@ Object.assign(Twitter, {
 
             const systemPrompt = `あなたはアニメファンコミュニティのX（Twitter）シミュレーションエンジンです。
 公式アニメツイートへのリアルな日本語ファンリアクションをシミュレーションしてください。
-リプライアカウントの種類: ファン、感情的なファン、ライトアンチ、他の公式NPCアカウント（声優・スタッフが軽く絡む程度）。
+リプライアカウントの種類: ファン、感情的なファン、${allowAnti ? 'ライトアンチ、' : ''}他の公式NPCアカウント（声優・スタッフが軽く絡む程度）。
 
 ルール:
 - リプライは短く（1〜4行）— Twitterであり、エッセイではない
@@ -348,6 +361,7 @@ Object.assign(Twitter, {
 - ニュース通信社・まとめサイト・公式アニメニュースアカウント風のアカウントは出さない
 - メディアアカウントが反応する場合でも一人称・感想ベースで（「うちのライターも泣いてました」みたいな個人レベル）
 ${npcAllowanceRule}
+${antiAllowanceRule}
 ${quotedAntiRule}
 ${npcList}
 ${repliedList}
@@ -360,7 +374,7 @@ ${Utils.PROMPTS.infoAccessRule()}
 ---REPLY---
 AUTHOR: [アカウント名]
 HANDLE: [@handle]
-ROLE: [fan / anti / npc]
+ROLE: [${allowAnti ? 'fan / anti / npc' : 'fan / npc'}]
 CONTENT: [リプライ本文]
 TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 
@@ -372,8 +386,10 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             const messages = [{ role: 'user', content: `【投稿者】${tweetAuthorName}\n【ツイート内容】\n${tweet.content}${quotedAntiContext}\n\n上記のツイートへのリプライを生成してください。` }];
             const raw = await Utils.callChatAPI(messages, systemPrompt);
             let replies = this._filterBlockedParsed(this._parseReplies(raw)).filter(r => !this._looksLikeNewsHeadline(r.content));
-            // 声援潮 anti 兜底過濾（prompt 制約已有、这是代码级双保险，与 NPC 上限的双保险先例同構）
-            if (quotedAntiSnap) replies = replies.filter(r => r.role !== 'anti');
+            // anti 兜底過濾（prompt 制約已有、这是代码级双保险，与 NPC 上限的双保险先例同構）
+            // 没抽中的批次（含声援潮）一条不留；抽中的批次最多留 1 条
+            let antiCount = 0;
+            replies = replies.filter(r => !isAntiRole(r) || (allowAnti && ++antiCount <= 1));
 
             // 後置フィルタ: AI が npc リプライ上限を守らなかった場合の保険
             let npcCount = 0;
@@ -396,7 +412,7 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
                     id: Utils.generateId(),
                     author: r.author || 'ファン',
                     handle: r.handle || '@user',
-                    authorRole: r.role || 'fan',
+                    authorRole: isAntiRole(r) ? 'anti' : (r.role || 'fan'),
                     content: r.content,
                     translation: r.translation || null,
                     timestamp: now + i * 15000
