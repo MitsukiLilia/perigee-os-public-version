@@ -1326,7 +1326,8 @@ ${Utils.PROMPTS.infoAccessRule()}
 AUTHOR: [アカウント名]
 HANDLE: [@handle 半角英数_]
 ROLE: [npc / op / fan / anti / media]
-CONTENT: [本文]`;
+CONTENT: [本文]
+TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]`;
 
         const threadCtx = recentReplies.map(r =>
             `- ${r.author}（${r.handle || '@user'}）: ${r.deletedByAuthor ? '（削除済み）' : (!r.byUser && this._isFrozen(r) ? '（凍結済み）' : (r.content || '').slice(0, 200))}`
@@ -1795,10 +1796,11 @@ ${taskList}
 【出力（JSON ONLY）】
 {
   "reactions": [
-    { "handle": "...", "type": "QUOTE", "content": "..." },
-    { "handle": "...", "type": "REPLY", "content": "..." }
+    { "handle": "...", "type": "QUOTE", "content": "...", "translation": "..." },
+    { "handle": "...", "type": "REPLY", "content": "...", "translation": "..." }
   ]
-}`;
+}
+- content は日本語のみ。translation は content の中国語（簡体字）翻訳、1行`;
 
         let raw;
         try {
@@ -1838,6 +1840,7 @@ ${taskList}
                     id: Utils.generateId(),
                     npcId: npc.id,
                     content: r.content,
+                    translation: (typeof r.translation === 'string' && r.translation.trim()) || null,
                     quotedTweetId: tweet.id,
                     quotedTweetIsNpc: false,
                     timestamp,
@@ -1857,6 +1860,7 @@ ${taskList}
                     authorRole: 'npc',
                     npcId: npc.id,
                     content: r.content,
+                    translation: (typeof r.translation === 'string' && r.translation.trim()) || null,
                     timestamp
                 });
                 this._pushNotif({ type: 'reply', npc, tweetId: tweet.id, content: r.content, timestamp });

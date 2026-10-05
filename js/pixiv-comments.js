@@ -523,7 +523,8 @@ ${plain.slice(0, 6000)}
         Utils.saveData();
         this._refreshSection();
 
-        const replyText = await this._generateReply(novel, ch, chIdx, responder, myComment.content).catch(() => null);
+        const replyRaw = await this._generateReply(novel, ch, chIdx, responder, myComment.content).catch(() => null);
+        const { content: replyText, translation: replyTl } = this._splitReplyTranslation(replyRaw);
 
         // 生成期间数据可能已变化（章节被重写=chapter 对象整个换掉）→ 重新取
         const fresh = this._getChapter(novelId, chIdx);
@@ -535,7 +536,8 @@ ${plain.slice(0, 6000)}
                 id: loadingReply.id,
                 npcId: loadingReply.npcId,
                 author: loadingReply.author,
-                content: String(replyText).trim().slice(0, 300),
+                content: replyText.slice(0, 300),
+                translation: replyTl ? replyTl.slice(0, 300) : null,
                 createdAt: Date.now(),
                 likes: 0,
                 replyToCommentId: loadingReply.replyToCommentId,
@@ -547,6 +549,15 @@ ${plain.slice(0, 6000)}
         }
         Utils.saveData();
         this._refreshSection();
+    },
+
+    // ===== 单条回复的原始输出 → { content, translation }：正文在前、「TRANSLATION:」行之后是译文。
+    // 模型没给译文行 → translation 为 null（照常落地、只是不出「翻訳を見る」）；正文为空 → content 为 ''（调用方按失败处理）=====
+    _splitReplyTranslation(raw) {
+        const text = String(raw || '').trim();
+        const m = text.match(/^([\s\S]*?)\n?[ \t]*TRANSLATION[:：][ \t]*([\s\S]*)$/i);
+        if (!m) return { content: text, translation: null };
+        return { content: m[1].trim(), translation: m[2].trim() || null };
     },
 
     // ===== 回复 prompt：短小、不塞梗词清单（给方向不给词——lofter 先例）=====
@@ -561,7 +572,7 @@ ${plain.slice(0, 6000)}
 相手のコメント:「${(playerText || '').slice(0, 200)}」
 pixivのコメント欄らしい自然な日本語で、5〜60字の返信を1件だけ書いてください。
 ${responder.isAuthor ? '同人書き手が読者のコメントに返信する、親しみのある口調で。' : '読者同士の気軽な口調で。'}
-【鉄則】出力は日本語のみ。返信本文だけを出力（引用符・名前・プレフィックス不要）。`;
+【鉄則】1行目から返信本文だけを日本語で書く（引用符・名前・プレフィックス不要）。そのあと改行して「TRANSLATION: 」に続けて返信本文の中国語（簡体字）翻訳を1行で付ける。`;
         const _overrideCfg = AppState.data.pixivData?.settings?.apiOverride;
         return Utils.callChatAPI(
             [{ role: 'user', content: prompt }],

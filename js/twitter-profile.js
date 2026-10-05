@@ -1224,6 +1224,10 @@ ${fan.leakProne ? '- このキャラクターは情報共有欲が強く、内�
         const letter = (qt.authorName || '？').charAt(0).toUpperCase();
         const previewText = (originalTweet.content || '').slice(0, 55) + ((originalTweet.content || '').length > 55 ? '…' : '');
         const likesStr = this._fmtNum(qt.likes || 0);
+        const qtTl = qt.translation ? `<details class="tw-tl-block" onclick="event.stopPropagation()">
+    <summary class="tw-tl-btn">${I18n.t('tw.action_translate', '訳')}</summary>
+    <div class="tw-tl-content">${this._esc(qt.translation)}</div>
+</details>` : '';
         return `<div class="tw-qt-card">
     <div class="tw-qt-author">
         <div class="tw-card-avatar" style="background:${authorColor};width:28px;height:28px;font-size:12px;flex-shrink:0;">${this._esc(letter)}</div>
@@ -1231,6 +1235,7 @@ ${fan.leakProne ? '- このキャラクターは情報共有欲が強く、内�
         <span class="tw-handle" style="font-size:12px;">${this._esc(qt.authorHandle || '@user')}</span>
     </div>
     <div class="tw-content" style="font-size:14px;margin:6px 0 4px;">${this._linkifyContent(qt.content)}</div>
+    ${qtTl}
     <div class="tw-qt-original">
         <div class="tw-qt-preview">${this._esc(previewText)}</div>
     </div>
@@ -1269,6 +1274,7 @@ NAME: [発信者名]
 HANDLE: [@handle]
 TYPE: [fan/media/industry]
 CONTENT: [引用コメント]
+TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 LIKES: [数字]`;
 
         const btn = document.getElementById('twGenQtBtn');
@@ -1287,7 +1293,7 @@ LIKES: [数字]`;
                 const content = getF('CONTENT');
                 const likes = parseInt(getF('LIKES')) || Math.floor(50 + Math.random() * 5000);
                 if (!content) continue;
-                qts.push({ id: Utils.generateId(), authorName: name || 'ファン', authorHandle: handle || '@user', authorType: type, content, likes, timestamp: Date.now() });
+                qts.push({ id: Utils.generateId(), authorName: name || 'ファン', authorHandle: handle || '@user', authorType: type, content, translation: getF('TRANSLATION') || null, likes, timestamp: Date.now() });
             }
             if (qts.length > 0) {
                 if (!tweet.quoteTweets) tweet.quoteTweets = [];

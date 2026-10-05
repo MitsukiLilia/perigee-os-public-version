@@ -1057,8 +1057,12 @@ IMAGE_DESC: [画像の簡潔な説明10字以内、画像なしの場合NONE]
 IMAGE_TYPE: [photo/art/screenshot/behind_the_scenes/NONE]
 TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 REPLY_1: [ファン名]|[@handle]|[fan/industry/media]|[日本語のリプライ]
+REPLY_1_TL: [REPLY_1 本文の中国語（簡体字）翻訳、1行]
 REPLY_2: [ファン名]|[@handle]|[fan/industry/media]|[日本語のリプライ]
+REPLY_2_TL: [REPLY_2 本文の中国語（簡体字）翻訳、1行]
 REPLY_3: [ファン名]|[@handle]|[fan/industry/media]|[日本語のリプライ]
+REPLY_3_TL: [REPLY_3 本文の中国語（簡体字）翻訳、1行]
+（リプライは必ず REPLY_n 行の直後に REPLY_n_TL 行を付けること。REPLY_n 行そのものは日本語のみ）
 
 - NEW ツイートの30〜40%に画像を添付すること（behind_the_scenesタイプの写真が自然）
 - NEWは3-4件、QUOTEは2-3件のファンリプライを生成すること。自然な会話のために、1-2件はNPC同士の返信にすること（MENTIONS_NPCにそのNPCのhandleを記入）。リプライには絵文字・顔文字を自然に使うこと。
@@ -1117,12 +1121,12 @@ ${typeof Utils !== 'undefined' ? Utils.getEventContextPrompt(3) : ''}`;
             // Translation (optional)
             const tlMatch = block.match(/^TRANSLATION:[ \t]*(.+)$/m);
             const translation = tlMatch ? tlMatch[1].trim() : null;
-            // REPLY_n lines: 名前|@handle|type|content
+            // REPLY_n lines: 名前|@handle|type|content（訳は直後の REPLY_n_TL 行、無ければ null）
             const replies = [];
-            const replyRe = /^REPLY_\d+:\s*(.+)$/mg;
+            const replyRe = /^REPLY_(\d+):\s*(.+)$/mg;
             let rm;
             while ((rm = replyRe.exec(block)) !== null) {
-                const parts = rm[1].split('|');
+                const parts = rm[2].split('|');
                 if (parts.length >= 4) {
                     const rType = parts[2].trim();
                     replies.push({
@@ -1131,6 +1135,7 @@ ${typeof Utils !== 'undefined' ? Utils.getEventContextPrompt(3) : ''}`;
                         handle: parts[1].trim(),
                         authorRole: ['fan', 'industry', 'media', 'npc'].includes(rType) ? rType : 'fan',
                         content: parts.slice(3).join('|').trim(),
+                        translation: (block.match(new RegExp(`^REPLY_${rm[1]}_TL:[ \\t]*(.+)$`, 'm')) || [])[1]?.trim() || null,
                         timestamp: now + replies.length * 15000
                     });
                 }
@@ -1277,7 +1282,10 @@ PIXIV_NOVEL_ID: [上記「pixiv 新作情報」の pixiv ID をそのまま記�
 PIXIV_PROMO: [このツイートが「自分の新作pixiv小説を投稿/告知」する自宣ツイートで、かつ PIXIV_NOVEL_ID が NONE（上記「pixiv 新作情報」に該当作品が無い）の場合のみ yes。それ以外（単なるpixivへの言及・感想・他人の作品の話題、または告知でない場合）は NONE]
 TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
 REPLY_1: [名前]|[@handle]|[fan/industry/media/doujin_writer/doujin_artist/cp_fan]|[日本語のリプライ]
+REPLY_1_TL: [REPLY_1 本文の中国語（簡体字）翻訳、1行]
 REPLY_2: [名前]|[@handle]|[fan/industry/media/doujin_writer/doujin_artist/cp_fan]|[日本語のリプライ]
+REPLY_2_TL: [REPLY_2 本文の中国語（簡体字）翻訳、1行]
+（リプライは必ず REPLY_n 行の直後に REPLY_n_TL 行を付けること。REPLY_n 行そのものは日本語のみ）
 
 6〜8ツイート（うち1件はスレッド）、各2-3リプライを生成すること。doujin_writer、doujin_artist、cp_fan、organizerのタイプを合計3件以上含めること（フェーズ制限で禁止されていない場合）。fanart_share等の創作系タイプも適度に混ぜること。
 - ツイートの30〜40%に画像を添付すること（doujin_artist/fanart_shareタイプには必ず画像をつけること）
@@ -1562,10 +1570,10 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
             const translation = tlMatch ? tlMatch[1].trim() : null;
             // REPLY_n
             const replies = [];
-            const replyRe = /^REPLY_\d+:\s*(.+)$/mg;
+            const replyRe = /^REPLY_(\d+):\s*(.+)$/mg;
             let rm;
             while ((rm = replyRe.exec(block)) !== null) {
-                const parts = rm[1].split('|');
+                const parts = rm[2].split('|');
                 if (parts.length >= 4) {
                     const rType = parts[2].trim();
                     replies.push({
@@ -1574,6 +1582,7 @@ TRANSLATION: [CONTENTの中国語（簡体字）翻訳、1行]
                         handle: parts[1].trim(),
                         authorRole: [...validTypes, 'npc'].includes(rType) ? rType : 'fan',
                         content: parts.slice(3).join('|').trim(),
+                        translation: (block.match(new RegExp(`^REPLY_${rm[1]}_TL:[ \\t]*(.+)$`, 'm')) || [])[1]?.trim() || null,
                         timestamp: now + replies.length * 15000
                     });
                 }
