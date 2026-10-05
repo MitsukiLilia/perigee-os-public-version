@@ -2165,6 +2165,23 @@ button.pixiv-detail-series-chip {
     white-space: pre-wrap;
     word-break: break-word;
 }
+.pixiv-comment-tl { margin-top: 3px; }
+.pixiv-comment-tl > summary {
+    display: inline-block;
+    list-style: none;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.pixiv-comment-tl > summary::-webkit-details-marker { display: none; }
+.pixiv-comment-tl-content {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    padding-top: 3px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
 .pixiv-comment-foot {
     display: flex;
     align-items: center;

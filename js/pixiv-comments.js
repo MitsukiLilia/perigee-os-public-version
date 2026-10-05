@@ -50,8 +50,9 @@ const PixivComments = {
     },
 
     // ===== LLM 输出解析：---COMMENT--- 分隔块 + 逐行字段（项目主流、同 fanFriends/_parseReplies 风格）=====
-    // 返回 [{ author, content, replyToIdx|null }]；上限 15 条、author 截 40 字、content 截 300 字。
+    // 返回 [{ author, content, translation|null, replyToIdx|null }]；上限 15 条、author 截 40 字、content/translation 截 300 字。
     // CONTENT 允许多行（收集到下一个 FIELD: 行为止），全角/半角冒号都认。
+    // TRANSLATION 可缺省（v2.277 前的模型输出/旧数据没有）→ null、渲染层不出「翻訳を見る」。
     _parseComments(raw) {
         if (!raw) return [];
         const blocks = String(raw).split(/---\s*COMMENT\s*---/i);
@@ -62,7 +63,7 @@ const PixivComments = {
             let cur = null;
             for (const line of block.split('\n')) {
                 // 只认已知字段名——评论正文里「BGM: 〜」这类行不能被当成字段吃掉
-                const m = line.match(/^(AUTHOR|CONTENT|REPLY_TO)[:：]\s*(.*)$/);
+                const m = line.match(/^(AUTHOR|CONTENT|TRANSLATION|REPLY_TO)[:：]\s*(.*)$/);
                 if (m) { cur = m[1]; fields[cur] = m[2]; }
                 else if (cur === 'CONTENT' && line.trim()) fields.CONTENT += '\n' + line.trim();
             }
@@ -70,9 +71,11 @@ const PixivComments = {
             const content = (fields.CONTENT || '').trim();
             if (!author || !content) continue;
             const replyN = parseInt(fields.REPLY_TO, 10);
+            const translation = (fields.TRANSLATION || '').trim();
             out.push({
                 author: author.slice(0, 40),
                 content: content.slice(0, 300),
+                translation: translation ? translation.slice(0, 300) : null,
                 replyToIdx: Number.isInteger(replyN) && replyN > 0 ? replyN : null
             });
         }
@@ -99,6 +102,7 @@ const PixivComments = {
                 npcId: fan ? fan.id : null,
                 author: p.author,
                 content: p.content,
+                translation: p.translation || null,
                 createdAt: Math.floor(start + span * ((i + 1) / (parsed.length + 1))),
                 likes: replyToCommentId
                     ? Math.floor(Math.random() * 6)
@@ -254,6 +258,10 @@ const PixivComments = {
             avatarHtml = `<div class="pixiv-comment-avatar" style="background:${_esc(bg)}">${_esc((name || '?')[0].toUpperCase())}</div>`;
         }
         const isLoading = !!comment._loading;
+        // 真 pixiv app 评论下的「翻訳を見る」：原生 <details> 折叠、纯 DOM 展开不重建评论区（同推特 tw-tl-block 的做法）
+        const tlHtml = (!isMine && !isLoading && comment.translation)
+            ? `<details class="pixiv-comment-tl"><summary>${I18n.t('pixiv.comment_see_translation', '翻訳を見る')}</summary><div class="pixiv-comment-tl-content">${_esc(comment.translation)}</div></details>`
+            : '';
         const footHtml = isLoading ? '' : `
                 <div class="pixiv-comment-foot">
                     <span>${this._formatDate(comment.createdAt)}</span>
@@ -264,6 +272,7 @@ const PixivComments = {
             <div class="pixiv-comment-body">
                 <div class="pixiv-comment-name">${_esc(name)}</div>
                 <div class="pixiv-comment-text">${_esc(comment.content)}</div>
+                ${tlHtml}
                 ${footHtml}
                 ${extraHtml}
             </div>
@@ -359,9 +368,10 @@ ${doujinNames.length ? `- 以下の既存の同人書き手が最大2件まで�
 ---COMMENT---
 AUTHOR: 読者のハンドルネーム
 CONTENT: コメント本文
+TRANSLATION: CONTENTの中国語（簡体字）翻訳、1行
 REPLY_TO: 2   ←任意。このコメントが上からN番目のコメントへの返信である場合のみ付ける
 
-合計8〜12件。うち0〜3件はREPLY_TO付きの返信にすること。出力は日本語のみ。`;
+合計8〜12件。うち0〜3件はREPLY_TO付きの返信にすること。AUTHOR・CONTENTは日本語のみ（中国語はTRANSLATION行だけ）。`;
     },
 
     _buildGenUserMsg(novel, ch, chIdx) {

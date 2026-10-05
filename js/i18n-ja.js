@@ -2808,6 +2808,7 @@ I18n.translations.ja = {
             'pixiv.comment_placeholder': 'コメントを追加...',
             'pixiv.comment_reply_placeholder': '{name}さんに返信...',
             'pixiv.comment_reply_link': '返信',
+            'pixiv.comment_see_translation': '翻訳を見る',
             'pixiv.comment_view_replies': '返信を見る',
             'pixiv.comment_hide_replies': '返信を隠す',
             'pixiv.comment_send_aria': '送信',

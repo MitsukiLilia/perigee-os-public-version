@@ -8,7 +8,7 @@
 // 同步 deploy.sh DEFAULT_FILES（sw.js 不 precache 归档、靠 runtime cache）。条目内容永不修改（数据只增）。
 
 const Changelog = {
-    CURRENT: '2.276.1',
+    CURRENT: '2.277.0',
 
     // 冻结月归档（新→旧）。file 相对站点根。
     ARCHIVES: [
@@ -21,6 +21,15 @@ const Changelog = {
     ],
 
     versions: [
+        {
+            version: '2.277.0',
+            date: '2026-10-05',
+            highlights: [
+                'pixiv 小说评论区：每条读者评论下面多了「翻訳を見る」，点开就是中文翻译，和推特、论坛一样',
+                '之前已经读取过的评论没有翻译，不会显示这个按钮；想要翻译的话，新章节读取评论时就会自带'
+            ],
+            voiceFromKlaude: '',
+        },
         {
             version: '2.276.1',
             date: '2026-10-01',

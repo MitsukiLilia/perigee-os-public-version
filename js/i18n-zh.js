@@ -2886,6 +2886,7 @@ I18n.translations.zh = {
             'pixiv.comment_placeholder': '添加评论...',
             'pixiv.comment_reply_placeholder': '回复 {name}...',
             'pixiv.comment_reply_link': '回复',
+            'pixiv.comment_see_translation': '查看翻译',
             'pixiv.comment_view_replies': '查看回复',
             'pixiv.comment_hide_replies': '收起回复',
             'pixiv.comment_send_aria': '发送',

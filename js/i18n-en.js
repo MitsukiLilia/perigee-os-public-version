@@ -2809,6 +2809,7 @@ I18n.translations.en = {
             'pixiv.comment_placeholder': 'Add a comment...',
             'pixiv.comment_reply_placeholder': 'Reply to {name}...',
             'pixiv.comment_reply_link': 'Reply',
+            'pixiv.comment_see_translation': 'See translation',
             'pixiv.comment_view_replies': 'View replies',
             'pixiv.comment_hide_replies': 'Hide replies',
             'pixiv.comment_send_aria': 'Send',
