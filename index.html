@@ -4376,6 +4376,11 @@
             </div>
 
             <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;" data-i18n="music.field_engine">生成方式</label>
+                <select id="musicEngine" style="width: 100%; padding: 10px; border: 1px solid var(--border-light); border-radius: 8px; background: var(--bg-card); color: var(--text-primary); font-family: inherit; font-size: 14px;"></select>
+            </div>
+
+            <div style="margin-bottom: 12px;">
                 <label style="display: block; font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">
                     <span data-i18n="music.field_plot">関連プロット</span>
                     <span style="font-weight: 400; opacity: 0.7;" data-i18n="music.optional">（任意）</span>
@@ -4396,7 +4401,7 @@
                     style="width: 100%; font-size: 13px; line-height: 1.6;"></textarea>
             </div>
 
-            <div style="font-size: 12px; color: var(--text-secondary); opacity: 0.7; margin-bottom: 14px; padding: 10px; background: var(--bg-card); border-radius: 8px; line-height: 1.6;" data-i18n="music.gen_steps_note">
+            <div style="font-size: 12px; color: var(--text-secondary); opacity: 0.7; margin-bottom: 14px; padding: 10px; background: var(--bg-card); border-radius: 8px; line-height: 1.6;" id="musicGenStepsNote" data-i18n="music.gen_steps_note">
                 生成は 3 段階：①LLMで歌詞執筆 → ②LLMで音楽スタイル prompt 生成 → ③MiniMaxで楽曲合成（30秒〜2分）。途中段階でも歌詞は保存されます。
             </div>
 

@@ -20,12 +20,84 @@ const Music = {
         { value: 'op',           labelKey: 'music.type_op',           label: 'OP（オープニング）',   styleHint: 'Anime OP, Energetic, J-Pop, Female Vocal' },
         { value: 'ed',           labelKey: 'music.type_ed',           label: 'ED（エンディング）',   styleHint: 'Anime ED, Melancholic, Acoustic, J-Pop' },
         { value: 'insert',       labelKey: 'music.type_insert',       label: '挿入歌',                 styleHint: 'Insert Song, Emotional, Cinematic' },
+        { value: 'diegetic',     labelKey: 'music.type_diegetic',     label: '劇中歌',                 styleHint: 'Diegetic Song, Live Performance, Vocal-forward' },
         { value: 'character',    labelKey: 'music.type_character',    label: 'キャラクターソング',     styleHint: 'Character Song, J-Pop, Personal' },
         { value: 'image',        labelKey: 'music.type_image',        label: 'イメージソング',         styleHint: 'Image Song, Atmospheric, Ambient' },
         { value: 'instrumental', labelKey: 'music.type_instrumental', label: '純音楽（BGM/サントラ）', styleHint: 'Instrumental, OST, Cinematic', isInstrumental: true },
         { value: 'theme',        labelKey: 'music.type_theme',        label: 'テーマソング',           styleHint: 'Anime Theme, Heroic, Cinematic' },
         { value: 'other',        labelKey: 'music.type_other',        label: 'その他',                 styleHint: '' }
     ],
+
+    // 生成方式：minimax = Perigee 内合成音频；suno = 只出歌词＋Suno 风格标签，用户复制到 Suno 使用。
+    // 旧歌没有 engine 字段，一律按 minimax 处理。
+    ENGINES: [
+        { value: 'suno',    labelKey: 'music.engine_suno' },
+        { value: 'minimax', labelKey: 'music.engine_minimax' }
+    ],
+
+    _engineOf(song) {
+        return song && song.engine === 'suno' ? 'suno' : 'minimax';
+    },
+
+    // 写词方针（v2.279.0）：只讲手法、不放任何现成歌词当例子——例子会被模型原样搬进每首歌。
+    // common 常驻注入；按 songType 再拼一段类型补充（instrumental / other 只用 common）。
+    LYRIC_CRAFT: {
+        common: [
+            '[作詞の方針 — 物語を説明せず、体験させる]',
+            '上の作品資料とタイムラインは「素材」であり、歌詞はその要約ではない。出来事を時系列に並べて歌うこと（あらすじの韻文化）はしない。',
+            '1. 一点に絞る：タイムラインから、物語を貫く核の葛藤・関係・決定的な一瞬の感情を一つだけ選び、曲全体でそれを掘り下げる。',
+            '2. 固有名詞・設定用語を出さない：キャラクター名、組織名、能力名、事件名、作中用語はそのまま書かない。日常の言葉、自然現象、身体感覚、身の回りの物に置き換え、作品を知る人だけが二重の意味に気づく程度にとどめる。',
+            '3. 感情を名指ししない：「悲しい」「運命」「絆」「奇跡」のような抽象語を連呼しない。感情は手触り・温度・光・音・距離といった具体的な感覚や情景に託す。ごく小さな身体感覚と大きな風景を並べ、その落差で感情の大きさを伝えるのも有効。',
+            '4. 本音は遅らせる：最初から本音を叫ばない。情景、強がり、建前、他者からの視線などから入り、曲が進むにつれて少しずつ崩し、最も切実な一行は終盤（Bridge や最後の Chorus の前後）まで取っておく。本音を言い切らず余韻で終える曲もあり得るので、作品と曲の性格に合わせて選ぶ。',
+            '5. 繰り返しで意味を変える：Chorus のフレーズは繰り返してよいが、Bridge を経た最後の Chorus では、同じ言葉（または一語だけ変えた言葉）が違う重さ・違う意味に聞こえるように組み立てる。',
+            '6. 歌われる言葉として書く：Chorus の頭や伸ばす音には、母音が開いて伸びやかに歌える言葉を置く。言葉を詰める部分と、極端に減らして息の余白を残す部分の緩急をつける。英語フレーズは飾りにせず、日本語では言いにくい本音や、主人公の主観と対立する別の声など、役割がある場合だけ使う。',
+            '7. この作品だけの比喩を育てる：一曲で使う比喩・モチーフは少数に絞り、曲を通して変化させる。どの作品にも使える決まり文句は避け、この作品の世界と人物の質感から生まれたものにする。',
+            '（セクションの対応：Verse＝Aメロ、Pre Chorus＝Bメロ、Chorus＝サビ、Bridge＝Cメロ）'
+        ],
+        op: [
+            '[タイプ別：OP]',
+            '- 立ち位置：物語の幕開けに鳴る曲。結末や具体的な展開は明かさず、作品世界のルール、熱量、中心にある問いを打ち出す。',
+            '- 手法：主人公を取り巻く世界のノイズや視線、または困難に向かう姿勢から入る。Verse で状況、Pre Chorus で緊張を高め、Chorus で作品を象徴するフックを解き放つ。',
+            '- 避けること：各話の出来事を順に歌うこと。OP が歌うのは「何が起きたか」ではなく「何のために生きるのか、戦うのか」。'
+        ],
+        ed: [
+            '[タイプ別：ED]',
+            '- 立ち位置：本編が終わった後に流れる曲。方向は二つあり、作品に合う方を選ぶ。(a) 余韻型：時間が過ぎた後や帰り道から、言えなかった言葉や季節の移ろいを静かに振り返る。(b) 表裏型：本編の表舞台の裏で進む執念、代償、逃れられない宿命を描く。',
+            '- 手法：1番と2番の間で、時間の経過や関係の変化を描く。最後の一行には、聴き終えた後も残る問いや含みのある言葉を置く。',
+            '- 避けること：「いろいろあったけれど大切なことに気づいた」式の総括や教訓。'
+        ],
+        insert: [
+            '[タイプ別：挿入歌]',
+            '- 立ち位置：物語のある決定的な場面の最中に、映像と重なって流れる曲。視点はその場面の中にいる人物の内側。',
+            '- 手法：前後の経緯は説明しない。その瞬間に見えている景色、肌に触れている感覚、胸の中で起きた衝動だけを拡大して書く。静かな独白のような Verse から、感情が開く Chorus へつなぐ。',
+            '- 避けること：画面で起きている動作を実況すること。歌うのは動作ではなく、その瞬間に心の中で鳴っているもの。'
+        ],
+        diegetic: [
+            '[タイプ別：劇中歌]',
+            '- 立ち位置：物語の世界に実在する曲。登場人物が自分の作品として、ステージや配信などで実際に歌う。BGM ではなく、作中の観客にも聴こえている歌。',
+            '- 手法：歌い手であるその人物が「自分ならどんな歌を書くか」という視点で書く。作風、言葉の癖、聴き手との距離感はその人物のものにする。物語の出来事は、本人が自分の経験を歌に変えた形で入れ、ナレーションのように説明しない。',
+            '- 二重の意味：作中の観客が聴き取る表の意味と、本人と物語を知る人だけが気づく裏の意味を重ねる。',
+            '- 避けること：物語の出来事をそのまま歌詞に並べること。歌い手本人が人前で歌うには不自然な、内情の暴露や説明的な台詞。'
+        ],
+        theme: [
+            '[タイプ別：テーマソング]',
+            '- 立ち位置：物語全体の核心を結晶させる曲。最も深い葛藤を背負う中心人物、または中心となる関係の内側に深く潜る。',
+            '- 手法：曲全体を貫く一つの比喩の体系を作り、その変化で人物の軌跡を表す。前半は抑制や偽装や反語、中盤で抑えきれなくなり、終盤ですべてを剥がした祈り・決意・告白へ向かう。',
+            '- 避けること：最初から最後まで同じ強さで叫び続けること。抑えがなければ、最後に高まる余地がなくなる。'
+        ],
+        character: [
+            '[タイプ別：キャラクターソング]',
+            '- 立ち位置：本筋の騒ぎから一歩離れた場所で、その人物が一人で向き合う素顔。',
+            '- 手法：その人物の口調、一人称、二人称を保つ。性格は説明せず、日常の小さな癖、身の回りの物、人や景色への接し方から浮かび上がらせる。人前で見せる顔と、ふと漏れる本音との差を描く。',
+            '- 避けること：「私はこういう性格だ」という自己紹介や、設定の読み上げ。'
+        ],
+        image: [
+            '[タイプ別：イメージソング]',
+            '- 立ち位置：物語の因果から離れた、作品や人物の心象風景・色彩・空気感のスケッチ。',
+            '- 手法：出来事や会話は追わない。色、光、温度、湿度、季節の匂いといった感覚的なイメージを重ねる。反復と余白を活かし、聴き手がその世界の空気を吸い込むような曲にする。',
+            '- 避けること：因果関係のはっきりした具体的な出来事を入れること。'
+        ]
+    },
 
     // 卡片渐变色池（Spotify 风格）
     _gradients: [
@@ -133,9 +205,25 @@ const Music = {
         plotSel.innerHTML = `<option value="">${this._escHtml(I18n.t('music.plot_none'))}</option>` + plots.map(p =>
             `<option value="${p.id}">${this._escHtml(p.title || I18n.t('music.untitled'))}</option>`
         ).join('');
+        // 生成方式（记住上次的选择）
+        const engineSel = document.getElementById('musicEngine');
+        const lastEngine = AppState.data.music.lastEngine === 'minimax' ? 'minimax' : 'suno';
+        engineSel.innerHTML = this.ENGINES.map(e =>
+            `<option value="${e.value}"${e.value === lastEngine ? ' selected' : ''}>${this._escHtml(I18n.t(e.labelKey))}</option>`
+        ).join('');
+        engineSel.value = lastEngine;
+        engineSel.onchange = () => this._updateEngineNote();
+        this._updateEngineNote();
         // userPrompt
         document.getElementById('musicUserPrompt').value = '';
         document.getElementById('musicCreateModal').classList.add('active');
+    },
+
+    _updateEngineNote() {
+        const sel = document.getElementById('musicEngine');
+        const note = document.getElementById('musicGenStepsNote');
+        if (!sel || !note) return;
+        note.textContent = I18n.t(sel.value === 'suno' ? 'music.gen_steps_note_suno' : 'music.gen_steps_note');
     },
 
     closeCreateModal() {
@@ -147,11 +235,14 @@ const Music = {
         const songType = document.getElementById('musicSongType').value;
         const plotId = document.getElementById('musicPlotId').value || null;
         const userPrompt = document.getElementById('musicUserPrompt').value.trim();
+        const engine = document.getElementById('musicEngine').value === 'minimax' ? 'minimax' : 'suno';
+        AppState.data.music.lastEngine = engine;
 
         const song = {
             id: Utils.generateId(),
             title, // 空字符串表示等 LLM 自动命名
             songType,
+            engine,
             plotId,
             userPrompt,
             lyrics: '',
@@ -176,7 +267,9 @@ const Music = {
     // ─── Pipeline ────────────────────────────────────────────
     async _runPipeline(songId, opts = {}) {
         const fromStage = opts.fromStage || 'lyrics';
-        const stopAfter = opts.stopAfter; // 'lyrics' | 'style' | null/undefined（跑到底）
+        const song = AppState.data.music.songs.find(s => s.id === songId);
+        // Suno 模式到曲风为止（音频在 Suno 那边做）
+        const stopAfter = this._engineOf(song) === 'suno' && !opts.stopAfter ? 'style' : opts.stopAfter; // 'lyrics' | 'style' | null/undefined（跑到底）
         try {
             if (fromStage === 'lyrics') {
                 await this._generateLyrics(songId);
@@ -189,6 +282,7 @@ const Music = {
                 if (stopAfter === 'style') return;
                 await this._generateAudio(songId);
             } else if (fromStage === 'audio') {
+                if (this._engineOf(song) === 'suno') return;
                 await this._generateAudio(songId);
             }
         } catch (e) {
@@ -282,9 +376,16 @@ const Music = {
         if (!titleEmpty) sysParts.push(`Title: ${song.title}`);
         sysParts.push(`Type: ${typeMeta.label || song.songType}`);
         sysParts.push(`Default Style Hint (for tone reference, not output): ${typeMeta.styleHint || ''}`);
+        sysParts.push('');
+        sysParts.push(...this.LYRIC_CRAFT.common);
+        const typeCraft = this.LYRIC_CRAFT[song.songType];
+        if (typeCraft) {
+            sysParts.push('');
+            sysParts.push(...typeCraft);
+        }
         if (song.userPrompt) {
             sysParts.push('');
-            sysParts.push('[User Direction]');
+            sysParts.push('[User Direction] (takes priority over the guidance above when they conflict)');
             sysParts.push(song.userPrompt);
         }
         sysParts.push('');
@@ -311,6 +412,7 @@ const Music = {
             }
         }
         patch.lyrics = lyrics;
+        patch.lyricsTranslation = '';
         this._setStage(songId, 'lyrics-done', patch);
     },
 
@@ -384,7 +486,8 @@ const Music = {
         const broadcast = AppState.data.broadcast || {};
         const plot = song.plotId ? (broadcast.plotProgress || []).find(p => p.id === song.plotId) : null;
 
-        const systemPrompt = `You are a music director who picks musical style tags for songs.
+        const isSuno = this._engineOf(song) === 'suno';
+        const systemPrompt = isSuno ? this._sunoStyleSystemPrompt() : `You are a music director who picks musical style tags for songs.
 Your output is consumed by the MiniMax music_generation API as the "prompt" parameter.
 
 OUTPUT FORMAT — strict:
@@ -417,6 +520,71 @@ Now produce tags based on the inputs below. Do NOT echo the inputs.`;
         if (!stylePrompt) throw new Error('style prompt 生成结果为空');
 
         this._setStage(songId, 'style-done', { stylePrompt });
+    },
+
+    _sunoStyleSystemPrompt() {
+        return `You are a sound designer writing the "Style of Music" field for Suno.
+
+OUTPUT FORMAT — strict:
+- A single line of comma-separated English descriptors, roughly 120-250 characters
+- NO sentences, NO explanation, NO line breaks, NO artist or band names
+- The examples below only show the level of detail; choose what fits THIS song
+
+MUST COVER, in this order:
+1. Main genre and fusion (e.g. "J-Pop, Electro-Swing fusion", "Symphonic Rock")
+2. Vocal texture (e.g. "Breathy female vocals", "Raspy male vocals", "Airy falsetto")
+3. Specific instruments (e.g. "Slap bass", "Glassy Rhodes", "Distorted 808", "Violin solo")
+4. Atmosphere / foley (e.g. "Vinyl crackle", "Lo-fi tape hiss", "Distant crowd ambience")
+5. Intro description (e.g. "Slow melodic piano intro", "Heavy drum fill intro")
+
+Now produce the style line based on the inputs below. Do NOT echo the inputs.`;
+    },
+
+    // 歌词翻译：点了才生成，存在 song.lyricsTranslation；日文界面不提供
+    _translationTarget() {
+        const lang = (typeof I18n !== 'undefined' && I18n.currentLang) || 'zh';
+        if (lang === 'ja') return null;
+        return lang === 'en' ? 'English' : 'Simplified Chinese';
+    },
+
+    async translateLyrics(songId) {
+        const song = AppState.data.music.songs.find(s => s.id === songId);
+        const target = this._translationTarget();
+        if (!song || !song.lyrics || !target) return;
+        await Utils.withLock(`music-tl:${songId}`, async () => {
+            if (this.currentSongId === songId) this._renderSongDetail(songId); // 按钮进入「翻译中」
+            try {
+                const systemPrompt = [
+                    `Translate the Japanese song lyrics below into ${target}.`,
+                    '- Keep every section tag such as [Verse] or [Chorus] unchanged on its own line.',
+                    '- Keep the line breaks one-to-one with the original: one translated line per original line.',
+                    '- Translate the meaning naturally as lyrics; keep English lines as they are.',
+                    '- Output ONLY the translation, no preface, no notes.'
+                ].join('\n');
+                const tl = (await Utils.callChatAPI([{ role: 'user', content: song.lyrics }], systemPrompt)).trim();
+                if (!tl) throw new Error('empty');
+                song.lyricsTranslation = tl;
+                this._tlOpenId = songId;
+                Utils.saveData();
+            } catch (e) {
+                console.warn('[Music] translate failed', e);
+                Utils.showToast(I18n.t('music.tl_failed'));
+            }
+        });
+        if (this.currentSongId === songId) this._renderSongDetail(songId);
+    },
+
+    async copyForSuno(songId, field) {
+        const song = AppState.data.music.songs.find(s => s.id === songId);
+        if (!song) return;
+        const text = field === 'style' ? song.stylePrompt : song.lyrics;
+        if (!text) return;
+        try {
+            await navigator.clipboard.writeText(text);
+            Utils.showToast(I18n.t('music.copied'));
+        } catch (e) {
+            Utils.showToast(I18n.t('music.copy_failed'));
+        }
     },
 
     // ─── Sprint 4: MiniMax 音频生成 ──────────────────────────
@@ -522,7 +690,14 @@ Now produce tags based on the inputs below. Do NOT echo the inputs.`;
         const hasAudio = !!song.audioId && song.stage === 'done';
         // 阶段判定：歌词写完等用户确认（无 audioId）/ 已成品（done/error）/ 跑步中
         const isLyricsConfirmStage = song.stage === 'lyrics-done' && !song.audioId;
-        const isFinalStage = ['done', 'error'].includes(song.stage);
+        const isSuno = this._engineOf(song) === 'suno';
+        const isFinalStage = isSuno ? ['style-done', 'error'].includes(song.stage) : ['done', 'error'].includes(song.stage);
+        const isInstrumental = !!(this.SONG_TYPES.find(t => t.value === song.songType) || {}).isInstrumental;
+        const badgeText = isSuno && song.stage === 'style-done' ? I18n.t('music.stage_suno_ready') : badge.text;
+        const tlTarget = this._translationTarget();
+        const tlBusy = Utils.isLocked(`music-tl:${song.id}`);
+        const tlOpen = this._tlOpenId === song.id;
+        this._tlOpenId = null;
 
         container.innerHTML = `
             <div style="padding: 16px; max-width: 720px; margin: 0 auto;">
@@ -531,7 +706,7 @@ Now produce tags based on the inputs below. Do NOT echo the inputs.`;
                 <div style="margin-bottom: 18px;">
                     <h2 style="margin: 0 0 6px 0; font-size: 22px;">${this._escHtml(song.title)}</h2>
                     <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 6px;">${this._escHtml(typeLabel)}${plot ? ' ・ ' + this._escHtml(plot.title || '') : ''}</div>
-                    <div style="display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 12px; background: ${badge.color}1a; color: ${badge.color}; font-weight: 600;">${badge.text}</div>
+                    <div style="display: inline-block; font-size: 12px; padding: 3px 10px; border-radius: 12px; background: ${badge.color}1a; color: ${badge.color}; font-weight: 600;">${badgeText}</div>
                     ${song.error ? `<div style="margin-top: 8px; font-size: 12px; color: #ef4444;">${I18n.t('music.error_detail')}：${this._escHtml(song.error)}</div>` : ''}
                 </div>
 
@@ -549,10 +724,25 @@ Now produce tags based on the inputs below. Do NOT echo the inputs.`;
                     </div>
                 ` : ''}
 
+                ${isSuno && isFinalStage && song.stylePrompt ? `
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+                        <button onclick="Music.copyForSuno('${song.id}', 'style')" class="glass-btn primary" style="font-size: 13px;">${I18n.t('music.btn_copy_style')}</button>
+                        ${!isInstrumental && song.lyrics ? `<button onclick="Music.copyForSuno('${song.id}', 'lyrics')" class="glass-btn primary" style="font-size: 13px;">${I18n.t('music.btn_copy_lyrics')}</button>` : ''}
+                    </div>
+                ` : ''}
+
                 ${song.lyrics ? `
                     <div style="margin-bottom: 16px;">
                         <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">${I18n.t('music.section_lyrics')}</div>
                         <pre style="white-space: pre-wrap; padding: 14px; background: var(--bg-card); border-radius: 10px; font-size: 13px; line-height: 1.7; font-family: inherit; margin: 0;">${this._escHtml(song.lyrics)}</pre>
+                        ${!isInstrumental && tlTarget ? (song.lyricsTranslation ? `
+                            <details${tlOpen ? ' open' : ''} style="margin-top: 8px;">
+                                <summary style="font-size: 12px; color: var(--text-secondary); cursor: pointer;">${I18n.t('music.tl_show')}</summary>
+                                <pre style="white-space: pre-wrap; padding: 14px; margin: 6px 0 0 0; background: var(--bg-card); border-radius: 10px; font-size: 13px; line-height: 1.7; font-family: inherit; color: var(--text-secondary);">${this._escHtml(song.lyricsTranslation)}</pre>
+                            </details>
+                        ` : `
+                            <button onclick="Music.translateLyrics('${song.id}')" class="glass-btn" style="font-size: 12px; margin-top: 8px;"${tlBusy ? ' disabled' : ''}>${I18n.t(tlBusy ? 'music.tl_loading' : 'music.tl_show')}</button>
+                        `) : ''}
                     </div>
                 ` : ''}
 
@@ -564,13 +754,13 @@ Now produce tags based on the inputs below. Do NOT echo the inputs.`;
 
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px;">
                     ${isLyricsConfirmStage ? `
-                        <button onclick="Music.confirmGenerate('${song.id}')" class="glass-btn primary" style="font-size: 13px;">${I18n.t('music.btn_confirm_gen')}</button>
+                        <button onclick="Music.confirmGenerate('${song.id}')" class="glass-btn primary" style="font-size: 13px;">${I18n.t(isSuno ? 'music.btn_confirm_gen_suno' : 'music.btn_confirm_gen')}</button>
                         <button onclick="Music.regenerateLyricsOnly('${song.id}')" class="glass-btn" style="font-size: 12px;">${I18n.t('music.btn_rewrite_lyrics')}</button>
                     ` : ''}
                     ${isFinalStage ? `
                         <button onclick="Music.regenerate('${song.id}', 'lyrics')" class="glass-btn" style="font-size: 12px;">${I18n.t('music.btn_regen_lyrics')}</button>
-                        <button onclick="Music.regenerate('${song.id}', 'style')"  class="glass-btn" style="font-size: 12px;">${I18n.t('music.btn_regen_style')}</button>
-                        <button onclick="Music.regenerate('${song.id}', 'audio')"  class="glass-btn" style="font-size: 12px;">${I18n.t('music.btn_regen_audio')}</button>
+                        <button onclick="Music.regenerate('${song.id}', 'style')"  class="glass-btn" style="font-size: 12px;">${I18n.t(isSuno ? 'music.btn_regen_style_suno' : 'music.btn_regen_style')}</button>
+                        ${isSuno ? '' : `<button onclick="Music.regenerate('${song.id}', 'audio')"  class="glass-btn" style="font-size: 12px;">${I18n.t('music.btn_regen_audio')}</button>`}
                     ` : ''}
                     <button onclick="Music.deleteSong('${song.id}')" class="glass-btn" style="font-size: 12px; color: #ef4444; border-color: #ef4444;">${I18n.t('music.btn_delete')}</button>
                 </div>
